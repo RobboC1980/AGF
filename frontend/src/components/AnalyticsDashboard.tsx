@@ -114,12 +114,13 @@ interface TeamMetrics {
 interface AnalyticsDashboardProps {
   projectId: string
   sprintId?: string
-  timeRange?: 'week' | 'month' | 'quarter' | 'year'
+  initialTimeRange?: 'week' | 'month' | 'quarter' | 'year'
 }
 
-export default function AnalyticsDashboard({ projectId, sprintId, timeRange = 'month' }: AnalyticsDashboardProps) {
+export default function AnalyticsDashboard({ projectId, sprintId, initialTimeRange = 'month' }: AnalyticsDashboardProps) {
   const [activeTab, setActiveTab] = useState<'velocity' | 'burndown' | 'flow' | 'team'>('velocity')
   const [selectedSprint, setSelectedSprint] = useState<string>(sprintId || 'current')
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>(initialTimeRange)
 
   // Fetch analytics data
   const { data: analyticsData, isLoading, error } = useQuery<AnalyticsData>({

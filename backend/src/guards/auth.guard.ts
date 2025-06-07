@@ -1,10 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { UserRole, Permission, hasPermission, JWTPayload } from '../types/auth';
 
-// Extend FastifyRequest to include user
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: JWTPayload;
+// Override @fastify/jwt module to use our JWTPayload type
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: JWTPayload;
+    user: JWTPayload;
   }
 }
 

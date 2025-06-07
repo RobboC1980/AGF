@@ -226,7 +226,9 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
           where: { story: { epic: { projectId: id } } } 
         }),
         sprints: await fastify.prisma.sprint.count({ where: { projectId: id } }),
-        risks: await fastify.prisma.risk.count({ where: { projectId: id } })
+        risks: await fastify.prisma.risk.count({ 
+          where: { initiative: { projectId: id } } 
+        })
       };
 
       return {

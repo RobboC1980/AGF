@@ -202,7 +202,8 @@ export default function EpicForm({ onSuccess, onCancel, initialData, mode = 'cre
         </div>
       </form>
 
-      <style jsx>{`
+      <style>
+        {`
         .epic-form-container {
           max-width: 600px;
           margin: 0 auto;
@@ -360,7 +361,8 @@ export default function EpicForm({ onSuccess, onCancel, initialData, mode = 'cre
             transform: rotate(360deg);
           }
         }
-      `}</style>
+        `}
+      </style>
     </div>
   )
 } 

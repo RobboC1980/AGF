@@ -230,7 +230,7 @@ export default function SprintPlanningBoard({ projectId, activeSprint }: SprintP
                       )}
                     </Draggable>
                   ))}
-                  {provided.placeholder}
+                  {provided.placeholder as React.ReactNode}
                 </div>
               )}
             </Droppable>
@@ -303,7 +303,7 @@ export default function SprintPlanningBoard({ projectId, activeSprint }: SprintP
                             )}
                           </Draggable>
                         ))}
-                        {provided.placeholder}
+                        {provided.placeholder as React.ReactNode}
                       </div>
                     )}
                   </Droppable>

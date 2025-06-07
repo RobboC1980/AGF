@@ -425,7 +425,7 @@ const DependencyManager: React.FC<DependencyManagerProps> = ({ projectId }) => {
                               )}
                             </Draggable>
                           ))}
-                        {provided.placeholder}
+                        {provided.placeholder as React.ReactNode}
                       </div>
                     )}
                   </Droppable>

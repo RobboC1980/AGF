@@ -90,7 +90,8 @@ export default function KanbanBoard({ projectId, sprintId, showSwimlanes = false
     const updates: Partial<Task> = { status: newStatus }
     if (newStatus === 'done') {
       updates.completedAt = new Date().toISOString()
-    } else if (newStatus !== 'done' && source.droppableId.endsWith('done')) {
+    } else if (source.droppableId.includes('done')) {
+      // Task was moved from done column to another column
       updates.completedAt = undefined
     }
 
@@ -302,7 +303,7 @@ export default function KanbanBoard({ projectId, sprintId, showSwimlanes = false
                               {columnTasks.map((task, index) => (
                                 <TaskCard key={task.id} task={task} index={index} compactView={compactView} />
                               ))}
-                              {provided.placeholder}
+                              {provided.placeholder as React.ReactNode}
                             </div>
                           )}
                         </Droppable>
@@ -339,7 +340,7 @@ export default function KanbanBoard({ projectId, sprintId, showSwimlanes = false
                         {columnTasks.map((task, index) => (
                           <TaskCard key={task.id} task={task} index={index} compactView={compactView} />
                         ))}
-                        {provided.placeholder}
+                        {provided.placeholder as React.ReactNode}
                       </div>
                     )}
                   </Droppable>

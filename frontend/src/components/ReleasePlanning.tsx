@@ -239,7 +239,6 @@ function CreateReleaseModal({ projectId, onClose, onSubmit, isLoading }: CreateR
     e.preventDefault()
     onSubmit({
       ...formData,
-      projectId,
       startDate: new Date(formData.startDate).toISOString(),
       targetDate: new Date(formData.targetDate).toISOString(),
       totalStoryPoints: 0,
