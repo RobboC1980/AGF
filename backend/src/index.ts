@@ -291,14 +291,16 @@ const start = async () => {
     const host = process.env.HOST || '0.0.0.0'
     
     await app.listen({ port, host })
-    
-    console.log(`
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`
 🚀 AgileForge Backend v2.0 Started Successfully!
 📍 Server running on http://${host}:${port}
 🔐 RBAC Enabled with 5 user roles
 🏗️  Modular architecture implemented
 ✅ JWT Security configured
-    `)
+      `)
+    }
   } catch (err) {
     app.log.error(err)
     process.exit(1)
