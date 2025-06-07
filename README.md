@@ -46,6 +46,21 @@ Visit <http://localhost:5173>
 | `pnpm build` | prod build |
 | `pnpm prisma:migrate` | apply DB migrations |
 
+## Running tests
+
+Install all workspace dependencies from the repository root:
+
+```bash
+npm install
+```
+
+Then execute:
+
+```bash
+npm test
+```
+
+
 ---
 
 > _This repository is a production‑ready foundation covering all CRUD artefacts (Projects, Epics, Stories, Tasks, Sprints, Initiatives, Risks, OKRs) with JWT auth, full Prisma models, and modular front‑end. Extend as needed._
