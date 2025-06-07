@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: agileforge-backend
+    env: node
+    plan: free
+    buildCommand: |
+      cd backend
+      npm install
+      npm run build
+    startCommand: |
+      cd backend
+      npm start
+    envVars:
+      - fromDatabase:
+          name: DATABASE_URL
+          property: connectionString
+          databaseId: agileforge-db
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: openai
+
+databases:
+  - name: agileforge-db
+    plan: free
+
+# Provision a free PostgreSQL instance
+# DATABASE_URL is automatically injected above
+
+# Defines the database used by the service
+# The name must match the databaseId above
+
+# For more options see https://render.com/docs/yaml-spec
+
