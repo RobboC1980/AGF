@@ -49,3 +49,4 @@ Visit <http://localhost:5173>
 ---
 
 > _This repository is a production‑ready foundation covering all CRUD artefacts (Projects, Epics, Stories, Tasks, Sprints, Initiatives, Risks, OKRs) with JWT auth, full Prisma models, and modular front‑end. Extend as needed._
+# AGF
