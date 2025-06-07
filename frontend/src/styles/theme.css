@@ -1,0 +1,40 @@
+:root {
+  --primary: #0088cc;
+  --primary-light: #47a9da;
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --border: #dcdcdc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --text: #f1f1f1;
+    --border: #444;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+* {
+  box-sizing: border-box;
+}
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+}
+button {
+  margin-right: .5rem;
+}
