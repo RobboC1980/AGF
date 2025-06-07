@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../services/api';
 
 interface Story {
   id: string;
@@ -54,51 +55,18 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSuccess, onCancel }) => {
   // Fetch stories for dropdown
   const { data: storiesData } = useQuery({
     queryKey: ['stories'],
-    queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/stories', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch stories');
-      return response.json();
-    }
+    queryFn: () => apiClient.getStories(),
   });
 
   // Fetch sprints for dropdown
   const { data: sprintsData } = useQuery({
     queryKey: ['sprints'],
-    queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/sprints', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch sprints');
-      return response.json();
-    }
+    queryFn: () => apiClient.getSprints(),
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: Task) => {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/tasks', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(taskData)
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create task');
-      }
-      return response.json();
+      return apiClient.createTask(taskData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -110,20 +78,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ task, onSuccess, onCancel }) => {
 
   const updateTaskMutation = useMutation({
     mutationFn: async (taskData: Task) => {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/tasks/${task?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(taskData)
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update task');
-      }
-      return response.json();
+      if (!task?.id) throw new Error('Task ID missing');
+      return apiClient.updateTask(task.id, taskData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

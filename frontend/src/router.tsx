@@ -17,10 +17,10 @@ function requireAuth() {
   
   // Check the auth store first, then fall back to localStorage
   const authState = useAuth.getState()
-  const token = authState.token || localStorage.getItem('token')
-  
+  const token = authState.token || localStorage.getItem('auth_token')
+
   console.log('requireAuth: token from auth store:', authState.token ? 'exists' : 'null')
-  console.log('requireAuth: token from localStorage:', localStorage.getItem('token') ? 'exists' : 'null')
+  console.log('requireAuth: token from localStorage:', localStorage.getItem('auth_token') ? 'exists' : 'null')
   console.log('requireAuth: using token:', token ? 'exists' : 'null')
   
   if (!token) {

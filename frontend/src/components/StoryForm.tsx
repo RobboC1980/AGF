@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../services/api';
 
 interface Epic {
   id: string;
@@ -43,35 +44,12 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
   // Fetch epics for dropdown
   const { data: epicsData, isLoading: epicsLoading } = useQuery({
     queryKey: ['epics'],
-    queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/epics', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch epics');
-      return response.json();
-    }
+    queryFn: () => apiClient.getEpics(),
   });
 
   const createStoryMutation = useMutation({
     mutationFn: async (storyData: Story) => {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/stories', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(storyData)
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create story');
-      }
-      return response.json();
+      return apiClient.createStory(storyData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stories'] });
@@ -82,20 +60,8 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
 
   const updateStoryMutation = useMutation({
     mutationFn: async (storyData: Story) => {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/stories/${story?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(storyData)
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update story');
-      }
-      return response.json();
+      if (!story?.id) throw new Error('Story ID missing');
+      return apiClient.updateStory(story.id, storyData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stories'] });
