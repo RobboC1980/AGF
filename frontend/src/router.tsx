@@ -8,27 +8,20 @@ import EntityListPage from './pages/EntityListPage'
 import AdvancedWorkflowPage from './pages/AdvancedWorkflowPage'
 import { useAuth } from './store/useAuth'
 
+const TOKEN_STORAGE_KEY = 'auth_token'
+
 function requireAuth() {
-  // Check if we're in the browser
   if (typeof window === 'undefined') {
-    console.log('requireAuth: Not in browser, returning null')
     return null
   }
-  
-  // Check the auth store first, then fall back to localStorage
+
   const authState = useAuth.getState()
-  const token = authState.token || localStorage.getItem('token')
-  
-  console.log('requireAuth: token from auth store:', authState.token ? 'exists' : 'null')
-  console.log('requireAuth: token from localStorage:', localStorage.getItem('token') ? 'exists' : 'null')
-  console.log('requireAuth: using token:', token ? 'exists' : 'null')
-  
+  const token = authState.token || localStorage.getItem(TOKEN_STORAGE_KEY)
+
   if (!token) {
-    console.log('requireAuth: No token, redirecting to login')
     throw redirect('/login')
   }
-  
-  console.log('requireAuth: Token exists, allowing access')
+
   return null
 }
 
