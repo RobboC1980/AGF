@@ -4,27 +4,30 @@ import { RouterProvider } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { router } from './router'
 import { useAuth } from './store/useAuth'
-import { setAuthToken } from './api/client'
+import { apiClient } from './services/api'
 import './styles/global.css'
 import './styles/agile-workflow.css'
 
+const TOKEN_STORAGE_KEY = 'auth_token' // Standardized key
+const isDevelopment = import.meta.env.DEV
+
 // Initialize auth token from storage
 const initializeAuth = () => {
-  console.log('Initializing authentication...')
+  if (isDevelopment) console.log('Initializing authentication...')
   
   // First check zustand state
   const authState = useAuth.getState()
   if (authState.token) {
-    console.log('Using token from auth state')
-    setAuthToken(authState.token)
+    if (isDevelopment) console.log('Using token from auth state')
+    apiClient.setToken(authState.token)
     return
   }
   
   // Fallback to localStorage if zustand hasn't hydrated yet
-  const storedToken = localStorage.getItem('token')
+  const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
   if (storedToken) {
-    console.log('Using token from localStorage as fallback')
-    setAuthToken(storedToken)
+    if (isDevelopment) console.log('Using token from localStorage as fallback')
+    apiClient.setToken(storedToken)
     return
   }
   
@@ -34,16 +37,16 @@ const initializeAuth = () => {
     try {
       const parsed = JSON.parse(authStorage)
       if (parsed.state?.token) {
-        console.log('Using token from persisted auth storage')
-        setAuthToken(parsed.state.token)
+        if (isDevelopment) console.log('Using token from persisted auth storage')
+        apiClient.setToken(parsed.state.token)
         return
       }
     } catch (error) {
-      console.warn('Failed to parse auth storage:', error)
+      if (isDevelopment) console.warn('Failed to parse auth storage:', error)
     }
   }
   
-  console.log('No authentication token found')
+  if (isDevelopment) console.log('No authentication token found')
 }
 
 initializeAuth()

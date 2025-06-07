@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { apiClient } from '../services/api'
 
+const TOKEN_STORAGE_KEY = 'auth_token' // Standardized key matching API client
+
 interface User {
   id: string
   email: string
@@ -19,6 +21,8 @@ interface AuthState {
   clearError: () => void
 }
 
+const isDevelopment = import.meta.env.DEV
+
 export const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -29,18 +33,17 @@ export const useAuth = create<AuthState>()(
 
       async login(email, password) {
         set({ isLoading: true, error: null })
-        console.log('Auth store login called with:', email)
+        if (isDevelopment) console.log('Auth store login called with:', email)
         try {
-          console.log('Making API call to /auth/login...')
+          if (isDevelopment) console.log('Making API call to /auth/login...')
           const response = await apiClient.login(email, password)
-          console.log('Login API response:', response)
+          if (isDevelopment) console.log('Login API response:', response)
           const { token, user } = response
           
-          console.log('Setting auth token and updating state...')
           apiClient.setToken(token)
           
-          // Immediately save to localStorage to prevent timing issues
-          localStorage.setItem('token', token)
+          // Save to localStorage with standardized key
+          localStorage.setItem(TOKEN_STORAGE_KEY, token)
           
           set({ 
             token, 
@@ -48,8 +51,7 @@ export const useAuth = create<AuthState>()(
             isLoading: false,
             error: null 
           })
-          console.log('Auth state updated successfully')
-          console.log('Token saved to localStorage:', localStorage.getItem('token') ? 'success' : 'failed')
+          if (isDevelopment) console.log('Auth state updated successfully')
         } catch (error: any) {
           console.error('Auth store login error:', error)
           const errorMessage = error.message || 'Login failed'
@@ -81,7 +83,7 @@ export const useAuth = create<AuthState>()(
 
       logout() {
         apiClient.clearToken()
-        localStorage.removeItem('token')
+        localStorage.removeItem(TOKEN_STORAGE_KEY)
         localStorage.removeItem('auth-storage')
         set({ 
           token: null, 
@@ -103,19 +105,19 @@ export const useAuth = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         // Restore auth token on app start
         if (state?.token) {
-          console.log('Restoring auth token from storage')
+          if (isDevelopment) console.log('Restoring auth token from storage')
           apiClient.setToken(state.token)
         } else {
           // Fallback: check if token exists in localStorage directly
-          const directToken = localStorage.getItem('token')
+          const directToken = localStorage.getItem(TOKEN_STORAGE_KEY)
           if (directToken) {
-            console.log('Using fallback token from localStorage')
+            if (isDevelopment) console.log('Using fallback token from localStorage')
             apiClient.setToken(directToken)
             // Update the state with the fallback token
             setTimeout(() => {
               const currentState = useAuth.getState()
               if (!currentState.token && directToken) {
-                console.log('Setting state with fallback token')
+                if (isDevelopment) console.log('Setting state with fallback token')
                 useAuth.setState({ token: directToken })
               }
             }, 100)
