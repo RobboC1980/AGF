@@ -2,6 +2,9 @@
   "name": "agileforge",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "backend:dev": "cd backend && npm run dev",
     "backend:start": "cd backend && OPENAI_API_KEY=\"$OPENAI_API_KEY\" ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" AI_PROVIDER=\"$AI_PROVIDER\" npx tsx src/index.ts",
