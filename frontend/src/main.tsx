@@ -5,11 +5,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { router } from './router'
 import { useAuth } from './store/useAuth'
 import { apiClient } from './services/api'
+import { initTheme } from './utils/theme'
 import './styles/global.css'
 import './styles/agile-workflow.css'
 
 const TOKEN_STORAGE_KEY = 'auth_token' // Standardized key
 const isDevelopment = import.meta.env.DEV
+
+// Apply saved theme preference
+initTheme()
 
 // Initialize auth token from storage
 const initializeAuth = () => {

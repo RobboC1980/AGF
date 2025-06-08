@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/useAuth'
 import { Entity } from '../hooks/useEntity'
+import { applyTheme, initTheme, Theme } from '../utils/theme'
 
 const navigation: { name: string; href: string; icon: string; entity: Entity }[] = [
   { name: 'Dashboard', href: '/', icon: '📊', entity: 'projects' },
@@ -20,6 +21,14 @@ export default function Layout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [theme, setTheme] = useState<Theme>(() => initTheme())
+
+  const toggleTheme = () => {
+    const next: Theme = theme === 'light' ? 'dark' : 'light'
+    setTheme(next)
+    applyTheme(next)
+    localStorage.setItem('theme', next)
+  }
 
   const handleLogout = () => {
     logout()
@@ -174,13 +183,23 @@ export default function Layout() {
               </div>
 
               {/* Notifications */}
-              <button 
+              <button
                 className="notification-btn"
                 aria-label="View notifications"
                 title="View notifications"
               >
                 <span>🔔</span>
                 <span className="notification-badge"></span>
+              </button>
+
+              {/* Theme toggle */}
+              <button
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? '☀️' : '🌙'}
               </button>
             </div>
           </div>
