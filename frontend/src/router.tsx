@@ -9,6 +9,7 @@ import AdvancedWorkflowPage from './pages/AdvancedWorkflowPage'
 import { useAuth } from './store/useAuth'
 
 const isDevelopment = import.meta.env.DEV
+const TOKEN_STORAGE_KEY = 'auth_token'
 
 function requireAuth() {
   // Check if we're in the browser
@@ -19,10 +20,10 @@ function requireAuth() {
   
   // Check the auth store first, then fall back to localStorage
   const authState = useAuth.getState()
-  const token = authState.token || localStorage.getItem('token')
+  const token = authState.token || localStorage.getItem(TOKEN_STORAGE_KEY)
   
   if (isDevelopment) console.log('requireAuth: token from auth store:', authState.token ? 'exists' : 'null')
-  if (isDevelopment) console.log('requireAuth: token from localStorage:', localStorage.getItem('token') ? 'exists' : 'null')
+  if (isDevelopment) console.log('requireAuth: token from localStorage:', localStorage.getItem(TOKEN_STORAGE_KEY) ? 'exists' : 'null')
   if (isDevelopment) console.log('requireAuth: using token:', token ? 'exists' : 'null')
   
   if (!token) {
