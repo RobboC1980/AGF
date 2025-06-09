@@ -1,38 +1,28 @@
 services:
+  # Web Service (FastAPI Backend)
   - type: web
-    name: agileforge-backend
-    env: node
-    plan: free
-    buildCommand: |
-      cd backend
-      npm install
-      npm run build
-    startCommand: |
-      cd backend
-      npm start
+    name: agilescribe-api
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - fromDatabase:
-          name: DATABASE_URL
-          property: connectionString
-          databaseId: agileforge-db
+      - key: ENVIRONMENT
+        value: production
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: OPENAI_API_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: AI_PROVIDER
-        value: openai
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agilescribe-db
+          property: connectionString
+      - key: FRONTEND_URL
+        value: https://agilescribe.vercel.app
 
 databases:
-  - name: agileforge-db
-    plan: free
-
-# Provision a free PostgreSQL instance
-# DATABASE_URL is automatically injected above
-
-# Defines the database used by the service
-# The name must match the databaseId above
-
-# For more options see https://render.com/docs/yaml-spec
-
+  # PostgreSQL Database
+  - name: agilescribe-db
+    plan: starter
+    databaseName: agilescribe
+    user: agilescribe_user
