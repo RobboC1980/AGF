@@ -45,11 +45,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration for Render deployment
+# CORS configuration for deployment
 allowed_origins = [
     "http://localhost:3000",  # Local development
     "http://localhost:3001",  # Alternative local port
-    "https://agilescribe.vercel.app",  # Vercel deployment
+    "https://v0-agile-forge-40higfdur-clariq.vercel.app",  # Your Vercel deployment
     "https://*.vercel.app",  # Vercel preview deployments
 ]
 

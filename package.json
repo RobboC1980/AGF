@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:backend": "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 4000 --reload",
+    "setup:backend": "cd backend && pip install -r requirements.txt",
+    "health:check": "curl -f http://localhost:4000/health || echo 'Backend not running'"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
