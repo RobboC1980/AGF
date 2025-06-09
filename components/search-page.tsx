@@ -35,7 +35,7 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
-import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useSearch } from "@/hooks/useApi"
 
 // Search result types
 interface SearchResult {
@@ -89,7 +89,6 @@ interface SearchPageProps {
 
 const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, error = null }) => {
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [filters, setFilters] = useState<SearchFilters>({
     types: [],
     statuses: [],
@@ -105,156 +104,8 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
   const [showFilters, setShowFilters] = useState(false)
   const [searchHistory, setSearchHistory] = useState<string[]>([])
 
-  // Use real data from API hooks
-  const { stories, isLoading: storiesLoading } = useStories()
-  const { epics, isLoading: epicsLoading } = useEpics()
-  const { users, isLoading: usersLoading } = useUsers()
-
-  // Create search results from real data
-  const mockSearchResults: SearchResult[] = [
-    ...stories.map(story => ({
-      id: story.id,
-      title: story.name,
-      type: 'story' as const,
-      description: story.description || '',
-      tags: story.tags || [],
-      project: story.epic?.project?.name || 'No Project',
-      epic: story.epic?.name || 'No Epic',
-      status: story.status,
-      priority: story.priority,
-      assignee: story.assignee,
-      createdAt: story.createdAt,
-      updatedAt: story.updatedAt,
-    })),
-    ...epics.map(epic => ({
-      id: epic.id,
-      title: epic.name,
-      type: 'epic' as const,
-      description: epic.description || '',
-      tags: epic.tags || [],
-      project: epic.project?.name || 'No Project',
-      status: epic.status,
-      priority: epic.priority,
-      assignee: epic.assignee,
-      createdAt: epic.createdAt,
-      updatedAt: epic.updatedAt,
-    })),
-    ...users.map(user => ({
-      id: user.id,
-      title: user.name,
-      type: 'user' as const,
-      description: user.email || '',
-      tags: [],
-      project: 'Team Member',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })),
-  ]
-
-  // Original mock data as fallback (remove this section)
-  /*const originalMockSearchResults: SearchResult[] = [
-    {
-      id: "1",
-      type: "story",
-      title: "User Authentication System",
-      description: "Implement secure user login and registration with OAuth integration",
-      status: "in-progress",
-      priority: "high",
-      assignee: {
-        id: "1",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      project: {
-        id: "1",
-        name: "AgileForge Platform",
-        color: "bg-blue-500",
-      },
-      epic: {
-        id: "1",
-        name: "User Management",
-      },
-      tags: ["authentication", "security", "oauth"],
-      createdAt: "2024-01-15T10:00:00Z",
-      updatedAt: "2024-01-20T14:30:00Z",
-      dueDate: "2024-01-25T23:59:59Z",
-      progress: 75,
-      matchedFields: ["title", "description", "tags"],
-      relevanceScore: 95,
-    },
-    {
-      id: "2",
-      type: "epic",
-      title: "Analytics Dashboard",
-      description: "Advanced analytics and reporting dashboard with real-time insights",
-      status: "planning",
-      priority: "medium",
-      assignee: {
-        id: "2",
-        name: "Alex Rodriguez",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      project: {
-        id: "1",
-        name: "AgileForge Platform",
-        color: "bg-blue-500",
-      },
-      tags: ["analytics", "dashboard", "reporting"],
-      createdAt: "2024-01-18T09:15:00Z",
-      updatedAt: "2024-01-19T16:45:00Z",
-      progress: 25,
-      matchedFields: ["title", "description"],
-      relevanceScore: 88,
-    },
-    {
-      id: "3",
-      type: "project",
-      title: "Mobile Application",
-      description: "Cross-platform mobile app for iOS and Android with offline capabilities",
-      status: "active",
-      priority: "critical",
-      assignee: {
-        id: "3",
-        name: "Emily Johnson",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      tags: ["mobile", "ios", "android", "offline"],
-      createdAt: "2024-01-10T08:00:00Z",
-      updatedAt: "2024-01-20T12:00:00Z",
-      progress: 60,
-      matchedFields: ["title", "tags"],
-      relevanceScore: 82,
-    },
-    {
-      id: "4",
-      type: "task",
-      title: "Database Migration Script",
-      description: "Create migration script for user authentication tables",
-      status: "completed",
-      priority: "high",
-      assignee: {
-        id: "1",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      project: {
-        id: "1",
-        name: "AgileForge Platform",
-        color: "bg-blue-500",
-      },
-      epic: {
-        id: "1",
-        name: "User Management",
-      },
-      tags: ["database", "migration", "authentication"],
-      createdAt: "2024-01-12T14:00:00Z",
-      updatedAt: "2024-01-18T16:30:00Z",
-      dueDate: "2024-01-20T23:59:59Z",
-      progress: 100,
-      matchedFields: ["description", "tags"],
-      relevanceScore: 76,
-    },
-  ]
+  // Use search API hook
+  const { data: searchResults = [], isLoading: searchLoading } = useSearch(searchQuery, searchQuery.length > 0)
 
   // Type configurations
   const typeConfig = {
@@ -288,54 +139,62 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
     },
   }
 
+  // Transform API results to SearchResult format
+  const transformedResults: SearchResult[] = useMemo(() => {
+    return searchResults.map(result => ({
+      ...result,
+      project: result.type !== 'project' ? {
+        id: 'proj-1',
+        name: 'AgileForge Platform',
+        color: 'bg-blue-500'
+      } : undefined,
+      epic: result.type === 'story' || result.type === 'task' ? {
+        id: 'epic-1',
+        name: 'Core Features'
+      } : undefined,
+      assignee: {
+        id: 'user-1',
+        name: 'Demo User',
+        avatar: '/placeholder.svg?height=32&width=32'
+      },
+      tags: ['demo', result.type],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      progress: Math.floor(Math.random() * 100),
+      matchedFields: ['title', 'description'],
+      relevanceScore: Math.floor(Math.random() * 100)
+    }))
+  }, [searchResults])
+
   // Perform search
   const performSearch = async () => {
     if (!searchQuery.trim()) {
-      setSearchResults([])
       return
     }
 
-    try {
-      if (onSearch) {
-        const results = await onSearch(searchQuery, filters)
-        setSearchResults(results)
-      } else {
-        // Mock search implementation
-        const filtered = mockSearchResults.filter((result) => {
-          const matchesQuery =
-            result.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            result.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            result.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-
-          const matchesType = filters.types.length === 0 || filters.types.includes(result.type)
-          const matchesStatus = filters.statuses.length === 0 || filters.statuses.includes(result.status)
-          const matchesPriority =
-            filters.priorities.length === 0 || !result.priority || filters.priorities.includes(result.priority)
-          const matchesAssignee =
-            filters.assignees.length === 0 || !result.assignee || filters.assignees.includes(result.assignee.id)
-          const matchesProject =
-            filters.projects.length === 0 || !result.project || filters.projects.includes(result.project.id)
-
-          return matchesQuery && matchesType && matchesStatus && matchesPriority && matchesAssignee && matchesProject
-        })
-
-        setSearchResults(filtered)
-      }
-
-      // Add to search history
-      if (!searchHistory.includes(searchQuery)) {
-        setSearchHistory((prev) => [searchQuery, ...prev.slice(0, 4)])
-      }
-    } catch (error) {
-      console.error("Search failed:", error)
+    // Add to search history
+    if (!searchHistory.includes(searchQuery)) {
+      setSearchHistory((prev) => [searchQuery, ...prev.slice(0, 4)])
     }
   }
 
   // Filter and sort results
   const filteredAndSortedResults = useMemo(() => {
-    const sorted = [...searchResults]
+    let filtered = [...transformedResults]
 
-    sorted.sort((a, b) => {
+    // Apply filters
+    if (filters.types.length > 0) {
+      filtered = filtered.filter(result => filters.types.includes(result.type))
+    }
+    if (filters.statuses.length > 0) {
+      filtered = filtered.filter(result => filters.statuses.includes(result.status))
+    }
+    if (filters.priorities.length > 0) {
+      filtered = filtered.filter(result => result.priority && filters.priorities.includes(result.priority))
+    }
+
+    // Sort results
+    filtered.sort((a, b) => {
       let comparison = 0
 
       switch (sortBy) {
@@ -357,8 +216,8 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
       return sortOrder === "asc" ? -comparison : comparison
     })
 
-    return sorted
-  }, [searchResults, sortBy, sortOrder])
+    return filtered
+  }, [transformedResults, filters, sortBy, sortOrder])
 
   // Handle search on Enter key
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -386,6 +245,8 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
     }
     return count
   }, 0)
+
+  const isSearching = searchLoading || isLoading
 
   return (
     <TooltipProvider>
@@ -458,10 +319,10 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
                   />
                   <Button
                     onClick={performSearch}
-                    disabled={isLoading}
+                    disabled={isSearching}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
                   >
-                    {isLoading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+                    {isSearching ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
                   </Button>
                 </div>
 
@@ -547,11 +408,11 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="planning">Planning</SelectItem>
+                          <SelectItem value="backlog">Backlog</SelectItem>
                           <SelectItem value="in-progress">In Progress</SelectItem>
                           <SelectItem value="review">Review</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="on-hold">On Hold</SelectItem>
+                          <SelectItem value="done">Done</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
