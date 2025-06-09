@@ -5,15 +5,16 @@ import { QueryProvider } from "../providers/query-provider"
 import { ToastProvider } from "../providers/toast-provider"
 import EpicsPage from "../components/epics-page"
 import ProjectsPage from "../components/projects-page"
+import UserStoriesPage from "../components/user-stories-page"
 import SearchPage from "../components/search-page"
 import KanbanBoard from "../components/kanban-board"
 import AnalyticsDashboard from "../components/analytics-dashboard"
 import CollaborationPanel from "../components/collaboration-panel"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Rocket, Target, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
+import { Rocket, Target, BookOpen, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
 
-type PageType = "epics" | "projects" | "search" | "kanban" | "analytics" | "collaboration"
+type PageType = "epics" | "projects" | "stories" | "search" | "kanban" | "analytics" | "collaboration"
 
 export default function Page() {
   const [currentPage, setCurrentPage] = useState<PageType>("epics")
@@ -162,6 +163,7 @@ export default function Page() {
   const pages = [
     { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },
     { value: "projects", label: "Projects", icon: Target, description: "Strategic project portfolio" },
+    { value: "stories", label: "User Stories", icon: BookOpen, description: "Feature requirements and user workflows" },
     { value: "search", label: "Search", icon: Search, description: "Find anything quickly" },
     { value: "kanban", label: "Kanban", icon: Columns, description: "Visual workflow management" },
     { value: "analytics", label: "Analytics", icon: BarChart3, description: "Performance insights" },
@@ -215,6 +217,16 @@ export default function Page() {
 
           {currentPage === "projects" && (
             <ProjectsPage
+              isLoading={isLoading}
+              onRefresh={handleRefresh}
+              onCreateNew={handleCreateNew}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
+
+          {currentPage === "stories" && (
+            <UserStoriesPage
               isLoading={isLoading}
               onRefresh={handleRefresh}
               onCreateNew={handleCreateNew}
