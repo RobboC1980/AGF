@@ -424,19 +424,19 @@ export default function EntityForm({ entity, mode, initialData, relatedData }: E
                   type="button"
                   onClick={handleAIGeneration}
                   disabled={isGeneratingAI || !formData.epicId}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1 rounded-md text-xs font-medium hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 glass bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:from-purple-600 hover:to-blue-600 hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-soft hover-lift"
                   title={!formData.epicId ? "Please select an epic first" : "Generate AI story suggestions"}
                   aria-label={!formData.epicId ? "Please select an epic first" : "Generate AI story suggestions"}
                 >
                   {isGeneratingAI ? (
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
                       <span className="loading-spinner-small"></span>
-                      AI
+                      <span className="text-gradient">AI</span>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1">
-                      <span>🤖</span>
-                      AI
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-sm">🤖</span>
+                      <span className="font-bold tracking-wide">AI</span>
                     </span>
                   )}
                 </button>
@@ -568,9 +568,9 @@ export default function EntityForm({ entity, mode, initialData, relatedData }: E
   return (
     <div className="card animate-fade-in">
       <div className="card-header">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-lg">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 glass bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-soft hover-glow">
+            <span className="text-white text-xl">
               {mode === 'create' ? '➕' : '✏️'}
             </span>
           </div>
@@ -607,7 +607,7 @@ export default function EntityForm({ entity, mode, initialData, relatedData }: E
           
           {/* AI Suggestions Panel for Stories */}
           {entity === 'stories' && showAISuggestions && (
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-6">
+            <div className="glass-strong bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-6 mb-6 shadow-soft hover-lift">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-semibold text-purple-800 flex items-center gap-2">
