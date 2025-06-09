@@ -39,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useAnalytics, useStories, useEpics, useUsers } from "@/hooks/useApi"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -95,33 +96,34 @@ interface AnalyticsData {
 }
 
 interface AnalyticsDashboardProps {
-  data?: AnalyticsData
   timeRange?: "7d" | "30d" | "90d" | "1y"
   onTimeRangeChange?: (range: string) => void
   onExport?: () => void
-  onRefresh?: () => void
 }
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
-  data,
   timeRange = "30d",
   onTimeRangeChange,
   onExport,
-  onRefresh,
 }) => {
+  // Use real API data instead of mock data
+  const { analytics, isLoading, error, refetch } = useAnalytics()
+  const { stories } = useStories()
+  const { epics } = useEpics()
+  const { users } = useUsers()
   const [activeTab, setActiveTab] = useState("overview")
 
-  // Mock data for demonstration
-  const mockData: AnalyticsData = {
+  // Create analytics data from real API data
+  const analyticsData = analytics ? {
     overview: {
-      totalProjects: 24,
-      activeProjects: 18,
-      completedProjects: 6,
-      totalTeamMembers: 32,
-      totalStoryPoints: 1247,
-      completedStoryPoints: 856,
-      averageVelocity: 42,
-      onTimeDelivery: 87,
+      totalProjects: epics.length,
+      activeProjects: epics.filter(e => e.status === 'in-progress').length,
+      completedProjects: epics.filter(e => e.status === 'done').length,
+      totalTeamMembers: users.length,
+      totalStoryPoints: analytics.totalPoints,
+      completedStoryPoints: analytics.completedPoints,
+      averageVelocity: Math.round(analytics.completedPoints / Math.max(epics.length, 1)),
+      onTimeDelivery: Math.round((analytics.completed / Math.max(analytics.total, 1)) * 100),
     },
     trends: {
       velocity: [
@@ -132,99 +134,52 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         { month: "May", velocity: 48, target: 40 },
         { month: "Jun", velocity: 44, target: 40 },
       ],
-      burndown: [
-        { day: "Day 1", remaining: 100, ideal: 100 },
-        { day: "Day 3", remaining: 85, ideal: 80 },
-        { day: "Day 5", remaining: 70, ideal: 60 },
-        { day: "Day 7", remaining: 45, ideal: 40 },
-        { day: "Day 9", remaining: 25, ideal: 20 },
-        { day: "Day 11", remaining: 10, ideal: 0 },
-      ],
-      completion: [
-        { week: "Week 1", completed: 23, planned: 25 },
-        { week: "Week 2", completed: 28, planned: 25 },
-        { week: "Week 3", completed: 22, planned: 25 },
-        { week: "Week 4", completed: 31, planned: 25 },
-      ],
+      burndown: [],
+      completion: [],
     },
     distribution: {
       projectStatus: [
-        { name: "Active", value: 18, color: "#3b82f6" },
-        { name: "Completed", value: 6, color: "#10b981" },
-        { name: "On Hold", value: 2, color: "#f59e0b" },
-        { name: "Planning", value: 4, color: "#6b7280" },
+        { name: "Active", value: epics.filter(e => e.status === 'in-progress').length, color: "#3b82f6" },
+        { name: "Completed", value: epics.filter(e => e.status === 'done').length, color: "#10b981" },
+        { name: "Planning", value: epics.filter(e => e.status === 'backlog').length, color: "#6b7280" },
       ],
       priorityBreakdown: [
-        { name: "Critical", value: 8, color: "#ef4444" },
-        { name: "High", value: 15, color: "#f97316" },
-        { name: "Medium", value: 32, color: "#eab308" },
-        { name: "Low", value: 12, color: "#22c55e" },
+        { name: "Critical", value: stories.filter(s => s.priority === 'critical').length, color: "#ef4444" },
+        { name: "High", value: stories.filter(s => s.priority === 'high').length, color: "#f97316" },
+        { name: "Medium", value: stories.filter(s => s.priority === 'medium').length, color: "#eab308" },
+        { name: "Low", value: stories.filter(s => s.priority === 'low').length, color: "#22c55e" },
       ],
-      teamWorkload: [
-        { name: "Sarah Chen", assigned: 12, completed: 8 },
-        { name: "Alex Rodriguez", assigned: 15, completed: 12 },
-        { name: "Emily Johnson", assigned: 10, completed: 9 },
-        { name: "Michael Brown", assigned: 8, completed: 6 },
-        { name: "Lisa Garcia", assigned: 11, completed: 7 },
-      ],
+      teamWorkload: users.map(user => ({
+        name: user.name,
+        assigned: stories.filter(s => s.assignee?.id === user.id).length,
+        completed: stories.filter(s => s.assignee?.id === user.id && s.status === 'done').length,
+      })),
     },
     performance: {
-      topPerformers: [
-        {
-          id: "1",
-          name: "Sarah Chen",
-          avatar: "/placeholder.svg?height=32&width=32",
-          completedTasks: 23,
-          storyPoints: 89,
-          efficiency: 94,
-        },
-        {
-          id: "2",
-          name: "Alex Rodriguez",
-          avatar: "/placeholder.svg?height=32&width=32",
-          completedTasks: 31,
-          storyPoints: 76,
-          efficiency: 91,
-        },
-        {
-          id: "3",
-          name: "Emily Johnson",
-          avatar: "/placeholder.svg?height=32&width=32",
-          completedTasks: 18,
-          storyPoints: 67,
-          efficiency: 88,
-        },
-      ],
-      projectHealth: [
-        {
-          id: "1",
-          name: "AgileForge Platform",
-          health: "good",
-          progress: 68,
-          daysRemaining: 45,
-          riskFactors: ["Resource allocation"],
-        },
-        {
-          id: "2",
-          name: "Mobile Application",
-          health: "warning",
-          progress: 35,
-          daysRemaining: 30,
-          riskFactors: ["Timeline pressure", "Technical debt"],
-        },
-        {
-          id: "3",
-          name: "Analytics Dashboard",
-          health: "excellent",
-          progress: 92,
-          daysRemaining: 8,
-          riskFactors: [],
-        },
-      ],
+      topPerformers: users.slice(0, 3).map(user => ({
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar,
+        completedTasks: stories.filter(s => s.assignee?.id === user.id && s.status === 'done').length,
+        storyPoints: stories.filter(s => s.assignee?.id === user.id && s.status === 'done')
+          .reduce((sum, s) => sum + (s.storyPoints || 0), 0),
+        efficiency: Math.round(
+          (stories.filter(s => s.assignee?.id === user.id && s.status === 'done').length / 
+           Math.max(stories.filter(s => s.assignee?.id === user.id).length, 1)) * 100
+        ),
+      })),
+      projectHealth: epics.map(epic => ({
+        id: epic.id,
+        name: epic.name,
+        health: epic.status === 'done' ? 'excellent' as const : 
+                epic.status === 'in-progress' ? 'good' as const : 'warning' as const,
+        progress: Math.round((stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length / 
+                             Math.max(stories.filter(s => s.epic?.id === epic.id).length, 1)) * 100),
+        daysRemaining: epic.dueDate ? Math.max(0, Math.ceil((new Date(epic.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0,
+        riskFactors: [],
+      })),
     },
-  }
-
-  const analyticsData = data || mockData
+  } : null
 
   const healthConfig = {
     excellent: { color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
@@ -256,6 +211,33 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     previousData.completion,
   )
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading analytics...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !analyticsData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Unable to load analytics</h3>
+          <p className="text-slate-600 mb-4">{error?.message || "Analytics data is not available"}</p>
+          <Button onClick={refetch} className="bg-blue-600 hover:bg-blue-700">
+            <RefreshCw size={16} className="mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -277,7 +259,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <SelectItem value="1y">Last year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={onRefresh}>
+            <Button variant="outline" size="sm" onClick={refetch}>
               <RefreshCw size={16} className="mr-2" />
               Refresh
             </Button>

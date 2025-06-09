@@ -48,6 +48,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useStories, useEpics, useUsers } from "@/hooks/useApi"
 
 interface Project {
   id: string
@@ -93,24 +94,47 @@ interface Project {
 }
 
 interface ProjectsPageProps {
-  data?: Project[]
-  isLoading?: boolean
-  error?: Error | null
-  onRefresh?: () => void
   onCreateNew?: () => void
-  onEdit?: (project: Project) => void
-  onDelete?: (project: Project) => void
+  onEdit?: (project: any) => void
+  onDelete?: (project: any) => void
 }
 
 const ProjectsPage: React.FC<ProjectsPageProps> = ({
-  data = [],
-  isLoading = false,
-  error = null,
-  onRefresh,
   onCreateNew,
   onEdit,
   onDelete,
 }) => {
+  // Use API hooks to fetch real data
+  const { stories, isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
+  const { epics, isLoading: epicsLoading, error: epicsError } = useEpics()
+  const { users, isLoading: usersLoading, error: usersError } = useUsers()
+
+  // Combine loading and error states
+  const isLoading = storiesLoading || epicsLoading || usersLoading
+  const error = storiesError || epicsError || usersError
+
+  // Create projects from epics data (since projects contain epics)
+  const projects = epics.map(epic => ({
+    id: epic.id,
+    name: epic.name,
+    description: epic.description,
+    status: epic.status,
+    priority: epic.priority,
+    progress: Math.round((stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length / 
+                          Math.max(stories.filter(s => s.epic?.id === epic.id).length, 1)) * 100),
+    project: epic.project,
+    createdAt: epic.createdAt,
+    updatedAt: epic.updatedAt,
+    stories: stories.filter(s => s.epic?.id === epic.id),
+    stats: {
+      totalStories: stories.filter(s => s.epic?.id === epic.id).length,
+      completedStories: stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length,
+    }
+  }))
+
+  const refetch = () => {
+    refetchStories()
+  }
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -121,165 +145,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [activeTab, setActiveTab] = useState("all")
 
-  // Mock data for demonstration
-  const mockProjects: Project[] = [
-    {
-      id: "1",
-      name: "AgileForge Platform",
-      description: "Next-generation agile project management platform with AI-powered insights",
-      status: "active",
-      priority: "high",
-      startDate: "2024-01-01T00:00:00Z",
-      endDate: "2024-06-30T00:00:00Z",
-      dueDate: "2024-06-15T23:59:59Z",
-      progress: 68,
-      budget: {
-        allocated: 500000,
-        spent: 340000,
-        currency: "USD",
-      },
-      team: {
-        lead: {
-          id: "1",
-          name: "Sarah Chen",
-          avatar: "/placeholder.svg?height=32&width=32",
-        },
-        members: [
-          {
-            id: "2",
-            name: "Alex Rodriguez",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "Senior Developer",
-          },
-          {
-            id: "3",
-            name: "Emily Johnson",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "UX Designer",
-          },
-          {
-            id: "4",
-            name: "Michael Brown",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "DevOps Engineer",
-          },
-        ],
-      },
-      stats: {
-        totalEpics: 8,
-        completedEpics: 5,
-        totalStories: 156,
-        completedStories: 106,
-        totalTasks: 423,
-        completedTasks: 287,
-        storyPoints: 892,
-        completedPoints: 607,
-      },
-      tags: ["platform", "ai", "saas", "agile"],
-      createdAt: "2023-12-15T10:00:00Z",
-      updatedAt: "2024-01-20T14:30:00Z",
-    },
-    {
-      id: "2",
-      name: "Mobile Application",
-      description: "Cross-platform mobile app for iOS and Android with offline capabilities",
-      status: "planning",
-      priority: "medium",
-      startDate: "2024-02-01T00:00:00Z",
-      endDate: "2024-08-31T00:00:00Z",
-      progress: 15,
-      budget: {
-        allocated: 300000,
-        spent: 45000,
-        currency: "USD",
-      },
-      team: {
-        lead: {
-          id: "3",
-          name: "Emily Johnson",
-          avatar: "/placeholder.svg?height=32&width=32",
-        },
-        members: [
-          {
-            id: "5",
-            name: "David Wilson",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "Mobile Developer",
-          },
-          {
-            id: "6",
-            name: "Lisa Garcia",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "QA Engineer",
-          },
-        ],
-      },
-      stats: {
-        totalEpics: 4,
-        completedEpics: 0,
-        totalStories: 67,
-        completedStories: 8,
-        totalTasks: 189,
-        completedTasks: 23,
-        storyPoints: 456,
-        completedPoints: 67,
-      },
-      tags: ["mobile", "ios", "android", "offline"],
-      createdAt: "2024-01-10T09:00:00Z",
-      updatedAt: "2024-01-19T11:15:00Z",
-    },
-    {
-      id: "3",
-      name: "Analytics Dashboard",
-      description: "Advanced analytics and reporting dashboard with real-time insights",
-      status: "completed",
-      priority: "critical",
-      startDate: "2023-09-01T00:00:00Z",
-      endDate: "2023-12-31T00:00:00Z",
-      progress: 100,
-      budget: {
-        allocated: 200000,
-        spent: 195000,
-        currency: "USD",
-      },
-      team: {
-        lead: {
-          id: "2",
-          name: "Alex Rodriguez",
-          avatar: "/placeholder.svg?height=32&width=32",
-        },
-        members: [
-          {
-            id: "7",
-            name: "James Taylor",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "Data Engineer",
-          },
-          {
-            id: "8",
-            name: "Maria Lopez",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "Frontend Developer",
-          },
-        ],
-      },
-      stats: {
-        totalEpics: 3,
-        completedEpics: 3,
-        totalStories: 45,
-        completedStories: 45,
-        totalTasks: 134,
-        completedTasks: 134,
-        storyPoints: 298,
-        completedPoints: 298,
-      },
-      tags: ["analytics", "dashboard", "reporting", "real-time"],
-      createdAt: "2023-08-20T08:00:00Z",
-      updatedAt: "2023-12-31T17:00:00Z",
-    },
-  ]
 
-  const projects = data.length > 0 ? data : mockProjects
 
   // Status and priority configurations
   const statusConfig = {
@@ -453,7 +319,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
               {error.message || "Something went wrong while loading your projects."}
             </p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={onRefresh} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={refetch} className="bg-blue-600 hover:bg-blue-700">
                 <RefreshCw size={16} className="mr-2" />
                 Try Again
               </Button>

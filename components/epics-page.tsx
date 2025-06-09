@@ -48,59 +48,24 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-
-interface Epic {
-  id: string
-  name: string
-  description?: string
-  status: "planning" | "in-progress" | "review" | "completed" | "on-hold"
-  priority: "low" | "medium" | "high" | "critical"
-  project: {
-    id: string
-    name: string
-    color: string
-  }
-  assignee?: {
-    id: string
-    name: string
-    avatar?: string
-  }
-  startDate?: string
-  endDate?: string
-  dueDate?: string
-  progress: number
-  stats: {
-    totalStories: number
-    completedStories: number
-    totalTasks: number
-    completedTasks: number
-    storyPoints: number
-    completedPoints: number
-  }
-  tags?: string[]
-  createdAt: string
-  updatedAt: string
-}
+import { useEpics, useStories, useUsers } from "@/hooks/useApi"
+import { type Epic } from "@/services/api"
 
 interface EpicsPageProps {
-  data?: Epic[]
-  isLoading?: boolean
-  error?: Error | null
-  onRefresh?: () => void
   onCreateNew?: () => void
   onEdit?: (epic: Epic) => void
   onDelete?: (epic: Epic) => void
 }
 
 const EpicsPage: React.FC<EpicsPageProps> = ({
-  data = [],
-  isLoading = false,
-  error = null,
-  onRefresh,
   onCreateNew,
   onEdit,
   onDelete,
 }) => {
+  // Use API hooks to fetch real data
+  const { epics, isLoading, error, refetch } = useEpics()
+  const { stories } = useStories()
+  const { users } = useUsers()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -112,105 +77,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [activeTab, setActiveTab] = useState("all")
 
-  // Mock data for demonstration
-  const mockEpics: Epic[] = [
-    {
-      id: "1",
-      name: "User Authentication & Security",
-      description: "Comprehensive user authentication system with OAuth, 2FA, and security features",
-      status: "in-progress",
-      priority: "high",
-      project: {
-        id: "1",
-        name: "AgileForge Platform",
-        color: "bg-blue-500",
-      },
-      assignee: {
-        id: "1",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      startDate: "2024-01-15T00:00:00Z",
-      endDate: "2024-03-15T00:00:00Z",
-      dueDate: "2024-03-10T23:59:59Z",
-      progress: 65,
-      stats: {
-        totalStories: 12,
-        completedStories: 8,
-        totalTasks: 45,
-        completedTasks: 29,
-        storyPoints: 89,
-        completedPoints: 58,
-      },
-      tags: ["authentication", "security", "oauth"],
-      createdAt: "2024-01-10T10:00:00Z",
-      updatedAt: "2024-01-20T14:30:00Z",
-    },
-    {
-      id: "2",
-      name: "Analytics Dashboard",
-      description: "Advanced analytics and reporting dashboard with real-time insights",
-      status: "planning",
-      priority: "medium",
-      project: {
-        id: "1",
-        name: "AgileForge Platform",
-        color: "bg-blue-500",
-      },
-      assignee: {
-        id: "2",
-        name: "Alex Rodriguez",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      startDate: "2024-02-01T00:00:00Z",
-      endDate: "2024-04-30T00:00:00Z",
-      progress: 15,
-      stats: {
-        totalStories: 18,
-        completedStories: 2,
-        totalTasks: 67,
-        completedTasks: 8,
-        storyPoints: 134,
-        completedPoints: 21,
-      },
-      tags: ["analytics", "dashboard", "reporting"],
-      createdAt: "2024-01-18T09:15:00Z",
-      updatedAt: "2024-01-19T16:45:00Z",
-    },
-    {
-      id: "3",
-      name: "Mobile Application",
-      description: "Native mobile app for iOS and Android with offline capabilities",
-      status: "completed",
-      priority: "critical",
-      project: {
-        id: "2",
-        name: "Mobile Platform",
-        color: "bg-purple-500",
-      },
-      assignee: {
-        id: "3",
-        name: "Emily Johnson",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      startDate: "2023-10-01T00:00:00Z",
-      endDate: "2024-01-15T00:00:00Z",
-      progress: 100,
-      stats: {
-        totalStories: 24,
-        completedStories: 24,
-        totalTasks: 89,
-        completedTasks: 89,
-        storyPoints: 198,
-        completedPoints: 198,
-      },
-      tags: ["mobile", "ios", "android", "offline"],
-      createdAt: "2023-09-25T08:00:00Z",
-      updatedAt: "2024-01-15T17:30:00Z",
-    },
-  ]
 
-  const epics = data.length > 0 ? data : mockEpics
 
   // Status and priority configurations
   const statusConfig = {
@@ -379,7 +246,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Error Loading Epics</h3>
             <p className="text-slate-600 mb-6">{error.message || "Something went wrong while loading your epics."}</p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={onRefresh} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={refetch} className="bg-purple-600 hover:bg-purple-700">
                 <RefreshCw size={16} className="mr-2" />
                 Try Again
               </Button>

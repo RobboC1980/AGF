@@ -55,11 +55,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Import our custom hooks
-import { useStories, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories } from "./hooks/use-stories"
+import { useStories, useCreateStory, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories } from "./hooks/use-stories"
 import { useEpics } from "./hooks/use-epics"
 import { useUsers } from "./hooks/use-users"
 import { useStoryStats } from "./hooks/use-story-stats"
 import type { Story } from "./services/api"
+import CreateStoryModal from "@/components/create-story-modal"
 
 const StoriesPage: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -85,6 +86,7 @@ const StoriesPage: React.FC = () => {
   const { data: stats, isLoading: statsLoading } = useStoryStats()
 
   // Mutations
+  const createStoryMutation = useCreateStory()
   const deleteStoryMutation = useDeleteStory()
   const bulkDeleteMutation = useBulkDeleteStories()
   const bulkUpdateMutation = useBulkUpdateStories()
@@ -264,6 +266,16 @@ const StoriesPage: React.FC = () => {
       setSelectedStories([])
     } catch (error) {
       console.error("Failed to bulk archive stories:", error)
+    }
+  }
+
+  const handleCreateStory = async (story: Partial<Story>) => {
+    try {
+      await createStoryMutation.mutateAsync(story)
+      setShowCreateForm(false)
+    } catch (error) {
+      console.error("Failed to create story:", error)
+      throw error
     }
   }
 
@@ -823,6 +835,16 @@ const StoriesPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Create Story Modal */}
+        <CreateStoryModal
+          isOpen={showCreateForm}
+          onClose={() => setShowCreateForm(false)}
+          onSave={handleCreateStory}
+          epics={epics}
+          users={users}
+          editingStory={editingStory}
+        />
       </div>
     </TooltipProvider>
   )

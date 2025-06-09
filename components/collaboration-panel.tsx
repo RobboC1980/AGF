@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useUsers, useStories } from "@/hooks/useApi"
 
 interface Comment {
   id: string
@@ -116,113 +117,9 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Mock data for demonstration
-  const mockComments: Comment[] = [
-    {
-      id: "1",
-      content:
-        "Great progress on this feature! The authentication flow looks solid. @sarah-chen what do you think about adding 2FA support?",
-      author: {
-        id: "alex-rodriguez",
-        name: "Alex Rodriguez",
-        avatar: "/placeholder.svg?height=32&width=32",
-        role: "Senior Developer",
-      },
-      createdAt: "2024-01-20T10:30:00Z",
-      reactions: [
-        { type: "like", count: 3, users: ["sarah-chen", "emily-johnson", "michael-brown"] },
-        { type: "thumbsup", count: 1, users: ["sarah-chen"] },
-      ],
-      mentions: ["sarah-chen"],
-      isPinned: true,
-    },
-    {
-      id: "2",
-      content: "I agree! 2FA would be a great addition. I can work on the implementation next sprint.",
-      author: {
-        id: "sarah-chen",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-        role: "Product Manager",
-      },
-      createdAt: "2024-01-20T11:15:00Z",
-      reactions: [{ type: "like", count: 2, users: ["alex-rodriguez", "emily-johnson"] }],
-      replies: [
-        {
-          id: "2-1",
-          content: "Sounds good! Let me know if you need any help with the backend integration.",
-          author: {
-            id: "alex-rodriguez",
-            name: "Alex Rodriguez",
-            avatar: "/placeholder.svg?height=32&width=32",
-            role: "Senior Developer",
-          },
-          createdAt: "2024-01-20T11:20:00Z",
-          reactions: [],
-        },
-      ],
-    },
-    {
-      id: "3",
-      content: "I've uploaded the latest design mockups. Please review and let me know your thoughts!",
-      author: {
-        id: "emily-johnson",
-        name: "Emily Johnson",
-        avatar: "/placeholder.svg?height=32&width=32",
-        role: "UX Designer",
-      },
-      createdAt: "2024-01-20T14:45:00Z",
-      reactions: [{ type: "love", count: 1, users: ["sarah-chen"] }],
-      attachments: [
-        {
-          id: "att-1",
-          name: "auth-flow-mockups.fig",
-          type: "application/figma",
-          size: 2048000,
-          url: "#",
-        },
-      ],
-    },
-  ]
-
-  const mockActivities: ActivityItem[] = [
-    {
-      id: "act-1",
-      type: "status_change",
-      user: {
-        id: "sarah-chen",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      content: "moved this story from 'In Progress' to 'Review'",
-      timestamp: "2024-01-20T15:30:00Z",
-    },
-    {
-      id: "act-2",
-      type: "assignment",
-      user: {
-        id: "alex-rodriguez",
-        name: "Alex Rodriguez",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      content: "assigned this story to Emily Johnson",
-      timestamp: "2024-01-20T12:00:00Z",
-    },
-    {
-      id: "act-3",
-      type: "file_upload",
-      user: {
-        id: "emily-johnson",
-        name: "Emily Johnson",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      content: "uploaded auth-flow-mockups.fig",
-      timestamp: "2024-01-20T14:45:00Z",
-    },
-  ]
-
-  const displayComments = comments.length > 0 ? comments : mockComments
-  const displayActivities = activities.length > 0 ? activities : mockActivities
+  // Use real data from props (no fallback to mock data)
+  const displayComments = comments
+  const displayActivities = activities
 
   const handleSubmitComment = () => {
     if (!newComment.trim()) return

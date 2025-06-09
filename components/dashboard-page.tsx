@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useStories, useEpics, useUsers, useAnalytics } from "@/hooks/useApi"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { IntegrationStatus } from '@/components/integration-status'
 
 // Enhanced entity configurations
 interface EntityConfig {
@@ -162,87 +164,58 @@ interface TeamMember {
 }
 
 interface DashboardPageProps {
-  data?: {
-    message?: string
-    stats: DashboardStats
-    timestamp?: string
-  }
-  isLoading?: boolean
-  error?: Error | null
   onRefresh?: () => void
 }
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, error = null, onRefresh }) => {
+const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
+  // Use real API data instead of props
+  const { stories, isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
+  const { epics, isLoading: epicsLoading, error: epicsError } = useEpics()
+  const { users, isLoading: usersLoading, error: usersError } = useUsers()
+  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics()
+
+  const isLoading = storiesLoading || epicsLoading || usersLoading || analyticsLoading
+  const error = storiesError || epicsError || usersError || analyticsError
+
+  const refetch = () => {
+    refetchStories()
+    onRefresh?.()
+  }
   const [activeTab, setActiveTab] = useState("overview")
   const [timeRange, setTimeRange] = useState("7d")
 
-  // Mock data for demonstration
-  const mockStats: DashboardStats = {
-    projects: 12,
-    epics: 34,
-    stories: 156,
-    tasks: 423,
-    sprints: 8,
-    initiatives: 6,
-    risks: 15,
-    okrs: 24,
+  // Create dashboard stats from real data
+  const stats: DashboardStats = {
+    projects: epics.length, // Using epics as project-level entities
+    epics: epics.length,
+    stories: stories.length,
+    tasks: stories.reduce((sum, story) => sum + (story.stats?.totalTasks || 0), 0),
+    sprints: 8, // This would come from a sprints API
+    initiatives: 6, // This would come from an initiatives API
+    risks: 15, // This would come from a risks API
+    okrs: 24, // This would come from an OKRs API
   }
 
-  const mockRecentActivity: RecentActivity[] = [
-    {
-      id: "1",
-      type: "created",
-      entity: "story",
-      title: "User Authentication System",
-      user: { name: "Sarah Chen", avatar: "/placeholder.svg?height=32&width=32" },
-      timestamp: "2 hours ago",
+  const mockRecentActivity: RecentActivity[] = stories.slice(0, 3).map((story, index) => ({
+    id: story.id,
+    type: story.status === 'done' ? 'completed' as const : 'updated' as const,
+    entity: 'story',
+    title: story.name,
+    user: { 
+      name: story.assignee?.name || 'Unassigned', 
+      avatar: story.assignee?.avatar || "/placeholder.svg?height=32&width=32" 
     },
-    {
-      id: "2",
-      type: "completed",
-      entity: "task",
-      title: "Database Migration",
-      user: { name: "Alex Rodriguez", avatar: "/placeholder.svg?height=32&width=32" },
-      timestamp: "4 hours ago",
-    },
-    {
-      id: "3",
-      type: "updated",
-      entity: "epic",
-      title: "Mobile App Development",
-      user: { name: "Emily Johnson", avatar: "/placeholder.svg?height=32&width=32" },
-      timestamp: "6 hours ago",
-    },
-  ]
+    timestamp: new Date(story.updatedAt).toLocaleDateString(),
+  }))
 
-  const mockTeamMembers: TeamMember[] = [
-    {
-      id: "1",
-      name: "Sarah Chen",
-      avatar: "/placeholder.svg?height=40&width=40",
-      role: "Product Manager",
-      tasksCompleted: 23,
-      activeProjects: 3,
-    },
-    {
-      id: "2",
-      name: "Alex Rodriguez",
-      avatar: "/placeholder.svg?height=40&width=40",
-      role: "Senior Developer",
-      tasksCompleted: 31,
-      activeProjects: 2,
-    },
-    {
-      id: "3",
-      name: "Emily Johnson",
-      avatar: "/placeholder.svg?height=40&width=40",
-      role: "UX Designer",
-      tasksCompleted: 18,
-      activeProjects: 4,
-    },
-  ]
-
-  const stats = data?.stats || mockStats
+  const mockTeamMembers: TeamMember[] = users.map(user => ({
+    id: user.id,
+    name: user.name,
+    avatar: user.avatar || "/placeholder.svg?height=40&width=40",
+    role: "Team Member", // This would come from user roles API
+    tasksCompleted: stories.filter(s => s.assignee?.id === user.id && s.status === 'done').length,
+    activeProjects: [...new Set(stories.filter(s => s.assignee?.id === user.id).map(s => s.epic?.project?.id))].length,
+  }))
 
   // Calculate derived metrics
   const totalItems = useMemo(() => {
@@ -282,7 +255,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
                 {error.message || "We're having trouble loading your dashboard data."}
               </p>
               <div className="flex gap-3 justify-center">
-                <Button onClick={onRefresh} className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={refetch} className="bg-blue-600 hover:bg-blue-700">
                   <RefreshCw size={16} className="mr-2" />
                   Try Again
                 </Button>
@@ -316,7 +289,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
-                  <p className="text-sm text-slate-600">{data?.message || "Welcome to your agile workspace"}</p>
+                  <p className="text-sm text-slate-600">Welcome to your agile workspace</p>
                 </div>
               </div>
 
@@ -344,7 +317,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
                       Dashboard Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onRefresh}>
+                    <DropdownMenuItem onClick={refetch}>
                       <RefreshCw size={16} className="mr-2" />
                       Refresh Data
                     </DropdownMenuItem>
@@ -386,6 +359,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Integration Status - New Feature */}
+          <IntegrationStatus />
 
           {/* Tabs Navigation */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">

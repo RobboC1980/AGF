@@ -56,95 +56,95 @@ interface User {
   email: string
 }
 
+// Base API configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
+// Enhanced API client with authentication and error handling
 class ApiClient {
-  private baseUrl: string
-  private token: string | null = null
+  private baseURL: string
+  private authToken: string | null = null
 
-  constructor() {
-    // Determine API URL based on environment
-    this.baseUrl = this.getApiUrl()
-  }
-
-  private getApiUrl(): string {
-    // Check for environment-specific URLs
-    if (typeof window !== "undefined") {
-      // Client-side
-      if (window.location.hostname === "localhost") {
-        return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-      }
-      // Production - use Render backend
-      return process.env.NEXT_PUBLIC_API_URL || "https://agilescribe-api.onrender.com"
-    }
-
-    // Server-side
-    return process.env.NEXT_PUBLIC_API_URL || "https://agilescribe-api.onrender.com"
-  }
-
-  setToken(token: string) {
-    this.token = token
-    // Store in localStorage for persistence
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", token)
+  constructor(baseURL: string) {
+    this.baseURL = baseURL
+    
+    // Try to get auth token from localStorage (in browser)
+    if (typeof window !== 'undefined') {
+      this.authToken = localStorage.getItem('auth_token')
     }
   }
 
-  getToken(): string | null {
-    if (this.token) return this.token
-
-    // Try to get from localStorage
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("auth_token")
-      if (stored) {
-        this.token = stored
-        return stored
-      }
-    }
-
-    return null
-  }
-
-  clearToken() {
-    this.token = null
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth_token")
+  // Set authentication token
+  setAuthToken(token: string) {
+    this.authToken = token
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token)
     }
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`
-    const token = this.getToken()
+  // Clear authentication
+  clearAuth() {
+    this.authToken = null
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token')
+    }
+  }
 
+  // Make authenticated request
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`
+    
     const config: RequestInit = {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
       ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+      },
     }
 
     try {
       const response = await fetch(url, config)
-
-      if (response.status === 401) {
-        // Token expired or invalid
-        this.clearToken()
-        if (typeof window !== "undefined") {
-          window.location.href = "/login"
-        }
-        throw new Error("Authentication required")
-      }
-
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+        const errorData = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorData}`)
       }
 
-      return await response.json()
+      const data = await response.json()
+      return data
     } catch (error) {
-      console.error(`API request failed: ${endpoint}`, error)
+      console.error(`API request failed for ${endpoint}:`, error)
       throw error
     }
+  }
+
+  // GET request
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' })
+  }
+
+  // POST request
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  // PUT request
+  async put<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  // DELETE request
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' })
   }
 
   // Authentication API
@@ -166,7 +166,7 @@ class ApiClient {
     })
 
     // Store token
-    this.setToken(response.access_token)
+    this.setAuthToken(response.access_token)
 
     return response
   }
@@ -190,7 +190,7 @@ class ApiClient {
     })
 
     // Store token
-    this.setToken(response.access_token)
+    this.setAuthToken(response.access_token)
 
     return response
   }
@@ -200,7 +200,7 @@ class ApiClient {
   }
 
   async logout() {
-    this.clearToken()
+    this.clearAuth()
   }
 
   // Stories API
@@ -246,6 +246,32 @@ class ApiClient {
     })
   }
 
+  async generateStory(request: {
+    description: string
+    priority?: string
+    epicId?: string
+    includeAcceptanceCriteria?: boolean
+    includeTags?: boolean
+  }): Promise<{
+    success: boolean
+    story: {
+      name: string
+      description: string
+      acceptanceCriteria: string[]
+      tags: string[]
+      storyPoints?: number
+    }
+    provider: string
+    model: string
+    confidence?: number
+    suggestions?: string[]
+  }> {
+    return this.request("/api/stories/generate", {
+      method: "POST",
+      body: JSON.stringify(request),
+    })
+  }
+
   // Epics API
   async getEpics(): Promise<ApiResponse<{ epics: Epic[] }>> {
     return this.request("/api/epics")
@@ -275,5 +301,243 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient()
-export type { Story, Epic, User, ApiResponse }
+// Create API client instance
+const apiClient = new ApiClient(API_BASE_URL)
+
+// Type definitions matching backend models
+export interface User {
+  id: string
+  username: string
+  email: string
+  first_name: string
+  last_name: string
+  avatar_url?: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface Project {
+  id: string
+  name: string
+  key: string
+  description?: string
+  status: 'backlog' | 'todo' | 'ready' | 'in-progress' | 'review' | 'testing' | 'done' | 'closed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  start_date?: string
+  target_end_date?: string
+  progress: number
+  created_by: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface Epic {
+  id: string
+  project_id: string
+  title: string
+  description?: string
+  epic_key: string
+  status: 'backlog' | 'todo' | 'ready' | 'in-progress' | 'review' | 'testing' | 'done' | 'closed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  start_date?: string
+  target_end_date?: string
+  estimated_story_points?: number
+  actual_story_points: number
+  progress: number
+  created_by: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface Story {
+  id: string
+  epic_id: string
+  title: string
+  description?: string
+  story_key: string
+  as_a?: string
+  i_want?: string
+  so_that?: string
+  acceptance_criteria: string
+  status: 'backlog' | 'todo' | 'ready' | 'in-progress' | 'review' | 'testing' | 'done' | 'closed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  story_points?: number
+  assignee_id?: string
+  due_date?: string
+  created_by: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface Task {
+  id: string
+  story_id: string
+  title: string
+  description?: string
+  task_key: string
+  status: 'backlog' | 'todo' | 'ready' | 'in-progress' | 'review' | 'testing' | 'done' | 'closed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  assignee_id?: string
+  estimated_hours: number
+  actual_hours: number
+  due_date?: string
+  created_by: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface AnalyticsOverview {
+  total_stories: number
+  completed_stories: number
+  in_progress_stories: number
+  total_story_points: number
+  completed_story_points: number
+  completion_rate: number
+  average_story_points: number
+  stories_by_status: Record<string, number>
+  stories_by_priority: Record<string, number>
+}
+
+export interface SearchResult {
+  id: string
+  type: 'project' | 'epic' | 'story' | 'task'
+  title: string
+  description?: string
+  key: string
+  status: string
+  priority: string
+}
+
+// API service object with all endpoints
+export const api = {
+  // Authentication
+  auth: {
+    setToken: (token: string) => apiClient.setAuthToken(token),
+    clearToken: () => apiClient.clearAuth(),
+  },
+
+  // Health check
+  health: {
+    check: () => apiClient.get<{ status: string; timestamp: string }>('/health'),
+    status: () => apiClient.get<{ status: string; entities: Record<string, number> }>('/api/status'),
+  },
+
+  // Users
+  users: {
+    getAll: () => apiClient.get<User[]>('/api/users'),
+    getById: (id: string) => apiClient.get<User>(`/api/users/${id}`),
+    create: (data: Omit<User, 'id' | 'created_at'>) => apiClient.post<User>('/api/users', data),
+    update: (id: string, data: Partial<User>) => apiClient.put<User>(`/api/users/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/users/${id}`),
+  },
+
+  // Projects
+  projects: {
+    getAll: () => apiClient.get<Project[]>('/api/projects'),
+    getById: (id: string) => apiClient.get<Project>(`/api/projects/${id}`),
+    create: (data: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => 
+      apiClient.post<Project>('/api/projects', data),
+    update: (id: string, data: Partial<Project>) => apiClient.put<Project>(`/api/projects/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/projects/${id}`),
+  },
+
+  // Epics
+  epics: {
+    getAll: (projectId?: string) => 
+      apiClient.get<Epic[]>(`/api/epics${projectId ? `?project_id=${projectId}` : ''}`),
+    getById: (id: string) => apiClient.get<Epic>(`/api/epics/${id}`),
+    create: (data: Omit<Epic, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'epic_key' | 'actual_story_points' | 'progress'>) => 
+      apiClient.post<Epic>('/api/epics', data),
+    update: (id: string, data: Partial<Epic>) => apiClient.put<Epic>(`/api/epics/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/epics/${id}`),
+  },
+
+  // Stories
+  stories: {
+    getAll: (epicId?: string) => 
+      apiClient.get<Story[]>(`/api/stories${epicId ? `?epic_id=${epicId}` : ''}`),
+    getById: (id: string) => apiClient.get<Story>(`/api/stories/${id}`),
+    create: (data: Omit<Story, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'story_key'>) => 
+      apiClient.post<Story>('/api/stories', data),
+    update: (id: string, data: Partial<Story>) => apiClient.put<Story>(`/api/stories/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/stories/${id}`),
+  },
+
+  // Tasks
+  tasks: {
+    getAll: (storyId?: string) => 
+      apiClient.get<Task[]>(`/api/tasks${storyId ? `?story_id=${storyId}` : ''}`),
+    getById: (id: string) => apiClient.get<Task>(`/api/tasks/${id}`),
+    create: (data: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'task_key' | 'actual_hours'>) => 
+      apiClient.post<Task>('/api/tasks', data),
+    update: (id: string, data: Partial<Task>) => apiClient.put<Task>(`/api/tasks/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/tasks/${id}`),
+  },
+
+  // Analytics
+  analytics: {
+    getOverview: () => apiClient.get<AnalyticsOverview>('/api/analytics/overview'),
+    getProjectAnalytics: (projectId: string) => 
+      apiClient.get<AnalyticsOverview>(`/api/analytics/project/${projectId}`),
+  },
+
+  // Search
+  search: {
+    search: (query: string, entityType?: string, limit: number = 20) => {
+      const params = new URLSearchParams({ q: query, limit: limit.toString() })
+      if (entityType) params.append('entity_type', entityType)
+      return apiClient.get<SearchResult[]>(`/api/search?${params}`)
+    },
+  },
+}
+
+// Export the client for direct access if needed
+export { apiClient }
+
+// Legacy compatibility - keeping the old apiClient structure for components not yet updated
+export const legacyApiClient = {
+  async getStories() {
+    try {
+      const stories = await api.stories.getAll()
+      return { success: true, data: { stories } }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  },
+
+  async getEpics() {
+    try {
+      const epics = await api.epics.getAll()
+      return { success: true, data: { epics } }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  },
+
+  async getUsers() {
+    try {
+      const users = await api.users.getAll()
+      return { success: true, data: { users } }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  },
+
+  async getStoryStats() {
+    try {
+      const analytics = await api.analytics.getOverview()
+      return { 
+        success: true, 
+        data: {
+          total: analytics.total_stories,
+          completed: analytics.completed_stories,
+          inProgress: analytics.in_progress_stories,
+          totalPoints: analytics.total_story_points,
+          completedPoints: analytics.completed_story_points,
+        }
+      }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }
+}

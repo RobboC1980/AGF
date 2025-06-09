@@ -35,6 +35,7 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import { useStories, useEpics, useUsers } from "@/hooks/useApi"
 
 // Search result types
 interface SearchResult {
@@ -104,8 +105,54 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
   const [showFilters, setShowFilters] = useState(false)
   const [searchHistory, setSearchHistory] = useState<string[]>([])
 
-  // Mock data for demonstration
+  // Use real data from API hooks
+  const { stories, isLoading: storiesLoading } = useStories()
+  const { epics, isLoading: epicsLoading } = useEpics()
+  const { users, isLoading: usersLoading } = useUsers()
+
+  // Create search results from real data
   const mockSearchResults: SearchResult[] = [
+    ...stories.map(story => ({
+      id: story.id,
+      title: story.name,
+      type: 'story' as const,
+      description: story.description || '',
+      tags: story.tags || [],
+      project: story.epic?.project?.name || 'No Project',
+      epic: story.epic?.name || 'No Epic',
+      status: story.status,
+      priority: story.priority,
+      assignee: story.assignee,
+      createdAt: story.createdAt,
+      updatedAt: story.updatedAt,
+    })),
+    ...epics.map(epic => ({
+      id: epic.id,
+      title: epic.name,
+      type: 'epic' as const,
+      description: epic.description || '',
+      tags: epic.tags || [],
+      project: epic.project?.name || 'No Project',
+      status: epic.status,
+      priority: epic.priority,
+      assignee: epic.assignee,
+      createdAt: epic.createdAt,
+      updatedAt: epic.updatedAt,
+    })),
+    ...users.map(user => ({
+      id: user.id,
+      title: user.name,
+      type: 'user' as const,
+      description: user.email || '',
+      tags: [],
+      project: 'Team Member',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })),
+  ]
+
+  // Original mock data as fallback (remove this section)
+  /*const originalMockSearchResults: SearchResult[] = [
     {
       id: "1",
       type: "story",

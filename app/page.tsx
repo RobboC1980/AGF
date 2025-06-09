@@ -6,15 +6,18 @@ import { ToastProvider } from "../providers/toast-provider"
 import EpicsPage from "../components/epics-page"
 import ProjectsPage from "../components/projects-page"
 import UserStoriesPage from "../components/user-stories-page"
+import TasksPage from "../components/tasks-page"
 import SearchPage from "../components/search-page"
 import KanbanBoard from "../components/kanban-board"
 import AnalyticsDashboard from "../components/analytics-dashboard"
 import CollaborationPanel from "../components/collaboration-panel"
+import SimpleCreateModal from "../components/simple-create-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Rocket, Target, BookOpen, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
+import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
+import { useStories } from "@/hooks/useApi"
 
-type PageType = "epics" | "projects" | "stories" | "search" | "kanban" | "analytics" | "collaboration"
+type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
 
 export default function Page() {
   const [currentPage, setCurrentPage] = useState<PageType>("epics")
@@ -30,6 +33,13 @@ export default function Page() {
     console.log(`Creating new ${currentPage.slice(0, -1)}`)
   }
 
+  const handleCreateSubmit = async (data: any) => {
+    console.log("Creating item:", data)
+    // Here you would typically call your API to create the item
+    // For now, just log the data
+    return Promise.resolve()
+  }
+
   const handleEdit = (item: any) => {
     console.log("Editing item:", item)
   }
@@ -38,7 +48,9 @@ export default function Page() {
     console.log("Deleting item:", item)
   }
 
-  // Mock kanban data
+  // Use real data for kanban columns
+  const { stories } = useStories()
+  
   const mockKanbanColumns = [
     {
       id: "backlog",
@@ -164,6 +176,7 @@ export default function Page() {
     { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },
     { value: "projects", label: "Projects", icon: Target, description: "Strategic project portfolio" },
     { value: "stories", label: "User Stories", icon: BookOpen, description: "Feature requirements and user workflows" },
+    { value: "tasks", label: "Tasks", icon: CheckSquare, description: "Individual work items and deliverables" },
     { value: "search", label: "Search", icon: Search, description: "Find anything quickly" },
     { value: "kanban", label: "Kanban", icon: Columns, description: "Visual workflow management" },
     { value: "analytics", label: "Analytics", icon: BarChart3, description: "Performance insights" },
@@ -179,10 +192,44 @@ export default function Page() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <SimpleCreateModal 
+                      type="epic" 
+                      onSubmit={handleCreateSubmit}
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          <Rocket size={14} className="mr-1" />
+                          Epic
+                        </Button>
+                      }
+                    />
+                    <SimpleCreateModal 
+                      type="story" 
+                      onSubmit={handleCreateSubmit}
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          <BookOpen size={14} className="mr-1" />
+                          Story
+                        </Button>
+                      }
+                    />
+                    <SimpleCreateModal 
+                      type="task" 
+                      onSubmit={handleCreateSubmit}
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          <CheckSquare size={14} className="mr-1" />
+                          Task
+                        </Button>
+                      }
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                   {pages.map((page) => (
                     <Button
                       key={page.value}
@@ -207,8 +254,6 @@ export default function Page() {
         <div className="relative">
           {currentPage === "epics" && (
             <EpicsPage
-              isLoading={isLoading}
-              onRefresh={handleRefresh}
               onCreateNew={handleCreateNew}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -217,8 +262,6 @@ export default function Page() {
 
           {currentPage === "projects" && (
             <ProjectsPage
-              isLoading={isLoading}
-              onRefresh={handleRefresh}
               onCreateNew={handleCreateNew}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -227,15 +270,21 @@ export default function Page() {
 
           {currentPage === "stories" && (
             <UserStoriesPage
-              isLoading={isLoading}
-              onRefresh={handleRefresh}
               onCreateNew={handleCreateNew}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
           )}
 
-          {currentPage === "search" && <SearchPage isLoading={isLoading} />}
+          {currentPage === "tasks" && (
+            <TasksPage
+              onCreateNew={handleCreateNew}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
+
+          {currentPage === "search" && <SearchPage />}
 
           {currentPage === "kanban" && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -260,7 +309,6 @@ export default function Page() {
                 timeRange="30d"
                 onTimeRangeChange={(range) => console.log("Time range changed:", range)}
                 onExport={() => console.log("Exporting analytics")}
-                onRefresh={handleRefresh}
               />
             </div>
           )}

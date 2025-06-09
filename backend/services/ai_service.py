@@ -153,6 +153,50 @@ class AIService:
                 variables=["sprint_name", "team_name", "feedback_text"]
             ),
             
+            "story_generator": PromptTemplate(
+                name="story_generator",
+                version="1.0",
+                system_prompt="""You are an expert product manager and user story writer.
+                Create detailed, well-structured user stories that follow INVEST principles and include 
+                comprehensive acceptance criteria and relevant tags.""",
+                user_prompt_template="""
+                Generate a comprehensive user story based on this description:
+                
+                User Description: {user_description}
+                Priority Level: {priority_level}
+                Epic Context: {epic_context}
+                Project Context: {project_context}
+                Include Acceptance Criteria: {include_acceptance_criteria}
+                Include Tags: {include_tags}
+                
+                Create a user story that includes:
+                1. A clear, concise title following the "As a [user], I want [goal] so that [benefit]" format
+                2. A detailed description that expands on the user's needs
+                3. Acceptance criteria (if requested) - specific, testable conditions
+                4. Relevant tags for categorization (if requested)
+                5. Estimated story points (1, 2, 3, 5, 8, 13, 21)
+                6. Confidence level and improvement suggestions
+                
+                Return JSON format:
+                {{
+                    "title": "As a [user type], I want [functionality] so that [benefit]",
+                    "description": "Detailed description expanding on the user need and context",
+                    "acceptance_criteria": [
+                        "Given [context], when [action], then [outcome]",
+                        "Additional criteria as needed"
+                    ],
+                    "tags": ["tag1", "tag2", "tag3"],
+                    "story_points": estimated_number,
+                    "confidence": 0.8,
+                    "improvement_suggestions": [
+                        "suggestion1",
+                        "suggestion2"
+                    ]
+                }}
+                """,
+                variables=["user_description", "priority_level", "epic_context", "project_context", "include_acceptance_criteria", "include_tags"]
+            ),
+            
             "story_validator": PromptTemplate(
                 name="story_validator",
                 version="1.0", 
@@ -364,7 +408,7 @@ class AIService:
             # Try to parse as JSON if template expects it
             try:
                 if template_name in ["sprint_planning", "standup_reporter", "retrospective_summarizer", 
-                                   "story_validator", "backlog_coach", "risk_radar"]:
+                                   "story_generator", "story_validator", "backlog_coach", "risk_radar"]:
                     data = json.loads(content)
                 else:
                     data = content

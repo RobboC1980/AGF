@@ -70,6 +70,11 @@ async def get_db_connection():
     async with db_manager.get_connection() as conn:
         yield conn
 
+async def get_db_session():
+    """Dependency to get database session (alias for connection)"""
+    async with db_manager.get_connection() as conn:
+        yield conn
+
 async def run_migrations():
     """Run database migrations"""
     try:
