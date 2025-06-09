@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import {
   BarChart3,
@@ -175,6 +176,7 @@ interface DashboardPageProps {
 }
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, error = null, onRefresh }) => {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("overview")
   const [timeRange, setTimeRange] = useState("7d")
 
@@ -570,6 +572,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
                     <Button
                       variant="outline"
                       className="h-auto p-4 flex flex-col items-start space-y-2 hover:bg-emerald-50 hover:border-emerald-200"
+                      onClick={() => navigate("/stories")}
                     >
                       <div className="flex items-center space-x-2 w-full">
                         <BookOpen size={20} className="text-emerald-600" />
@@ -610,7 +613,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
                         .slice(0, 4)
                         .map(([key, value]) => {
                           const config = ENTITY_CONFIGS[key]
-                          const percentage = Math.round(((value as number) / totalItems) * 100)
+                          const percentage = Math.round(((value as number) / (totalItems as number)) * 100)
                           return (
                             <div key={key} className="space-y-2">
                               <div className="flex items-center justify-between">
@@ -753,7 +756,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ data, isLoading = false, 
           {/* Footer Info */}
           <div className="mt-8 text-center">
             <p className="text-sm text-slate-500">
-              📅 Last updated: {new Date(actualData?.timestamp || Date.now()).toLocaleString()}
+              📅 Last updated: {new Date((actualData as any)?.timestamp || Date.now()).toLocaleString()}
             </p>
           </div>
         </div>

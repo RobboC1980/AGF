@@ -10,6 +10,42 @@ interface ApiResponse<T> {
   message?: string
 }
 
+// Export Story type for use in other components
+export interface Story {
+  id: string
+  name: string
+  description?: string
+  acceptanceCriteria?: string
+  storyPoints?: number
+  priority: "low" | "medium" | "high" | "critical"
+  status: "backlog" | "ready" | "in-progress" | "review" | "done"
+  assignee?: {
+    id: string
+    name: string
+    avatar?: string
+  }
+  epic?: {
+    id: string
+    name: string
+    color: string
+    project: {
+      id: string
+      name: string
+    }
+  }
+  tags?: string[]
+  stats?: {
+    totalTasks: number
+    completedTasks: number
+    completionPercentage: number
+    comments: number
+    attachments: number
+  }
+  createdAt: string
+  updatedAt: string
+  dueDate?: string
+}
+
 class ApiClient {
   private client: AxiosInstance
   private token: string | null = null

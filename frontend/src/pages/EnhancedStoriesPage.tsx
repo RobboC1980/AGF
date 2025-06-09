@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -33,6 +31,8 @@ import {
   MessageSquare,
   GitBranch,
   Activity,
+  Loader2,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,42 +52,13 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-interface Story {
-  id: string
-  name: string
-  description?: string
-  acceptanceCriteria?: string
-  storyPoints?: number
-  priority: "low" | "medium" | "high" | "critical"
-  status: "backlog" | "ready" | "in-progress" | "review" | "done"
-  assignee?: {
-    id: string
-    name: string
-    avatar?: string
-  }
-  epic?: {
-    id: string
-    name: string
-    color: string
-    project: {
-      id: string
-      name: string
-    }
-  }
-  tags?: string[]
-  stats?: {
-    totalTasks: number
-    completedTasks: number
-    completionPercentage: number
-    comments: number
-    attachments: number
-  }
-  createdAt: string
-  updatedAt: string
-  dueDate?: string
-}
+// Import our custom hooks
+import { useStories, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories, useStoryStats } from "../hooks/use-stories"
+import { useEpics } from "../hooks/use-epics"
+import { useUsers } from "../hooks/use-users"
+import type { Story } from "../services/api"
 
-const StoriesPage: React.FC = () => {
+const EnhancedStoriesPage: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingStory, setEditingStory] = useState<Story | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -101,93 +72,19 @@ const StoriesPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [activeTab, setActiveTab] = useState("all")
 
-  // Mock data - replace with actual API calls
-  const stories: Story[] = [
-    {
-      id: "1",
-      name: "User Authentication System",
-      description: "Implement secure user login and registration with OAuth integration",
-      storyPoints: 8,
-      priority: "high",
-      status: "in-progress",
-      assignee: {
-        id: "1",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      epic: {
-        id: "1",
-        name: "User Management",
-        color: "bg-blue-500",
-        project: {
-          id: "1",
-          name: "AgileForge Platform",
-        },
-      },
-      tags: ["authentication", "security", "oauth"],
-      stats: {
-        totalTasks: 12,
-        completedTasks: 8,
-        completionPercentage: 67,
-        comments: 5,
-        attachments: 3,
-      },
-      createdAt: "2024-01-15T10:00:00Z",
-      updatedAt: "2024-01-20T14:30:00Z",
-      dueDate: "2024-01-25T23:59:59Z",
-    },
-    {
-      id: "2",
-      name: "Dashboard Analytics Widget",
-      description: "Create interactive charts and metrics for project insights",
-      storyPoints: 5,
-      priority: "medium",
-      status: "ready",
-      assignee: {
-        id: "2",
-        name: "Alex Rodriguez",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      epic: {
-        id: "2",
-        name: "Analytics Platform",
-        color: "bg-purple-500",
-        project: {
-          id: "1",
-          name: "AgileForge Platform",
-        },
-      },
-      tags: ["analytics", "dashboard", "charts"],
-      stats: {
-        totalTasks: 8,
-        completedTasks: 2,
-        completionPercentage: 25,
-        comments: 12,
-        attachments: 1,
-      },
-      createdAt: "2024-01-18T09:15:00Z",
-      updatedAt: "2024-01-19T16:45:00Z",
-    },
-    {
-      id: "3",
-      name: "Mobile App Notifications",
-      description: "Push notifications for task updates and deadlines",
-      storyPoints: 3,
-      priority: "critical",
-      status: "backlog",
-      tags: ["mobile", "notifications", "push"],
-      stats: {
-        totalTasks: 6,
-        completedTasks: 0,
-        completionPercentage: 0,
-        comments: 2,
-        attachments: 0,
-      },
-      createdAt: "2024-01-20T11:30:00Z",
-      updatedAt: "2024-01-20T11:30:00Z",
-      dueDate: "2024-01-22T23:59:59Z",
-    },
-  ]
+  // API calls using our custom hooks
+  const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
+
+  const { data: epics = [], isLoading: epicsLoading } = useEpics()
+
+  const { data: users = [], isLoading: usersLoading } = useUsers()
+
+  const { data: stats, isLoading: statsLoading } = useStoryStats()
+
+  // Mutations
+  const deleteStoryMutation = useDeleteStory()
+  const bulkDeleteMutation = useBulkDeleteStories()
+  const bulkUpdateMutation = useBulkUpdateStories()
 
   const priorityConfig = {
     low: {
@@ -329,17 +226,89 @@ const StoriesPage: React.FC = () => {
     }
   }
 
-  const getStoryStats = () => {
-    const total = stories.length
-    const completed = stories.filter((s) => s.status === "done").length
-    const inProgress = stories.filter((s) => s.status === "in-progress").length
-    const totalPoints = stories.reduce((sum, s) => sum + (s.storyPoints || 0), 0)
-    const completedPoints = stories.filter((s) => s.status === "done").reduce((sum, s) => sum + (s.storyPoints || 0), 0)
-
-    return { total, completed, inProgress, totalPoints, completedPoints }
+  const handleDeleteStory = async (storyId: string) => {
+    if (confirm("Are you sure you want to delete this story?")) {
+      try {
+        await deleteStoryMutation.mutateAsync(storyId)
+        setSelectedStories((prev) => prev.filter((id) => id !== storyId))
+      } catch (error) {
+        console.error("Failed to delete story:", error)
+      }
+    }
   }
 
-  const stats = getStoryStats()
+  const handleBulkDelete = async () => {
+    if (selectedStories.length === 0) return
+
+    if (confirm(`Are you sure you want to delete ${selectedStories.length} stories?`)) {
+      try {
+        await bulkDeleteMutation.mutateAsync(selectedStories)
+        setSelectedStories([])
+      } catch (error) {
+        console.error("Failed to bulk delete stories:", error)
+      }
+    }
+  }
+
+  const handleBulkArchive = async () => {
+    if (selectedStories.length === 0) return
+
+    try {
+      await bulkUpdateMutation.mutateAsync({
+        ids: selectedStories,
+        updates: { status: "done" },
+      })
+      setSelectedStories([])
+    } catch (error) {
+      console.error("Failed to bulk archive stories:", error)
+    }
+  }
+
+  // Loading state
+  if (storiesLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Stories</h3>
+          <p className="text-slate-600">Getting your user stories ready...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (storiesError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center">
+        <Card className="max-w-md mx-auto shadow-lg">
+          <CardContent className="p-8 text-center">
+            <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Error Loading Stories</h3>
+            <p className="text-slate-600 mb-6">
+              {storiesError instanceof Error
+                ? storiesError.message
+                : "Something went wrong while loading your stories."}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => refetchStories()}
+                disabled={storiesLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {storiesLoading ? (
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw size={16} className="mr-2" />
+                )}
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <TooltipProvider>
@@ -366,20 +335,26 @@ const StoriesPage: React.FC = () => {
               <div className="flex items-center space-x-3">
                 {/* Quick Stats */}
                 <div className="hidden md:flex items-center space-x-4 bg-slate-50 px-4 py-2 rounded-lg">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-slate-900">{stats.total}</div>
-                    <div className="text-xs text-slate-600">Total</div>
-                  </div>
-                  <div className="w-px h-8 bg-slate-200"></div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-emerald-600">{stats.completed}</div>
-                    <div className="text-xs text-slate-600">Done</div>
-                  </div>
-                  <div className="w-px h-8 bg-slate-200"></div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-purple-600">{stats.inProgress}</div>
-                    <div className="text-xs text-slate-600">Active</div>
-                  </div>
+                  {statsLoading ? (
+                    <Loader2 size={16} className="animate-spin text-slate-400" />
+                  ) : stats ? (
+                    <>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-slate-900">{stats.total}</div>
+                        <div className="text-xs text-slate-600">Total</div>
+                      </div>
+                      <div className="w-px h-8 bg-slate-200"></div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-emerald-600">{stats.completed}</div>
+                        <div className="text-xs text-slate-600">Done</div>
+                      </div>
+                      <div className="w-px h-8 bg-slate-200"></div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-purple-600">{stats.inProgress}</div>
+                        <div className="text-xs text-slate-600">Active</div>
+                      </div>
+                    </>
+                  ) : null}
                 </div>
 
                 <Button
@@ -464,6 +439,36 @@ const StoriesPage: React.FC = () => {
                     </SelectContent>
                   </Select>
 
+                  <Select value={epicFilter} onValueChange={setEpicFilter}>
+                    <SelectTrigger className="w-[140px] h-11">
+                      <SelectValue placeholder="Epic" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Epics</SelectItem>
+                      <SelectItem value="independent">Independent</SelectItem>
+                      {epics.map((epic) => (
+                        <SelectItem key={epic.id} value={epic.id}>
+                          {epic.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                    <SelectTrigger className="w-[130px] h-11">
+                      <SelectValue placeholder="Assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
                   <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
                     <SelectTrigger className="w-[120px] h-11">
                       <SelectValue placeholder="Sort by" />
@@ -522,16 +527,35 @@ const StoriesPage: React.FC = () => {
                     <span className="text-sm font-medium text-slate-700">{selectedStories.length} selected</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Archive size={16} className="mr-2" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkArchive}
+                      disabled={bulkUpdateMutation.isPending}
+                    >
+                      {bulkUpdateMutation.isPending ? (
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                      ) : (
+                        <Archive size={16} className="mr-2" />
+                      )}
                       Archive
                     </Button>
                     <Button variant="outline" size="sm">
                       <Copy size={16} className="mr-2" />
                       Duplicate
                     </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      <Trash2 size={16} className="mr-2" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleteMutation.isPending}
+                    >
+                      {bulkDeleteMutation.isPending ? (
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 size={16} className="mr-2" />
+                      )}
                       Delete
                     </Button>
                   </div>
@@ -636,8 +660,16 @@ const StoriesPage: React.FC = () => {
                                 Add to Favorites
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 size={16} className="mr-2" />
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => handleDeleteStory(story.id)}
+                                disabled={deleteStoryMutation.isPending}
+                              >
+                                {deleteStoryMutation.isPending ? (
+                                  <Loader2 size={16} className="mr-2 animate-spin" />
+                                ) : (
+                                  <Trash2 size={16} className="mr-2" />
+                                )}
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -793,4 +825,4 @@ const StoriesPage: React.FC = () => {
   )
 }
 
-export default StoriesPage
+export default EnhancedStoriesPage 

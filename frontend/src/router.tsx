@@ -6,7 +6,7 @@ import DashboardDemo from './pages/DashboardDemo'
 import LoginPage from './pages/LoginPage'
 import RegisterPage, { action as registerAction } from './pages/RegisterPage'
 import EntityListPage from './pages/EntityListPage'
-import StoriesPage from './pages/StoriesPage'
+import EnhancedStoriesPage from './pages/EnhancedStoriesPage'
 import EpicsPage from './pages/EpicsPage'
 import EpicsDemo from './pages/EpicsDemo'
 import AdvancedWorkflowPage from './pages/AdvancedWorkflowPage'
@@ -62,7 +62,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'stories',
-        element: <StoriesPage />
+        element: <EnhancedStoriesPage />
       },
       {
         path: 'epics',
@@ -80,6 +80,7 @@ export const router = createBrowserRouter([
         path: 'epics-demo',
         element: <EpicsDemo />
       },
+
       {
         path: ':entity',
         element: <EntityListPage />
