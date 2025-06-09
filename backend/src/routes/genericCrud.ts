@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply, preHandlerAsyncHookHandler } from 'fastify'
+import { FastifyInstance, preHandlerAsyncHookHandler } from 'fastify'
 
 interface CrudOptions {
   preHandler?: preHandlerAsyncHookHandler
@@ -15,7 +15,7 @@ export function registerCrud(
   app: FastifyInstance,
   entityName: string,
   modelName: string,
-  options: CrudOptions = {}
+  options: CrudOptions = {},
 ) {
   const { preHandler, include } = options
   
@@ -43,7 +43,7 @@ export function registerCrud(
       const { id } = req.params
       const entity = await model.findUnique({ 
         where: { id },
-        ...(include ? { include } : {})
+        ...(include ? { include } : {}),
       })
       
       if (!entity) {
@@ -62,7 +62,7 @@ export function registerCrud(
     try {
       const entity = await model.create({ 
         data: req.body,
-        ...(include ? { include } : {})
+        ...(include ? { include } : {}),
       })
       return entity
     } catch (error) {
@@ -78,7 +78,7 @@ export function registerCrud(
       const entity = await model.update({ 
         where: { id }, 
         data: req.body,
-        ...(include ? { include } : {})
+        ...(include ? { include } : {}),
       })
       return entity
     } catch (error) {

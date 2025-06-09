@@ -24,7 +24,7 @@ const RATE_LIMITS = {
     max: 5, // 5 requests per minute
     message: 'Too many AI requests. AI endpoints are rate limited to 5 requests per minute.',
     skipSuccessfulRequests: false,
-    skipFailedRequests: false
+    skipFailedRequests: false,
   },
   // Authentication endpoints - moderate limiting
   auth: {
@@ -32,15 +32,15 @@ const RATE_LIMITS = {
     max: 10, // 10 requests per 15 minutes
     message: 'Too many authentication attempts. Please try again in 15 minutes.',
     skipSuccessfulRequests: true,
-    skipFailedRequests: false
+    skipFailedRequests: false,
   },
   // CRUD endpoints - generous but protective
   crud: {
     windowMs: 60 * 1000, // 1 minute
-    max: 100, // 100 requests per minute
+    max: 500, // 500 requests per minute (increased for development)
     message: 'Too many requests. Please slow down.',
     skipSuccessfulRequests: false,
-    skipFailedRequests: true
+    skipFailedRequests: true,
   },
   // General endpoints - very generous
   general: {
@@ -48,8 +48,8 @@ const RATE_LIMITS = {
     max: 200, // 200 requests per minute
     message: 'Rate limit exceeded. Please try again later.',
     skipSuccessfulRequests: false,
-    skipFailedRequests: true
-  }
+    skipFailedRequests: true,
+  },
 }
 
 class RateLimiter {
@@ -77,7 +77,7 @@ class RateLimiter {
     if (!this.store[key] || this.store[key].resetTime < now) {
       this.store[key] = {
         count: 1,
-        resetTime: now + config.windowMs
+        resetTime: now + config.windowMs,
       }
       return true
     }
@@ -157,6 +157,9 @@ async function rateLimitPlugin(fastify: FastifyInstance) {
       const resetTime = rateLimiter.getResetTime(ip, endpointKey)
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000)
       
+      // Log rate limiting for debugging
+      console.log(`Rate limit exceeded for ${ip} on ${endpointKey}. Reset in ${retryAfter} seconds.`)
+      
       reply.status(429)
       reply.header('X-RateLimit-Limit', config.max)
       reply.header('X-RateLimit-Remaining', remaining)
@@ -179,5 +182,5 @@ async function rateLimitPlugin(fastify: FastifyInstance) {
 }
 
 export default fp(rateLimitPlugin, {
-  name: 'rate-limit'
+  name: 'rate-limit',
 }) 

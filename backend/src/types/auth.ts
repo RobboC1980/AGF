@@ -88,7 +88,7 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.USE_AI_GENERATION,
     Permission.ACCESS_AI_ADMIN,
     Permission.ACCESS_ADMIN_PANEL,
-    Permission.MANAGE_SYSTEM_CONFIG
+    Permission.MANAGE_SYSTEM_CONFIG,
   ],
   
   [UserRole.PROJECT_MANAGER]: [
@@ -110,7 +110,7 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.READ_TASK,
     Permission.UPDATE_TASK,
     Permission.DELETE_TASK,
-    Permission.USE_AI_GENERATION
+    Permission.USE_AI_GENERATION,
   ],
   
   [UserRole.DEVELOPER]: [
@@ -125,7 +125,7 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.READ_TASK,
     Permission.UPDATE_TASK,
     Permission.DELETE_TASK,
-    Permission.USE_AI_GENERATION
+    Permission.USE_AI_GENERATION,
   ],
   
   [UserRole.CONTRIBUTOR]: [
@@ -136,7 +136,7 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.READ_STORY,
     Permission.READ_TASK,
     Permission.UPDATE_TASK,
-    Permission.USE_AI_GENERATION
+    Permission.USE_AI_GENERATION,
   ],
   
   [UserRole.VIEWER]: [
@@ -145,16 +145,16 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.READ_PROJECT,
     Permission.READ_EPIC,
     Permission.READ_STORY,
-    Permission.READ_TASK
-  ]
-};
+    Permission.READ_TASK,
+  ],
+}
 
 // Helper function to get permissions for a role
 export function getPermissionsForRole(role: UserRole): Permission[] {
-  return RolePermissions[role] || [];
+  return RolePermissions[role] || []
 }
 
 // Helper function to check if a role has a specific permission
 export function hasPermission(role: UserRole, permission: Permission): boolean {
-  return getPermissionsForRole(role).includes(permission);
+  return getPermissionsForRole(role).includes(permission)
 } 

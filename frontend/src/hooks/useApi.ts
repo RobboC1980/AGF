@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../services/api';
 
 interface UseApiState<T> {
@@ -17,22 +17,61 @@ export function useApi<T>(
     error: null,
   });
 
-  const fetchData = async () => {
+  const lastDepsRef = useRef<string>('');
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const fetchData = useCallback(async () => {
+    // Abort previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
       const result = await apiCall();
-      setState({ data: result, loading: false, error: null });
-    } catch (error) {
-      setState({ 
-        data: null, 
-        loading: false, 
-        error: error instanceof Error ? error.message : 'An error occurred' 
-      });
+      
+      // Only update state if this request wasn't aborted
+      if (!abortControllerRef.current?.signal.aborted) {
+        setState({ data: result, loading: false, error: null });
+      }
+    } catch (error: any) {
+      // Only update state if this request wasn't aborted and it's not an abort error
+      if (!abortControllerRef.current?.signal.aborted && error.name !== 'AbortError') {
+        let errorMessage = error instanceof Error ? error.message : 'An error occurred';
+        
+        // Handle rate limiting errors specifically
+        if (error.response?.status === 429) {
+          errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+          console.warn('Rate limit hit:', error.response?.data);
+        }
+        
+        setState({ 
+          data: null, 
+          loading: false, 
+          error: errorMessage
+        });
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    // Stringify dependencies to check for deep equality
+    const depsString = JSON.stringify(dependencies);
+    
+    // Only fetch if dependencies actually changed
+    if (depsString !== lastDepsRef.current) {
+      lastDepsRef.current = depsString;
+      fetchData();
+    }
+
+    // Cleanup function to abort request on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, dependencies);
 
   return {

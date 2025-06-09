@@ -9,14 +9,14 @@ import { initTheme } from './utils/theme'
 import './styles/global.css'
 import './styles/agile-workflow.css'
 
-const TOKEN_STORAGE_KEY = 'auth_token' // Standardized key
-const isDevelopment = import.meta.env.DEV
-
 // Apply saved theme preference
 initTheme()
 
 // Initialize auth token from storage
-const initializeAuth = () => {
+function initializeAuth() {
+  const TOKEN_STORAGE_KEY = 'auth_token' // Standardized key
+  const isDevelopment = import.meta.env.DEV
+
   if (isDevelopment) console.log('Initializing authentication...')
   
   // First check zustand state
@@ -53,6 +53,7 @@ const initializeAuth = () => {
   if (isDevelopment) console.log('No authentication token found')
 }
 
+// Initialize auth
 initializeAuth()
 
 const queryClient = new QueryClient({
@@ -80,13 +81,18 @@ function HydrateFallback() {
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider 
-        router={router} 
-        fallbackElement={<HydrateFallback />}
-      />
-    </QueryClientProvider>
-  </React.StrictMode>
-)
+// Main App component
+function App() {
+  return (
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider 
+          router={router} 
+          fallbackElement={<HydrateFallback />}
+        />
+      </QueryClientProvider>
+    </React.StrictMode>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(<App />)

@@ -1,7 +1,7 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { UserRole, Permission, hasPermission, JWTPayload } from '../types/auth';
+import { FastifyRequest, FastifyReply } from 'fastify'
+import { UserRole, Permission, hasPermission, JWTPayload } from '../types/auth'
 
-const shouldLog = process.env.NODE_ENV !== 'production';
+const shouldLog = process.env.NODE_ENV !== 'production'
 
 // Override @fastify/jwt module to use our JWTPayload type
 declare module '@fastify/jwt' {
@@ -16,31 +16,31 @@ declare module '@fastify/jwt' {
  */
 export const requireAuth = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
-    await request.jwtVerify();
+    await request.jwtVerify()
     
     // Ensure user object exists
     if (!request.user) {
       return reply.code(401).send({
         error: 'Authentication required',
         message: 'User information not found in token',
-        code: 'UNAUTHORIZED'
-      });
+        code: 'UNAUTHORIZED',
+      })
     }
     
     if (shouldLog) {
-      console.log(`Auth: User ${request.user.email} (${request.user.role}) authenticated`);
+      console.log(`Auth: User ${request.user.email} (${request.user.role}) authenticated`)
     }
   } catch (err: any) {
     if (shouldLog) {
-      console.error('Authentication failed:', err.message);
+      console.error('Authentication failed:', err.message)
     }
     return reply.code(401).send({
       error: 'Authentication required',
       message: 'Invalid or missing token',
-      code: 'UNAUTHORIZED'
-    });
+      code: 'UNAUTHORIZED',
+    })
   }
-};
+}
 
 /**
  * Guard that requires a specific role
@@ -48,30 +48,30 @@ export const requireAuth = async (request: FastifyRequest, reply: FastifyReply) 
 export const requireRole = (requiredRole: UserRole) => {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // First ensure authentication
-    await requireAuth(request, reply);
+    await requireAuth(request, reply)
     
-    if (reply.sent) return; // If auth failed, don't continue
+    if (reply.sent) {return} // If auth failed, don't continue
     
-    const user = request.user!;
+    const user = request.user!
     
     if (user.role !== requiredRole) {
       if (shouldLog) {
-        console.log(`Auth: User ${user.email} role ${user.role} insufficient, required: ${requiredRole}`);
+        console.log(`Auth: User ${user.email} role ${user.role} insufficient, required: ${requiredRole}`)
       }
       return reply.code(403).send({
         error: 'Insufficient privileges',
         message: `Role ${requiredRole} required`,
         code: 'FORBIDDEN',
         userRole: user.role,
-        requiredRole
-      });
+        requiredRole,
+      })
     }
     
     if (shouldLog) {
-      console.log(`Auth: User ${user.email} has required role: ${requiredRole}`);
+      console.log(`Auth: User ${user.email} has required role: ${requiredRole}`)
     }
-  };
-};
+  }
+}
 
 /**
  * Guard that requires one of multiple roles
@@ -79,30 +79,30 @@ export const requireRole = (requiredRole: UserRole) => {
 export const requireAnyRole = (allowedRoles: UserRole[]) => {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // First ensure authentication
-    await requireAuth(request, reply);
+    await requireAuth(request, reply)
     
-    if (reply.sent) return; // If auth failed, don't continue
+    if (reply.sent) {return} // If auth failed, don't continue
     
-    const user = request.user!;
+    const user = request.user!
     
     if (!allowedRoles.includes(user.role)) {
       if (shouldLog) {
-        console.log(`Auth: User ${user.email} role ${user.role} not in allowed roles: ${allowedRoles.join(', ')}`);
+        console.log(`Auth: User ${user.email} role ${user.role} not in allowed roles: ${allowedRoles.join(', ')}`)
       }
       return reply.code(403).send({
         error: 'Insufficient privileges',
         message: `One of these roles required: ${allowedRoles.join(', ')}`,
         code: 'FORBIDDEN',
         userRole: user.role,
-        allowedRoles
-      });
+        allowedRoles,
+      })
     }
     
     if (shouldLog) {
-      console.log(`Auth: User ${user.email} has allowed role: ${user.role}`);
+      console.log(`Auth: User ${user.email} has allowed role: ${user.role}`)
     }
-  };
-};
+  }
+}
 
 /**
  * Guard that requires a specific permission
@@ -110,30 +110,30 @@ export const requireAnyRole = (allowedRoles: UserRole[]) => {
 export const requirePermission = (requiredPermission: Permission) => {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // First ensure authentication
-    await requireAuth(request, reply);
+    await requireAuth(request, reply)
     
-    if (reply.sent) return; // If auth failed, don't continue
+    if (reply.sent) {return} // If auth failed, don't continue
     
-    const user = request.user!;
+    const user = request.user!
     
     if (!hasPermission(user.role, requiredPermission)) {
       if (shouldLog) {
-        console.log(`Auth: User ${user.email} role ${user.role} lacks permission: ${requiredPermission}`);
+        console.log(`Auth: User ${user.email} role ${user.role} lacks permission: ${requiredPermission}`)
       }
       return reply.code(403).send({
         error: 'Insufficient privileges',
         message: `Permission ${requiredPermission} required`,
         code: 'FORBIDDEN',
         userRole: user.role,
-        requiredPermission
-      });
+        requiredPermission,
+      })
     }
     
     if (shouldLog) {
-      console.log(`Auth: User ${user.email} has required permission: ${requiredPermission}`);
+      console.log(`Auth: User ${user.email} has required permission: ${requiredPermission}`)
     }
-  };
-};
+  }
+}
 
 /**
  * Guard that requires any of multiple permissions
@@ -141,47 +141,47 @@ export const requirePermission = (requiredPermission: Permission) => {
 export const requireAnyPermission = (allowedPermissions: Permission[]) => {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // First ensure authentication
-    await requireAuth(request, reply);
+    await requireAuth(request, reply)
     
-    if (reply.sent) return; // If auth failed, don't continue
+    if (reply.sent) {return} // If auth failed, don't continue
     
-    const user = request.user!;
+    const user = request.user!
     
     const hasAnyPermission = allowedPermissions.some(permission => 
-      hasPermission(user.role, permission)
-    );
+      hasPermission(user.role, permission),
+    )
     
     if (!hasAnyPermission) {
       if (shouldLog) {
-        console.log(`Auth: User ${user.email} role ${user.role} lacks any of permissions: ${allowedPermissions.join(', ')}`);
+        console.log(`Auth: User ${user.email} role ${user.role} lacks any of permissions: ${allowedPermissions.join(', ')}`)
       }
       return reply.code(403).send({
         error: 'Insufficient privileges',
         message: `One of these permissions required: ${allowedPermissions.join(', ')}`,
         code: 'FORBIDDEN',
         userRole: user.role,
-        allowedPermissions
-      });
+        allowedPermissions,
+      })
     }
     
     if (shouldLog) {
-      console.log(`Auth: User ${user.email} has required permissions`);
+      console.log(`Auth: User ${user.email} has required permissions`)
     }
-  };
-};
+  }
+}
 
 /**
  * Guard for admin-only routes
  */
-export const requireAdmin = requireRole(UserRole.ADMIN);
+export const requireAdmin = requireRole(UserRole.ADMIN)
 
 /**
  * Guard for project managers and above
  */
 export const requireProjectManagerOrAbove = requireAnyRole([
   UserRole.ADMIN,
-  UserRole.PROJECT_MANAGER
-]);
+  UserRole.PROJECT_MANAGER,
+])
 
 /**
  * Guard for developers and above
@@ -189,28 +189,28 @@ export const requireProjectManagerOrAbove = requireAnyRole([
 export const requireDeveloperOrAbove = requireAnyRole([
   UserRole.ADMIN,
   UserRole.PROJECT_MANAGER,
-  UserRole.DEVELOPER
-]);
+  UserRole.DEVELOPER,
+])
 
 /**
  * Optional auth - doesn't fail if no token, but populates user if valid token exists
  */
-export const optionalAuth = async (request: FastifyRequest, reply: FastifyReply) => {
+export const optionalAuth = async (request: FastifyRequest, _reply: FastifyReply) => {
   if (request.headers.authorization) {
     try {
-      await request.jwtVerify();
+      await request.jwtVerify()
       if (shouldLog) {
-        console.log(`Optional Auth: User ${request.user?.email} authenticated`);
+        console.log(`Optional Auth: User ${request.user?.email} authenticated`)
       }
     } catch (err) {
       // Silently ignore auth errors for optional auth
       if (shouldLog) {
-        console.log('Optional Auth: Invalid token ignored');
+        console.log('Optional Auth: Invalid token ignored')
       }
     }
   } else {
     if (shouldLog) {
-      console.log('Optional Auth: No token provided');
+      console.log('Optional Auth: No token provided')
     }
   }
-}; 
+} 

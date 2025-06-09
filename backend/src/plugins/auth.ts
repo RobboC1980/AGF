@@ -8,7 +8,7 @@ export default fp(async (app: FastifyInstance) => {
   console.log('JWT Secret configured:', jwtSecret.substring(0, 10) + '...')
   
   app.register(fastifyJwt, {
-    secret: jwtSecret
+    secret: jwtSecret,
   })
 
   app.decorate('authenticate', async function (request: FastifyRequest, reply: FastifyReply) {
@@ -34,7 +34,7 @@ export default fp(async (app: FastifyInstance) => {
       reply.status(401).send({ 
         error: 'Authentication required', 
         message: 'Invalid or missing token',
-        code: 'UNAUTHORIZED' 
+        code: 'UNAUTHORIZED', 
       })
     }
   })

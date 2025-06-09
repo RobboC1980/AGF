@@ -91,23 +91,90 @@
 /* ===== Dark Mode ===== */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: var(--gray-900);
-    --surface: var(--gray-800);
-    --border: var(--gray-700);
-    --text-primary: var(--gray-100);
-    --text-secondary: var(--gray-300);
-    --text-muted: var(--gray-500);
+    --background: #0a0a0a;
+    --surface: #1a1a1a;
+    --border: #333333;
+    --text-primary: #ffffff;
+    --text-secondary: #e0e0e0;
+    --text-muted: #a0a0a0;
+    
+    /* Improve contrast for form elements */
+    --gray-50: #1a1a1a;
+    --gray-100: #2a2a2a;
+    --gray-200: #3a3a3a;
+    --gray-300: #4a4a4a;
+    --gray-400: #6a6a6a;
+    --gray-500: #8a8a8a;
+    --gray-600: #b0b0b0;
+    --gray-700: #d0d0d0;
+    --gray-800: #e0e0e0;
+    --gray-900: #ffffff;
+  }
+  
+  /* Ensure input elements have better contrast */
+  input, textarea, select {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    border-color: #444444;
+  }
+  
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--primary-400);
+    background-color: #242424;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: #888888;
+  }
+  
+  /* Improve table readability */
+  th {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    border-color: #444444;
+  }
+  
+  td {
+    color: #e0e0e0;
+    border-color: #333333;
+  }
+  
+  tr:hover td {
+    background-color: #242424;
+  }
+  
+  /* Improve card contrast */
+  .card {
+    background-color: #1a1a1a;
+    border-color: #333333;
+  }
+  
+  .card-header, .card-footer {
+    background-color: #0f0f0f;
+    border-color: #333333;
+  }
+  
+  /* Improve button contrast */
+  .btn-secondary {
+    background-color: #2a2a2a;
+    color: #ffffff;
+    border-color: #444444;
+  }
+  
+  .btn-secondary:hover:not(:disabled) {
+    background-color: #3a3a3a;
+    border-color: #555555;
   }
 }
 
 /* Manual theme classes */
 .dark-theme {
-  --background: var(--gray-900);
-  --surface: var(--gray-800);
-  --border: var(--gray-700);
-  --text-primary: var(--gray-100);
-  --text-secondary: var(--gray-300);
-  --text-muted: var(--gray-500);
+  --background: #0a0a0a;
+  --surface: #1a1a1a;
+  --border: #333333;
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-muted: #a0a0a0;
 }
 
 .light-theme {

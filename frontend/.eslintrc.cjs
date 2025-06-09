@@ -1,16 +1,24 @@
 module.exports = {
-  extends: ['../.eslintrc.js'],
+  root: true,
   env: {
     browser: true,
     es2022: true,
   },
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
     'plugin:react-hooks/recommended',
   ],
-  plugins: ['react', 'react-hooks'],
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: true,
+    },
+  },
+  plugins: ['react', 'react-hooks', '@typescript-eslint'],
   settings: {
     react: {
       version: 'detect',

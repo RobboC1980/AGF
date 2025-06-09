@@ -93,7 +93,7 @@ export default function EntityListPage() {
       default:
         throw new Error(`Entity ${entity} not supported yet`)
     }
-  }, [entity, token, user])
+  }, [entity])
   
   // Extract the array from the response
   const entityData = entityResponse ? (entityResponse as any)[entity] || [] : []
@@ -112,38 +112,43 @@ export default function EntityListPage() {
   const requiredRelations = (relationships as any)[entity] || []
   
   // Fetch related data based on entity relationships
+  const shouldFetchProjects = requiredRelations.includes('projects')
+  const shouldFetchEpics = requiredRelations.includes('epics') && entity !== 'epics' // Don't fetch epics if we're already on epics page
+  const shouldFetchStories = requiredRelations.includes('stories')
+  const shouldFetchSprints = requiredRelations.includes('sprints')
+
   const { data: projectsData } = useApi<any>(() => {
-    if (requiredRelations.includes('projects')) {
+    if (shouldFetchProjects) {
       return apiClient.getProjects()
     }
     return Promise.resolve(null)
-  }, [entity, requiredRelations])
+  }, [shouldFetchProjects])
 
   const { data: epicsData } = useApi<any>(() => {
-    if (requiredRelations.includes('epics')) {
+    if (shouldFetchEpics) {
       return apiClient.getEpics()
     }
     return Promise.resolve(null)
-  }, [entity, requiredRelations])
+  }, [shouldFetchEpics])
 
   const { data: storiesData } = useApi<any>(() => {
-    if (requiredRelations.includes('stories')) {
+    if (shouldFetchStories) {
       return apiClient.getStories()
     }
     return Promise.resolve(null)
-  }, [entity, requiredRelations])
+  }, [shouldFetchStories])
 
   const { data: sprintsData } = useApi<any>(() => {
-    if (requiredRelations.includes('sprints')) {
+    if (shouldFetchSprints) {
       return apiClient.getSprints()
     }
     return Promise.resolve(null)
-  }, [entity, requiredRelations])
+  }, [shouldFetchSprints])
 
   // Build relatedData object
   const relatedData = {
     projects: projectsData?.projects || [],
-    epics: epicsData?.epics || [],
+    epics: entity === 'epics' ? entityData : (epicsData?.epics || []), // Use main data if we're on epics page
     stories: storiesData?.stories || [],
     sprints: sprintsData?.sprints || []
   }
