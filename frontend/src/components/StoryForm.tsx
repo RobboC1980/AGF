@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Epic {
   id: string;
@@ -17,7 +18,7 @@ interface Story {
   acceptanceCriteria?: string;
   storyPoints?: number;
   priority: 'low' | 'medium' | 'high' | 'critical';
-  epicId: string;
+  epicId?: string; // Made optional
 }
 
 interface StoryFormProps {
@@ -25,6 +26,51 @@ interface StoryFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
 }
+
+// AI Generation Service
+const generateAIStory = async (context: { epicName?: string; projectName?: string; storyType?: string }): Promise<{ suggestions: string[]; provider?: string; confidence?: number }> => {
+  try {
+    const response = await fetch('http://localhost:4000/ai/generate-story', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        epicName: context.epicName || 'feature development',
+        projectName: context.projectName || 'project',
+        projectType: 'Business Application',
+        userPersona: 'End User'
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        suggestions: data.suggestions || [],
+        provider: data.provider,
+        confidence: data.confidence
+      };
+    } else {
+      throw new Error('AI service unavailable');
+    }
+  } catch (error) {
+    console.warn('AI generation failed, using fallback:', error);
+    
+    // Enhanced fallback templates
+    const fallbackSuggestions = [
+      `As a user, I want to ${context.epicName ? context.epicName.toLowerCase() : 'access the system'} so that I can accomplish my goals efficiently.`,
+      `As a ${context.projectName?.toLowerCase().includes('admin') ? 'administrator' : 'user'}, I want to manage ${context.epicName || 'content'} so that I can maintain organized data.`,
+      `As a stakeholder, I want to view ${context.epicName || 'analytics'} so that I can make informed decisions.`
+    ];
+    
+    return {
+      suggestions: fallbackSuggestions,
+      provider: 'fallback',
+      confidence: 0.7
+    };
+  }
+};
 
 const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => {
   const queryClient = useQueryClient();
@@ -34,11 +80,15 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
     acceptanceCriteria: story?.acceptanceCriteria || '',
     storyPoints: story?.storyPoints || undefined,
     priority: story?.priority || 'medium',
-    epicId: story?.epicId || ''
+    epicId: story?.epicId || undefined // Now optional
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiMetadata, setAiMetadata] = useState<{ provider?: string; confidence?: number } | null>(null);
 
   // Fetch epics for dropdown
   const { data: epicsData, isLoading: epicsLoading } = useQuery({
@@ -113,10 +163,7 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
       newErrors.name = 'Story name must be less than 200 characters';
     }
 
-    if (!formData.epicId) {
-      newErrors.epicId = 'Epic selection is required';
-    }
-
+    // Epic is now optional
     if (formData.description && formData.description.length > 2000) {
       newErrors.description = 'Description must be less than 2000 characters';
     }
@@ -159,339 +206,357 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
     }
   };
 
+  const handleAIGeneration = async () => {
+    setIsGeneratingAI(true);
+    setShowAIPanel(true);
+    
+    try {
+      const selectedEpic = epicsData?.epics?.find((epic: Epic) => epic.id === formData.epicId);
+      const result = await generateAIStory({
+        epicName: selectedEpic?.name || 'feature development',
+        projectName: selectedEpic?.project?.name || 'project',
+        storyType: 'user_story'
+      });
+      
+      setAiSuggestions(result.suggestions);
+      setAiMetadata({ provider: result.provider, confidence: result.confidence });
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      setAiSuggestions(['Failed to generate AI suggestions. Please try again.']);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const selectAISuggestion = (suggestion: string) => {
+    setFormData(prev => ({ ...prev, name: suggestion }));
+    setShowAIPanel(false);
+    
+    // Auto-generate acceptance criteria based on the story
+    if (suggestion.toLowerCase().includes('login')) {
+      setFormData(prev => ({ 
+        ...prev, 
+        acceptanceCriteria: '- Given I am on the login page, When I enter valid credentials, Then I should be logged in successfully\n- Given I enter invalid credentials, When I attempt to login, Then I should see an error message\n- Given I am already logged in, When I access the login page, Then I should be redirected to the dashboard'
+      }));
+    }
+  };
+
   const epics = epicsData?.epics || [];
 
+  const priorityColors = {
+    low: 'bg-green-100 text-green-700 border-green-200',
+    medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    high: 'bg-orange-100 text-orange-700 border-orange-200',
+    critical: 'bg-red-100 text-red-700 border-red-200'
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '2rem',
-        width: '90%',
-        maxWidth: '600px',
-        maxHeight: '90vh',
-        overflow: 'auto',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-          borderBottom: '1px solid #e5e7eb',
-          paddingBottom: '1rem'
-        }}>
-          <h2 style={{
-            margin: 0,
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            color: '#1f2937'
-          }}>
-            {story?.id ? 'Edit Story' : 'Create New Story'}
-          </h2>
-          <button
-            onClick={onCancel}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: '#6b7280',
-              padding: '0.25rem'
-            }}
-          >
-            ×
-          </button>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <span className="text-2xl">📖</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {story?.id ? 'Edit Story' : 'Create New Story'}
+                </h2>
+                <p className="text-blue-100">
+                  {story?.id ? 'Update your user story details' : 'Craft the perfect user story with AI assistance'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onCancel}
+              className="w-10 h-10 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <span className="text-xl">×</span>
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Story Name */}
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              Story Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Enter story name..."
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: `1px solid ${errors.name ? '#ef4444' : '#d1d5db'}`,
-                borderRadius: '6px',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-              onBlur={(e) => e.target.style.borderColor = errors.name ? '#ef4444' : '#d1d5db'}
-            />
-            {errors.name && (
-              <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-                {errors.name}
-              </p>
-            )}
-          </div>
-
-          {/* Epic Selection */}
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              Epic *
-            </label>
-            <select
-              value={formData.epicId}
-              onChange={(e) => handleInputChange('epicId', e.target.value)}
-              disabled={epicsLoading}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: `1px solid ${errors.epicId ? '#ef4444' : '#d1d5db'}`,
-                borderRadius: '6px',
-                fontSize: '1rem',
-                outline: 'none',
-                backgroundColor: 'white',
-                boxSizing: 'border-box'
-              }}
-            >
-              <option value="">Select an epic...</option>
-              {epics.map((epic: Epic) => (
-                <option key={epic.id} value={epic.id}>
-                  {epic.name} ({epic.project.name})
-                </option>
-              ))}
-            </select>
-            {errors.epicId && (
-              <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-                {errors.epicId}
-              </p>
-            )}
-          </div>
-
-          {/* Priority and Story Points Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '0.5rem'
-              }}>
-                Priority
+        {/* Form Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Story Name with AI Button */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Story Name *
               </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => handleInputChange('priority', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  backgroundColor: 'white',
-                  boxSizing: 'border-box'
-                }}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '0.5rem'
-              }}>
-                Story Points
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={formData.storyPoints || ''}
-                onChange={(e) => handleInputChange('storyPoints', e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="1-100"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: `1px solid ${errors.storyPoints ? '#ef4444' : '#d1d5db'}`,
-                  borderRadius: '6px',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              {errors.storyPoints && (
-                <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-                  {errors.storyPoints}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="As a [user type], I want [goal] so that [benefit]..."
+                  className={`w-full pl-4 pr-24 py-3 border-2 rounded-xl text-gray-900 placeholder-gray-400 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 ${
+                    errors.name ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                />
+                <motion.button
+                  type="button"
+                  onClick={handleAIGeneration}
+                  disabled={isGeneratingAI}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50"
+                >
+                  {isGeneratingAI ? (
+                    <span className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>AI</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center space-x-2">
+                      <span>🤖</span>
+                      <span>AI</span>
+                    </span>
+                  )}
+                </motion.button>
+              </div>
+              {errors.name && (
+                <p className="text-sm text-red-600 flex items-center space-x-2">
+                  <span>⚠️</span>
+                  <span>{errors.name}</span>
                 </p>
               )}
+              <p className="text-xs text-gray-500">
+                💡 Tip: Use the AI button for intelligent story suggestions, or write your own following the user story format
+              </p>
             </div>
-          </div>
 
-          {/* Description */}
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="As a [user type], I want [goal] so that [benefit]..."
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: `1px solid ${errors.description ? '#ef4444' : '#d1d5db'}`,
-                borderRadius: '6px',
-                fontSize: '1rem',
-                outline: 'none',
-                resize: 'vertical',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box'
-              }}
-            />
-            {errors.description && (
-              <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-                {errors.description}
+            {/* AI Suggestions Panel */}
+            <AnimatePresence>
+              {showAIPanel && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-purple-800 flex items-center space-x-2">
+                      <span>✨</span>
+                      <span>AI Story Suggestions</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowAIPanel(false)}
+                      className="text-purple-600 hover:text-purple-800"
+                    >
+                      ✖️
+                    </button>
+                  </div>
+                  
+                  {isGeneratingAI ? (
+                    <div className="flex items-center space-x-3 py-4">
+                      <div className="w-8 h-8 border-3 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                      <span className="text-purple-700">AI is crafting perfect user stories for you...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {aiSuggestions.map((suggestion, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: index * 0.1 }}
+                          onClick={() => selectAISuggestion(suggestion)}
+                          className="bg-white border border-purple-200 rounded-lg p-4 cursor-pointer hover:border-purple-400 hover:shadow-md transition-all"
+                        >
+                          <p className="text-gray-800">{suggestion}</p>
+                          <div className="mt-2 flex items-center space-x-2 text-xs text-purple-600">
+                            <span>✨</span>
+                            <span>Click to use this story</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                      
+                      {aiMetadata && (
+                        <div className="text-xs text-gray-500 flex items-center justify-between pt-2 border-t border-purple-200">
+                          <span>Generated by {aiMetadata.provider || 'AI'}</span>
+                          {aiMetadata.confidence && (
+                            <span>Confidence: {Math.round((aiMetadata.confidence || 0) * 100)}%</span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <motion.button
+                        type="button"
+                        onClick={handleAIGeneration}
+                        whileHover={{ scale: 1.02 }}
+                        className="w-full mt-3 py-2 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-medium transition-colors"
+                      >
+                        🔄 Generate More Suggestions
+                      </motion.button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Epic Selection - Now Optional */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Epic <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <select
+                value={formData.epicId || ''}
+                onChange={(e) => handleInputChange('epicId', e.target.value || undefined)}
+                disabled={epicsLoading}
+                className="w-full px-4 py-3 border-2 border-gray-200 hover:border-gray-300 rounded-xl text-gray-900 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                <option value="">🆓 Independent Story (No Epic)</option>
+                {epics.map((epic: Epic) => (
+                  <option key={epic.id} value={epic.id}>
+                    🚀 {epic.name} ({epic.project.name})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                💡 Stories can now exist independently or be linked to an epic
               </p>
-            )}
-          </div>
+            </div>
 
-          {/* Acceptance Criteria */}
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              Acceptance Criteria
-            </label>
-            <textarea
-              value={formData.acceptanceCriteria}
-              onChange={(e) => handleInputChange('acceptanceCriteria', e.target.value)}
-              placeholder="- Given [context], when [action], then [outcome]&#10;- Feature should handle [edge case]&#10;- User should see [feedback]"
-              rows={4}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: `1px solid ${errors.acceptanceCriteria ? '#ef4444' : '#d1d5db'}`,
-                borderRadius: '6px',
-                fontSize: '1rem',
-                outline: 'none',
-                resize: 'vertical',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box'
-              }}
-            />
-            {errors.acceptanceCriteria && (
-              <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-                {errors.acceptanceCriteria}
+            {/* Priority and Story Points */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Priority
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['low', 'medium', 'high', 'critical'] as const).map((priority) => (
+                    <button
+                      key={priority}
+                      type="button"
+                      onClick={() => handleInputChange('priority', priority)}
+                      className={`p-3 rounded-xl border-2 font-medium transition-all capitalize ${
+                        formData.priority === priority
+                          ? priorityColors[priority]
+                          : 'border-gray-200 hover:border-gray-300 bg-gray-50'
+                      }`}
+                    >
+                      {priority}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Story Points
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.storyPoints || ''}
+                  onChange={(e) => handleInputChange('storyPoints', e.target.value ? parseInt(e.target.value) : undefined)}
+                  placeholder="1-100"
+                  className={`w-full px-4 py-3 border-2 rounded-xl text-gray-900 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 ${
+                    errors.storyPoints ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                />
+                {errors.storyPoints && (
+                  <p className="text-sm text-red-600">{errors.storyPoints}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Provide additional context, business value, or implementation notes..."
+                rows={4}
+                className={`w-full px-4 py-3 border-2 rounded-xl text-gray-900 placeholder-gray-400 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 resize-none ${
+                  errors.description ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              />
+              {errors.description && (
+                <p className="text-sm text-red-600">{errors.description}</p>
+              )}
+            </div>
+
+            {/* Acceptance Criteria */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">
+                Acceptance Criteria
+              </label>
+              <textarea
+                value={formData.acceptanceCriteria}
+                onChange={(e) => handleInputChange('acceptanceCriteria', e.target.value)}
+                placeholder="- Given [context], when [action], then [outcome]&#10;- Feature should handle [edge case]&#10;- User should see [feedback]"
+                rows={5}
+                className={`w-full px-4 py-3 border-2 rounded-xl text-gray-900 placeholder-gray-400 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 resize-none ${
+                  errors.acceptanceCriteria ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              />
+              {errors.acceptanceCriteria && (
+                <p className="text-sm text-red-600">{errors.acceptanceCriteria}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                💡 Use Given-When-Then format for clear, testable criteria
               </p>
-            )}
-          </div>
+            </div>
+          </form>
+        </div>
 
-          {/* Action Buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'flex-end',
-            paddingTop: '1rem',
-            borderTop: '1px solid #e5e7eb'
-          }}>
-            <button
+        {/* Footer Actions */}
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">
+          <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <span>🔒 Auto-saved as draft</span>
+            <span>⌨️ Cmd+Enter to save</span>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <motion.button
               type="button"
               onClick={onCancel}
-              style={{
-                padding: '0.75rem 1.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                backgroundColor: 'white',
-                color: '#374151',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#f9fafb';
-                e.currentTarget.style.borderColor = '#9ca3af';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'white';
-                e.currentTarget.style.borderColor = '#d1d5db';
-              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="submit"
+              onClick={handleSubmit}
               disabled={isSubmitting}
-              style={{
-                padding: '0.75rem 1.5rem',
-                border: 'none',
-                borderRadius: '6px',
-                backgroundColor: isSubmitting ? '#9ca3af' : '#3b82f6',
-                color: 'white',
-                fontSize: '1rem',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => {
-                if (!isSubmitting) {
-                  e.currentTarget.style.backgroundColor = '#2563eb';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!isSubmitting) {
-                  e.currentTarget.style.backgroundColor = '#3b82f6';
-                }
-              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Saving...' : (story?.id ? 'Update Story' : 'Create Story')}
-            </button>
+              {isSubmitting ? (
+                <span className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </span>
+              ) : (
+                <span>{story?.id ? 'Update Story' : 'Create Story'}</span>
+              )}
+            </motion.button>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

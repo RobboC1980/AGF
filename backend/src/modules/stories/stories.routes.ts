@@ -128,7 +128,7 @@ export default async function storiesRoutes(fastify: FastifyInstance) {
     schema: {
       body: {
         type: 'object',
-        required: ['name', 'epicId'],
+        required: ['name'],
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 200 },
           epicId: { type: 'string' },
@@ -142,7 +142,7 @@ export default async function storiesRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const storyData = request.body as {
       name: string;
-      epicId: string;
+      epicId?: string;
       description?: string;
       acceptanceCriteria?: string;
       storyPoints?: number;
@@ -150,44 +150,52 @@ export default async function storiesRoutes(fastify: FastifyInstance) {
     };
 
     try {
-      // Verify epic exists
-      const epic = await fastify.prisma.epic.findUnique({
-        where: { id: storyData.epicId },
-        include: {
-          project: {
-            select: { id: true, name: true }
+      let epic = null;
+      
+      // Verify epic exists if provided
+      if (storyData.epicId) {
+        epic = await fastify.prisma.epic.findUnique({
+          where: { id: storyData.epicId },
+          include: {
+            project: {
+              select: { id: true, name: true }
+            }
           }
-        }
-      });
-
-      if (!epic) {
-        return reply.code(404).send({
-          error: 'Epic not found',
-          code: 'EPIC_NOT_FOUND'
         });
+
+        if (!epic) {
+          return reply.code(404).send({
+            error: 'Epic not found',
+            code: 'EPIC_NOT_FOUND'
+          });
+        }
       }
 
       const story = await fastify.prisma.story.create({
         data: {
           name: storyData.name,
-          epicId: storyData.epicId,
+          epicId: storyData.epicId || null,
           description: storyData.description,
           acceptanceCriteria: storyData.acceptanceCriteria,
           storyPoints: storyData.storyPoints,
           priority: storyData.priority || 'medium'
         },
         include: {
-          epic: {
+          epic: storyData.epicId ? {
             include: {
               project: {
                 select: { id: true, name: true }
               }
             }
-          }
+          } : false
         }
       });
 
-      fastify.log.info(`User ${request.user?.email} created story: ${story.name} in epic ${epic.name}`);
+      const logMessage = epic 
+        ? `User ${request.user?.email} created story: ${story.name} in epic ${epic.name}`
+        : `User ${request.user?.email} created independent story: ${story.name}`;
+      
+      fastify.log.info(logMessage);
 
       return reply.code(201).send({ story });
     } catch (error: any) {
