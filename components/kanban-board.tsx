@@ -371,7 +371,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                             {item.dueDate && (
                                               <div className="flex items-center space-x-1 text-xs text-slate-500">
                                                 <Clock size={10} />
-                                                <span>{new Date(item.dueDate).toLocaleDateString()}</span>
+                                                <span>{new Date(item.dueDate).toLocaleDateString('en-GB')}</span>
                                               </div>
                                             )}
                                           </div>

@@ -781,7 +781,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
 
                                 <div className="flex items-center space-x-2 text-xs text-slate-500">
                                   <Clock size={12} />
-                                  <span>Updated {new Date(result.updatedAt).toLocaleDateString()}</span>
+                                  <span>Updated {new Date(result.updatedAt).toLocaleDateString('en-GB')}</span>
                                 </div>
                               </div>
                             </CardContent>

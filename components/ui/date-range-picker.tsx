@@ -26,10 +26,10 @@ export function DatePickerWithRange({ className, date, onDateChange }: DatePicke
             {date?.from ? (
               date.to ? (
                 <>
-                  {date.from.toLocaleDateString()} - {date.to.toLocaleDateString()}
+                  {date.from.toLocaleDateString('en-GB')} - {date.to.toLocaleDateString('en-GB')}
                 </>
               ) : (
-                date.from.toLocaleDateString()
+                date.from.toLocaleDateString('en-GB')
               )
             ) : (
               <span>Pick a date range</span>

@@ -274,7 +274,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
     } else if (diffInHours < 24) {
       return `${Math.floor(diffInHours)}h ago`
     } else {
-      return date.toLocaleDateString()
+      return date.toLocaleDateString('en-GB')
     }
   }
 

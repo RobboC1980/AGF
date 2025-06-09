@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Search,
@@ -30,6 +29,7 @@ import {
   RefreshCw,
   Settings,
   ArrowUpDown,
+  Table2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +54,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type EntityType = "projects" | "epics" | "stories" | "tasks" | "sprints" | "initiatives" | "risks" | "okrs"
 
 interface EntityConfig {
-  icon: React.ComponentType<{ size?: number; className?: string }>
+  icon: React.ComponentType<any>
   title: string
   description: string
   color: string
@@ -554,7 +554,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                       onClick={() => setViewMode("table")}
                       className="h-9 px-3"
                     >
-                      <Table size={16} />
+                      <Table2 size={16} />
                     </Button>
                   </div>
 
@@ -785,8 +785,8 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                             <Calendar size={12} />
                             <span>
                               {item.dueDate
-                                ? `Due ${new Date(item.dueDate).toLocaleDateString()}`
-                                : `Updated ${new Date(item.updatedAt).toLocaleDateString()}`}
+                                ? `Due ${new Date(item.dueDate).toLocaleDateString('en-GB')}`
+                                : `Updated ${new Date(item.updatedAt).toLocaleDateString('en-GB')}`}
                             </span>
                           </div>
                         </div>
@@ -868,8 +868,8 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
 
                             <div className="text-xs text-slate-500 min-w-0">
                               {item.dueDate
-                                ? `Due ${new Date(item.dueDate).toLocaleDateString()}`
-                                : `Updated ${new Date(item.updatedAt).toLocaleDateString()}`}
+                                ? `Due ${new Date(item.dueDate).toLocaleDateString('en-GB')}`
+                                : `Updated ${new Date(item.updatedAt).toLocaleDateString('en-GB')}`}
                             </div>
 
                             <DropdownMenu>
@@ -997,8 +997,8 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                         <TableCell>
                           <div className="text-sm text-slate-600">
                             {item.dueDate
-                              ? new Date(item.dueDate).toLocaleDateString()
-                              : new Date(item.updatedAt).toLocaleDateString()}
+                              ? new Date(item.dueDate).toLocaleDateString('en-GB')
+                              : new Date(item.updatedAt).toLocaleDateString('en-GB')}
                           </div>
                         </TableCell>
                         <TableCell>

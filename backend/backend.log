@@ -1,0 +1,8 @@
+
+> agileforge-backend@1.0.0 dev
+> tsx watch src/index.ts
+
+JWT Secret configured: your-super...
+{"level":30,"time":1749144620051,"pid":63279,"hostname":"Chriss-MacBook-Pro.local","msg":"Server listening at http://127.0.0.1:4000"}
+Server running on http://127.0.0.1:4000
+{"level":30,"time":1749144620052,"pid":63279,"hostname":"Chriss-MacBook-Pro.local","msg":"Server listening at http://192.168.0.110:4000"}

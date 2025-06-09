@@ -810,8 +810,8 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                             <Calendar size={12} />
                             <span>
                               {epic.dueDate
-                                ? `Due ${new Date(epic.dueDate).toLocaleDateString()}`
-                                : `Updated ${new Date(epic.updatedAt).toLocaleDateString()}`}
+                                ? `Due ${new Date(epic.dueDate).toLocaleDateString('en-GB')}`
+                                : `Updated ${new Date(epic.updatedAt).toLocaleDateString('en-GB')}`}
                             </span>
                           </div>
                         </div>

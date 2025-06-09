@@ -810,8 +810,8 @@ const StoriesPage: React.FC = () => {
                             <Calendar size={12} />
                             <span>
                               {story.dueDate
-                                ? `Due ${new Date(story.dueDate).toLocaleDateString()}`
-                                : `Updated ${new Date(story.updatedAt).toLocaleDateString()}`}
+                                ? `Due ${new Date(story.dueDate).toLocaleDateString('en-GB')}`
+                                : `Updated ${new Date(story.updatedAt).toLocaleDateString('en-GB')}`}
                             </span>
                           </div>
                         </div>

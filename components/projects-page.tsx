@@ -914,15 +914,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                           <div className="flex items-center space-x-2 text-xs text-slate-500">
                             <Calendar size={12} />
                             <span>
-                              {new Date(project.startDate).toLocaleDateString()} -{" "}
-                              {project.endDate ? new Date(project.endDate).toLocaleDateString() : "Ongoing"}
+                              {new Date(project.startDate).toLocaleDateString('en-GB')} -{" "}
+                              {project.endDate ? new Date(project.endDate).toLocaleDateString('en-GB') : "Ongoing"}
                             </span>
                           </div>
 
                           {project.dueDate && (
                             <div className="flex items-center space-x-2 text-xs text-slate-500">
                               <Clock size={12} />
-                              <span>Due {new Date(project.dueDate).toLocaleDateString()}</span>
+                              <span>Due {new Date(project.dueDate).toLocaleDateString('en-GB')}</span>
                             </div>
                           )}
                         </div>
