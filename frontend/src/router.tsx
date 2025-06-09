@@ -2,10 +2,13 @@ import React from 'react'
 import { createBrowserRouter, redirect } from 'react-router-dom'
 import Layout from './components/Layout'
 import DashboardPage from './pages/DashboardPage'
+import DashboardDemo from './pages/DashboardDemo'
 import LoginPage from './pages/LoginPage'
 import RegisterPage, { action as registerAction } from './pages/RegisterPage'
 import EntityListPage from './pages/EntityListPage'
 import StoriesPage from './pages/StoriesPage'
+import EpicsPage from './pages/EpicsPage'
+import EpicsDemo from './pages/EpicsDemo'
 import AdvancedWorkflowPage from './pages/AdvancedWorkflowPage'
 import EntityDemo from './pages/EntityDemo'
 import { useAuth } from './store/useAuth'
@@ -62,8 +65,20 @@ export const router = createBrowserRouter([
         element: <StoriesPage />
       },
       {
+        path: 'epics',
+        element: <EpicsPage />
+      },
+      {
         path: 'entity-demo',
         element: <EntityDemo />
+      },
+      {
+        path: 'dashboard-demo',
+        element: <DashboardDemo />
+      },
+      {
+        path: 'epics-demo',
+        element: <EpicsDemo />
       },
       {
         path: ':entity',
