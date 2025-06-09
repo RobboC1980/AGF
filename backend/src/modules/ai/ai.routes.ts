@@ -22,12 +22,13 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     schema: {
       body: {
         type: 'object',
-        required: ['epicName'],
+        required: [],
         properties: {
           epicName: { type: 'string', minLength: 1 },
           projectName: { type: 'string' },
           projectType: { type: 'string' },
-          userPersona: { type: 'string' }
+          userPersona: { type: 'string' },
+          prompt: { type: 'string', minLength: 1 }
         }
       }
     }
@@ -36,22 +37,26 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       epicName,
       projectName,
       projectType,
-      userPersona
+      userPersona,
+      prompt
     } = request.body as {
-      epicName: string;
+      epicName?: string;
       projectName?: string;
       projectType?: string;
       userPersona?: string;
+      prompt?: string;
     };
 
     try {
-      fastify.log.info(`User ${request.user?.email} (${request.user?.role}) generating story for epic: ${epicName}`);
+      const logContext = epicName ? `epic: ${epicName}` : `independent story${prompt ? ` with prompt: ${prompt}` : ''}`;
+      fastify.log.info(`User ${request.user?.email} (${request.user?.role}) generating story for ${logContext}`);
 
       const result = await aiService.generateUserStories({
         epicName,
         projectName,
         projectType,
-        userPersona
+        userPersona,
+        prompt
       });
 
       return {
@@ -61,8 +66,10 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         model: result.model,
         confidence: result.confidence,
         context: {
-          epicName,
+          epicName: epicName || null,
           projectName,
+          prompt,
+          isIndependentStory: !epicName,
           generatedAt: new Date().toISOString()
         }
       };

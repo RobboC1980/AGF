@@ -14,6 +14,8 @@
     "lint:fix": "eslint src/**/*.{ts,tsx} --fix"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-tooltip": "^1.2.7",
     "@tanstack/react-query": "^5.25.0",
     "@types/lodash": "^4.17.17",
     "@types/react-beautiful-dnd": "^13.1.8",
@@ -23,6 +25,7 @@
     "dotenv": "^16.5.0",
     "framer-motion": "^12.16.0",
     "lodash": "^4.17.21",
+    "lucide-react": "^0.513.0",
     "react": "^18.3.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-chartjs-2": "^5.3.0",

@@ -8,6 +8,7 @@ import { apiClient } from './services/api'
 import { initTheme } from './utils/theme'
 import './styles/global.css'
 import './styles/agile-workflow.css'
+import './styles/modern.css'
 
 // Apply saved theme preference
 initTheme()

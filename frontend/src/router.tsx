@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage, { action as registerAction } from './pages/RegisterPage'
 import EntityListPage from './pages/EntityListPage'
+import StoriesPage from './pages/StoriesPage'
 import AdvancedWorkflowPage from './pages/AdvancedWorkflowPage'
 import { useAuth } from './store/useAuth'
 
@@ -54,6 +55,10 @@ export const router = createBrowserRouter([
       {
         path: 'workflow/:projectId',
         element: <AdvancedWorkflowPage />
+      },
+      {
+        path: 'stories',
+        element: <StoriesPage />
       },
       {
         path: ':entity',

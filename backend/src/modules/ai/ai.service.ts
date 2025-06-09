@@ -2,10 +2,11 @@ import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 
 interface AIStoryRequest {
-  epicName: string
+  epicName?: string
   projectName?: string
   projectType?: string
   userPersona?: string
+  prompt?: string
 }
 
 interface AIStoryResponse {
@@ -183,14 +184,33 @@ Requirements:
   }
 
   private generateWithTemplates(request: AIStoryRequest): AIStoryResponse {
-    const { epicName, projectName } = request
+    const { epicName, projectName, prompt } = request
     
     // Enhanced template-based generation as fallback
-    const templates = [
-      `As a ${this.getUserType(projectName)}, I want to ${this.getAction(epicName)} so that I can ${this.getBenefit(epicName, 'productivity')}.`,
-      `As a ${this.getUserType(projectName, 'stakeholder')}, I want to ${this.getAction(epicName, 'manage')} so that I can ${this.getBenefit(epicName, 'insights')}.`,
-      `As a ${this.getUserType(projectName, 'team member')}, I want to ${this.getAction(epicName, 'collaborate')} so that I can ${this.getBenefit(epicName, 'efficiency')}.`
-    ]
+    let templates: string[]
+    
+    if (prompt) {
+      // Generate templates based on the prompt
+      templates = [
+        `As a ${this.getUserType(projectName)}, I want to ${prompt.toLowerCase()} so that I can achieve my goals efficiently.`,
+        `As a ${this.getUserType(projectName, 'administrator')}, I want to manage ${prompt.toLowerCase()} so that I can maintain system integrity.`,
+        `As a ${this.getUserType(projectName, 'stakeholder')}, I want to monitor ${prompt.toLowerCase()} so that I can make informed decisions.`
+      ]
+    } else if (epicName) {
+      // Generate templates based on the epic
+      templates = [
+        `As a ${this.getUserType(projectName)}, I want to ${this.getAction(epicName)} so that I can ${this.getBenefit(epicName, 'productivity')}.`,
+        `As a ${this.getUserType(projectName, 'stakeholder')}, I want to ${this.getAction(epicName, 'manage')} so that I can ${this.getBenefit(epicName, 'insights')}.`,
+        `As a ${this.getUserType(projectName, 'team member')}, I want to ${this.getAction(epicName, 'collaborate')} so that I can ${this.getBenefit(epicName, 'efficiency')}.`
+      ]
+    } else {
+      // Generic templates for independent stories
+      templates = [
+        `As a ${this.getUserType(projectName)}, I want to access my personalized dashboard so that I can view relevant information quickly.`,
+        `As a ${this.getUserType(projectName, 'administrator')}, I want to manage user permissions so that I can maintain system security.`,
+        `As a ${this.getUserType(projectName, 'stakeholder')}, I want to generate reports so that I can track project progress.`
+      ]
+    }
 
     return {
       suggestions: templates,
@@ -201,9 +221,28 @@ Requirements:
   }
 
   private buildPrompt(request: AIStoryRequest): string {
-    const { epicName, projectName, projectType, userPersona } = request
+    const { epicName, projectName, projectType, userPersona, prompt } = request
     
-    return `
+    // If a specific prompt is provided, use it as the primary context
+    if (prompt) {
+      return `
+Generate user stories for: "${prompt}"
+
+Context:
+${epicName ? `- Epic: "${epicName}"` : '- Independent Story (no epic)'}
+- Project: "${projectName || 'Software Project'}"
+- Project Type: ${projectType || 'Business Application'}
+- Primary User: ${userPersona || 'End User'}
+
+Focus on practical, implementable functionality that delivers clear business value.
+Consider different user types: end users, administrators, stakeholders.
+Each story should be independent and deliverable within a sprint.
+`
+    }
+    
+    // Fallback to epic-based generation or generic generation
+    if (epicName) {
+      return `
 Generate user stories for:
 - Epic: "${epicName}"
 - Project: "${projectName || 'Software Project'}"
@@ -213,6 +252,20 @@ Generate user stories for:
 Focus on practical, implementable functionality that delivers clear business value.
 Consider different user types: end users, administrators, stakeholders.
 Each story should be independent and deliverable within a sprint.
+`
+    }
+    
+    // Generic story generation when no epic is specified
+    return `
+Generate user stories for a ${projectType || 'business application'} project:
+- Project: "${projectName || 'Software Project'}"
+- Primary User: ${userPersona || 'End User'}
+
+Create independent user stories that:
+- Deliver clear business value
+- Are implementable within a sprint
+- Consider different user types (end users, administrators, stakeholders)
+- Focus on practical functionality
 `
   }
 
@@ -227,7 +280,9 @@ Each story should be independent and deliverable within a sprint.
     return fallback
   }
 
-  private getAction(epicName: string, prefix?: string): string {
+  private getAction(epicName?: string, prefix?: string): string {
+    if (!epicName) return `${prefix ? `${prefix} ` : ''}perform core functionality`
+    
     const name = epicName.toLowerCase()
     const baseAction = prefix ? `${prefix} ` : ''
     
@@ -241,13 +296,15 @@ Each story should be independent and deliverable within a sprint.
     return `${baseAction}utilize ${epicName}`
   }
 
-  private getBenefit(epicName: string, type: 'productivity' | 'insights' | 'efficiency' = 'productivity'): string {
-    const name = epicName.toLowerCase()
-    
-    if (name.includes('login')) return 'access my personalized workspace'
-    if (name.includes('dashboard')) return 'make informed decisions quickly'
-    if (name.includes('report')) return 'track progress and performance'
-    if (name.includes('search')) return 'complete tasks efficiently'
+  private getBenefit(epicName?: string, type: 'productivity' | 'insights' | 'efficiency' = 'productivity'): string {
+    if (epicName) {
+      const name = epicName.toLowerCase()
+      
+      if (name.includes('login')) return 'access my personalized workspace'
+      if (name.includes('dashboard')) return 'make informed decisions quickly'
+      if (name.includes('report')) return 'track progress and performance'
+      if (name.includes('search')) return 'complete tasks efficiently'
+    }
     
     switch (type) {
       case 'insights': return 'gain valuable insights'

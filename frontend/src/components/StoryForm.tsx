@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  BookOpen,
+  X,
+  Bot,
+  Sparkles,
+  Loader2,
+  Lightbulb,
+  Crown,
+  Rocket,
+  RotateCcw,
+  Save,
+  RefreshCw
+} from 'lucide-react';
 
 interface Epic {
   id: string;
@@ -243,11 +256,27 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
 
   const epics = epicsData?.epics || [];
 
-  const priorityColors = {
-    low: 'bg-green-100 text-green-700 border-green-200',
-    medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    high: 'bg-orange-100 text-orange-700 border-orange-200',
-    critical: 'bg-red-100 text-red-700 border-red-200'
+  const priorityConfig = {
+    low: {
+      color: 'text-green-700',
+      bg: 'bg-green-50',
+      border: 'border-green-200'
+    },
+    medium: {
+      color: 'text-yellow-700',
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-200'
+    },
+    high: {
+      color: 'text-orange-700',
+      bg: 'bg-orange-50',
+      border: 'border-orange-200'
+    },
+    critical: {
+      color: 'text-red-700',
+      bg: 'bg-red-50',
+      border: 'border-red-200'
+    }
   };
 
   return (
@@ -261,29 +290,29 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">📖</span>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <BookOpen size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold">
+                <h2 className="text-lg font-semibold text-gray-900">
                   {story?.id ? 'Edit Story' : 'Create New Story'}
                 </h2>
-                <p className="text-blue-100">
+                <p className="text-sm text-gray-500">
                   {story?.id ? 'Update your user story details' : 'Craft the perfect user story with AI assistance'}
                 </p>
               </div>
             </div>
             <button
               onClick={onCancel}
-              className="w-10 h-10 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
             >
-              <span className="text-xl">×</span>
+              <X size={20} className="text-gray-400" />
             </button>
           </div>
         </div>
@@ -293,8 +322,8 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Story Name with AI Button */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                Story Name *
+              <label className="block text-sm font-medium text-gray-700">
+                Story Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -302,8 +331,8 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   placeholder="As a [user type], I want [goal] so that [benefit]..."
-                  className={`w-full pl-4 pr-24 py-3 border-2 rounded-xl text-gray-900 placeholder-gray-400 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 ${
-                    errors.name ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                  className={`w-full pl-4 pr-20 py-3 border rounded-lg text-gray-900 placeholder-gray-400 transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${
+                    errors.name ? 'border-red-300' : 'border-gray-300 hover:border-gray-400'
                   }`}
                 />
                 <motion.button
@@ -312,29 +341,30 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                   disabled={isGeneratingAI}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-3 py-1.5 rounded-md font-medium text-sm hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center space-x-1"
                 >
                   {isGeneratingAI ? (
-                    <span className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
                       <span>AI</span>
-                    </span>
+                    </>
                   ) : (
-                    <span className="flex items-center space-x-2">
-                      <span>🤖</span>
+                    <>
+                      <Bot size={14} />
                       <span>AI</span>
-                    </span>
+                    </>
                   )}
                 </motion.button>
               </div>
               {errors.name && (
-                <p className="text-sm text-red-600 flex items-center space-x-2">
-                  <span>⚠️</span>
+                <p className="text-sm text-red-600 flex items-center space-x-1">
+                  <span>⚠</span>
                   <span>{errors.name}</span>
                 </p>
               )}
-              <p className="text-xs text-gray-500">
-                💡 Tip: Use the AI button for intelligent story suggestions, or write your own following the user story format
+              <p className="text-xs text-gray-500 flex items-center space-x-1">
+                <Lightbulb size={12} />
+                <span>Use the AI button for intelligent story suggestions, or write your own following the user story format</span>
               </p>
             </div>
 
@@ -345,26 +375,26 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-4"
+                  className="bg-blue-50 border border-blue-200 rounded-lg p-4"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-semibold text-purple-800 flex items-center space-x-2">
-                      <span>✨</span>
+                    <h4 className="font-medium text-blue-900 flex items-center space-x-2">
+                      <Sparkles size={16} />
                       <span>AI Story Suggestions</span>
                     </h4>
                     <button
                       type="button"
                       onClick={() => setShowAIPanel(false)}
-                      className="text-purple-600 hover:text-purple-800"
+                      className="text-blue-600 hover:text-blue-800"
                     >
-                      ✖️
+                      <X size={16} />
                     </button>
                   </div>
                   
                   {isGeneratingAI ? (
                     <div className="flex items-center space-x-3 py-4">
-                      <div className="w-8 h-8 border-3 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
-                      <span className="text-purple-700">AI is crafting perfect user stories for you...</span>
+                      <Loader2 size={20} className="animate-spin text-blue-600" />
+                      <span className="text-blue-700">AI is crafting perfect user stories for you...</span>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -375,18 +405,18 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                           animate={{ x: 0, opacity: 1 }}
                           transition={{ delay: index * 0.1 }}
                           onClick={() => selectAISuggestion(suggestion)}
-                          className="bg-white border border-purple-200 rounded-lg p-4 cursor-pointer hover:border-purple-400 hover:shadow-md transition-all"
+                          className="bg-white border border-blue-200 rounded-lg p-4 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all"
                         >
                           <p className="text-gray-800">{suggestion}</p>
-                          <div className="mt-2 flex items-center space-x-2 text-xs text-purple-600">
-                            <span>✨</span>
+                          <div className="mt-2 flex items-center space-x-2 text-xs text-blue-600">
+                            <Sparkles size={12} />
                             <span>Click to use this story</span>
                           </div>
                         </motion.div>
                       ))}
                       
                       {aiMetadata && (
-                        <div className="text-xs text-gray-500 flex items-center justify-between pt-2 border-t border-purple-200">
+                        <div className="text-xs text-gray-500 flex items-center justify-between pt-2 border-t border-blue-200">
                           <span>Generated by {aiMetadata.provider || 'AI'}</span>
                           {aiMetadata.confidence && (
                             <span>Confidence: {Math.round((aiMetadata.confidence || 0) * 100)}%</span>
@@ -398,9 +428,10 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                         type="button"
                         onClick={handleAIGeneration}
                         whileHover={{ scale: 1.02 }}
-                        className="w-full mt-3 py-2 px-4 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-medium transition-colors"
+                        className="w-full mt-3 py-2 px-4 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
                       >
-                        🔄 Generate More Suggestions
+                        <RefreshCw size={14} />
+                        <span>Generate More Suggestions</span>
                       </motion.button>
                     </div>
                   )}
@@ -410,31 +441,34 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
 
             {/* Epic Selection - Now Optional */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-medium text-gray-700">
                 Epic <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <select
                 value={formData.epicId || ''}
                 onChange={(e) => handleInputChange('epicId', e.target.value || undefined)}
                 disabled={epicsLoading}
-                className="w-full px-4 py-3 border-2 border-gray-200 hover:border-gray-300 rounded-xl text-gray-900 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 hover:border-gray-400 rounded-lg text-gray-900 transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
-                <option value="">🆓 Independent Story (No Epic)</option>
+                <option value="">
+                  Independent Story (No Epic)
+                </option>
                 {epics.map((epic: Epic) => (
                   <option key={epic.id} value={epic.id}>
-                    🚀 {epic.name} ({epic.project.name})
+                    {epic.name} ({epic.project.name})
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500">
-                💡 Stories can now exist independently or be linked to an epic
+              <p className="text-xs text-gray-500 flex items-center space-x-1">
+                <Lightbulb size={12} />
+                <span>Stories can now exist independently or be linked to an epic</span>
               </p>
             </div>
 
             {/* Priority and Story Points */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+                <label className="block text-sm font-medium text-gray-700">
                   Priority
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -443,10 +477,10 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                       key={priority}
                       type="button"
                       onClick={() => handleInputChange('priority', priority)}
-                      className={`p-3 rounded-xl border-2 font-medium transition-all capitalize ${
+                      className={`p-3 rounded-lg border font-medium transition-all capitalize ${
                         formData.priority === priority
-                          ? priorityColors[priority]
-                          : 'border-gray-200 hover:border-gray-300 bg-gray-50'
+                          ? `${priorityConfig[priority].bg} ${priorityConfig[priority].color} ${priorityConfig[priority].border}`
+                          : 'border-gray-300 hover:border-gray-400 bg-white text-gray-700'
                       }`}
                     >
                       {priority}
@@ -456,7 +490,7 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+                <label className="block text-sm font-medium text-gray-700">
                   Story Points
                 </label>
                 <input
@@ -466,8 +500,8 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                   value={formData.storyPoints || ''}
                   onChange={(e) => handleInputChange('storyPoints', e.target.value ? parseInt(e.target.value) : undefined)}
                   placeholder="1-100"
-                  className={`w-full px-4 py-3 border-2 rounded-xl text-gray-900 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 ${
-                    errors.storyPoints ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                  className={`w-full px-4 py-3 border rounded-lg text-gray-900 transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${
+                    errors.storyPoints ? 'border-red-300' : 'border-gray-300 hover:border-gray-400'
                   }`}
                 />
                 {errors.storyPoints && (
@@ -478,7 +512,7 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-medium text-gray-700">
                 Description
               </label>
               <textarea
@@ -486,8 +520,8 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 placeholder="Provide additional context, business value, or implementation notes..."
                 rows={4}
-                className={`w-full px-4 py-3 border-2 rounded-xl text-gray-900 placeholder-gray-400 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 resize-none ${
-                  errors.description ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-400 transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none ${
+                  errors.description ? 'border-red-300' : 'border-gray-300 hover:border-gray-400'
                 }`}
               />
               {errors.description && (
@@ -497,7 +531,7 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
 
             {/* Acceptance Criteria */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
+              <label className="block text-sm font-medium text-gray-700">
                 Acceptance Criteria
               </label>
               <textarea
@@ -505,25 +539,29 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
                 onChange={(e) => handleInputChange('acceptanceCriteria', e.target.value)}
                 placeholder="- Given [context], when [action], then [outcome]&#10;- Feature should handle [edge case]&#10;- User should see [feedback]"
                 rows={5}
-                className={`w-full px-4 py-3 border-2 rounded-xl text-gray-900 placeholder-gray-400 transition-all focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 resize-none ${
-                  errors.acceptanceCriteria ? 'border-red-300' : 'border-gray-200 hover:border-gray-300'
+                className={`w-full px-4 py-3 border rounded-lg text-gray-900 placeholder-gray-400 transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none ${
+                  errors.acceptanceCriteria ? 'border-red-300' : 'border-gray-300 hover:border-gray-400'
                 }`}
               />
               {errors.acceptanceCriteria && (
                 <p className="text-sm text-red-600">{errors.acceptanceCriteria}</p>
               )}
-              <p className="text-xs text-gray-500">
-                💡 Use Given-When-Then format for clear, testable criteria
+              <p className="text-xs text-gray-500 flex items-center space-x-1">
+                <Lightbulb size={12} />
+                <span>Use Given-When-Then format for clear, testable criteria</span>
               </p>
             </div>
           </form>
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
           <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <span>🔒 Auto-saved as draft</span>
-            <span>⌨️ Cmd+Enter to save</span>
+            <span className="flex items-center space-x-1">
+              <Save size={14} />
+              <span>Auto-saved as draft</span>
+            </span>
+            <span>⌘+Enter to save</span>
           </div>
           
           <div className="flex items-center space-x-3">
@@ -532,7 +570,7 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
               onClick={onCancel}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </motion.button>
@@ -542,15 +580,18 @@ const StoryForm: React.FC<StoryFormProps> = ({ story, onSuccess, onCancel }) => 
               disabled={isSubmitting}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-8 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSubmitting ? (
-                <span className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <>
+                  <Loader2 size={16} className="animate-spin" />
                   <span>Saving...</span>
-                </span>
+                </>
               ) : (
-                <span>{story?.id ? 'Update Story' : 'Create Story'}</span>
+                <>
+                  <Save size={16} />
+                  <span>{story?.id ? 'Update Story' : 'Create Story'}</span>
+                </>
               )}
             </motion.button>
           </div>

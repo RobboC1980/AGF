@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useDashboard } from '../hooks/useApi'
+import { useQuery } from '@tanstack/react-query'
+import { apiClient } from '../services/api'
 
 interface DashboardStats {
   message: string
@@ -29,7 +30,15 @@ const ENTITY_METADATA = {
 }
 
 export default function DashboardPage() {
-  const { data, loading: isLoading, error } = useDashboard()
+  // Use React Query directly instead of custom hook
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: () => apiClient.getDashboard(),
+    staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: false
+  })
+
+  console.log('Dashboard React Query state:', { data, isLoading, error })
 
   if (isLoading) {
     return (
@@ -61,7 +70,7 @@ export default function DashboardPage() {
         
         <div className="dashboard-error">
           <span className="error-icon">⚠️</span>
-          <span className="error-text">Dashboard data temporarily unavailable. Please try again later.</span>
+          <span className="error-text">Dashboard data temporarily unavailable. Error: {error instanceof Error ? error.message : 'Unknown error'}</span>
         </div>
 
         <div className="getting-started">
