@@ -7,6 +7,7 @@ import RegisterPage, { action as registerAction } from './pages/RegisterPage'
 import EntityListPage from './pages/EntityListPage'
 import StoriesPage from './pages/StoriesPage'
 import AdvancedWorkflowPage from './pages/AdvancedWorkflowPage'
+import EntityDemo from './pages/EntityDemo'
 import { useAuth } from './store/useAuth'
 
 const isDevelopment = import.meta.env.DEV
@@ -59,6 +60,10 @@ export const router = createBrowserRouter([
       {
         path: 'stories',
         element: <StoriesPage />
+      },
+      {
+        path: 'entity-demo',
+        element: <EntityDemo />
       },
       {
         path: ':entity',

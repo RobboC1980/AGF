@@ -171,11 +171,11 @@ export default function DashboardPage() {
             </div>
           </Link>
           
-          <Link to="/workflow/demo" className="quick-action-card advanced-workflow">
+          <Link to="/entity-demo" className="quick-action-card advanced-workflow">
             <div className="quick-action-content">
               <div className="quick-action-icon">🚀</div>
-              <h3 className="quick-action-title">Advanced Workflow</h3>
-              <p className="quick-action-description">Sprint planning, Kanban boards, analytics & release planning</p>
+              <h3 className="quick-action-title">Entity Management</h3>
+              <p className="quick-action-description">Modern entity list views with advanced filtering and sorting</p>
             </div>
           </Link>
         </div>

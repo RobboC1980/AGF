@@ -6,9 +6,7 @@ import { router } from './router'
 import { useAuth } from './store/useAuth'
 import { apiClient } from './services/api'
 import { initTheme } from './utils/theme'
-import './styles/global.css'
-import './styles/agile-workflow.css'
-import './styles/modern.css'
+import './index.css'
 
 // Apply saved theme preference
 initTheme()
