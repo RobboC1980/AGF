@@ -52,23 +52,28 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           // Set token in API client
           api.auth.setToken(token)
           
-          // Verify token by fetching current user
-          // Note: This would require a /api/me endpoint in the backend
-          // For now, we'll assume token is valid if it exists
-          // In a real app, you'd want to verify with the server
-          
-          // Mock user data - in real app, fetch from /api/me
-          const mockUser: User = {
-            id: 'current-user',
-            username: 'current.user',
-            email: 'user@company.com',
-            first_name: 'Current',
-            last_name: 'User',
-            avatar_url: '/placeholder.svg?height=32&width=32',
-            is_active: true,
-            created_at: new Date().toISOString(),
+          // Verify token by fetching current user from backend
+          try {
+            const currentUser = await apiClient.getCurrentUser()
+            
+            // Convert backend user format to frontend User format
+            const frontendUser: User = {
+              id: currentUser.id,
+              username: currentUser.name,
+              email: currentUser.email,
+              first_name: currentUser.name.split(' ')[0] || currentUser.name,
+              last_name: currentUser.name.split(' ').slice(1).join(' ') || '',
+              avatar_url: currentUser.avatar_url || '/placeholder.svg?height=32&width=32',
+              is_active: true,
+              created_at: new Date().toISOString(),
+            }
+            setUser(frontendUser)
+          } catch (error) {
+            // Token is invalid, clear it
+            console.error('Token verification failed:', error)
+            localStorage.removeItem('auth_token')
+            api.auth.clearToken()
           }
-          setUser(mockUser)
         }
       } catch (error) {
         console.error('Auth initialization failed:', error)
@@ -87,27 +92,26 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      // Call login API - this would be a real API call
-      // For now, we'll simulate successful login
-      const mockToken = 'mock-jwt-token-' + Date.now()
+      // Call the real login API
+      const response = await apiClient.login(email, password)
       
       // Store token
-      localStorage.setItem('auth_token', mockToken)
-      api.auth.setToken(mockToken)
+      localStorage.setItem('auth_token', response.access_token)
+      api.auth.setToken(response.access_token)
       
-      // Mock user data - in real app, this would come from the login response
-      const mockUser: User = {
-        id: 'user-' + Date.now(),
-        username: email.split('@')[0],
-        email: email,
-        first_name: 'Demo',
-        last_name: 'User',
-        avatar_url: '/placeholder.svg?height=32&width=32',
+      // Convert backend user format to frontend User format
+      const frontendUser: User = {
+        id: response.user.id,
+        username: response.user.name, // Backend uses 'name', frontend expects 'username'
+        email: response.user.email,
+        first_name: response.user.name.split(' ')[0] || response.user.name,
+        last_name: response.user.name.split(' ').slice(1).join(' ') || '',
+        avatar_url: response.user.avatar_url || '/placeholder.svg?height=32&width=32',
         is_active: true,
         created_at: new Date().toISOString(),
       }
       
-      setUser(mockUser)
+      setUser(frontendUser)
       
       return { success: true }
     } catch (error) {
@@ -125,26 +129,30 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      // Call register API - this would be a real API call
-      const mockToken = 'mock-jwt-token-' + Date.now()
+      // Call the real register API
+      const response = await apiClient.register(
+        userData.email,
+        `${userData.first_name} ${userData.last_name}`, // Backend expects full name
+        userData.password
+      )
       
       // Store token
-      localStorage.setItem('auth_token', mockToken)
-      api.auth.setToken(mockToken)
+      localStorage.setItem('auth_token', response.access_token)
+      api.auth.setToken(response.access_token)
       
-      // Create user from registration data
-      const newUser: User = {
-        id: 'user-' + Date.now(),
-        username: userData.username,
-        email: userData.email,
+      // Convert backend user format to frontend User format
+      const frontendUser: User = {
+        id: response.user.id,
+        username: userData.username || response.user.name,
+        email: response.user.email,
         first_name: userData.first_name,
         last_name: userData.last_name,
-        avatar_url: '/placeholder.svg?height=32&width=32',
+        avatar_url: response.user.avatar_url || '/placeholder.svg?height=32&width=32',
         is_active: true,
         created_at: new Date().toISOString(),
       }
       
-      setUser(newUser)
+      setUser(frontendUser)
       
       return { success: true }
     } catch (error) {
