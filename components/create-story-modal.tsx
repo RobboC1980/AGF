@@ -401,7 +401,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                     {aiError && (
                       <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
                         <AlertCircle size={16} />
-                        <span className="text-sm">{aiError}</span>
+                        <span className="text-sm text-red-600">{aiError}</span>
                       </div>
                     )}
 
@@ -668,10 +668,11 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                             {story.acceptanceCriteria.map((criteria, index) => (
                               <div
                                 key={index}
-                                className="flex items-start space-x-2 p-3 bg-slate-50 rounded-lg border"
+                                className="flex items-start space-x-2 p-3 rounded-lg border border-slate-200"
+                                style={{ backgroundColor: '#ffffff' }}
                               >
                                 <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                                <span className="text-sm flex-1 text-wrap break-words">{criteria}</span>
+                                <span className="text-sm flex-1 text-wrap break-words" style={{ color: '#000000' }}>{criteria}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
