@@ -13,6 +13,8 @@ interface AuthContextType {
   logout: () => void
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean; error?: string }>
   refreshUser: () => Promise<void>
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<{ success: boolean; error?: string; message?: string }>
 }
 
 interface RegisterData {
@@ -199,6 +201,48 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
   }
 
+  const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      setIsLoading(true)
+      
+      const response = await apiClient.requestPasswordReset(email)
+      
+      return { 
+        success: true, 
+        message: response.message 
+      }
+    } catch (error) {
+      console.error('Password reset request failed:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Password reset request failed' 
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const confirmPasswordReset = async (token: string, newPassword: string): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      setIsLoading(true)
+      
+      const response = await apiClient.confirmPasswordReset(token, newPassword)
+      
+      return { 
+        success: true, 
+        message: response.message 
+      }
+    } catch (error) {
+      console.error('Password reset confirmation failed:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Password reset failed' 
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -208,6 +252,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     logout,
     updateProfile,
     refreshUser,
+    requestPasswordReset,
+    confirmPasswordReset,
   }
 
   return (

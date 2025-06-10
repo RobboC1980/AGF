@@ -85,9 +85,19 @@ async def run_migrations():
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     email VARCHAR(255) UNIQUE NOT NULL,
                     name VARCHAR(255) NOT NULL,
+                    password_hash VARCHAR(255),
                     avatar_url TEXT,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    token VARCHAR(255) UNIQUE NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(user_id)
                 );
                 
                 CREATE TABLE IF NOT EXISTS projects (
@@ -156,6 +166,8 @@ async def run_migrations():
                 CREATE INDEX IF NOT EXISTS idx_stories_status ON stories(status);
                 CREATE INDEX IF NOT EXISTS idx_tasks_story_id ON tasks(story_id);
                 CREATE INDEX IF NOT EXISTS idx_epics_project_id ON epics(project_id);
+                CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+                CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
             """)
             
             logger.info("Database migrations completed successfully")

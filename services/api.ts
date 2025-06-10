@@ -240,6 +240,24 @@ class ApiClient {
     this.clearAuth()
   }
 
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const response = await this.request<{ message: string }>("/api/auth/password-reset-request", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+
+    return response
+  }
+
+  async confirmPasswordReset(token: string, new_password: string): Promise<{ message: string }> {
+    const response = await this.request<{ message: string }>("/api/auth/password-reset-confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password }),
+    })
+
+    return response
+  }
+
   // Stories API
   async getStories(): Promise<ApiResponse<{ stories: Story[] }>> {
     return this.request("/api/stories")

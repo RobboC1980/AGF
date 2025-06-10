@@ -18,13 +18,17 @@ import SimpleCreateModal from "../components/simple-create-modal"
 import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
+import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User } from "lucide-react"
 import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useAuth } from "@/contexts/auth-context"
+import { AuthModal } from "@/components/auth-modal"
 
 const MainContent = () => {
   const { currentPage, setCurrentPage, filters } = useNavigation()
+  const { user, isAuthenticated, logout } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   
   // Add state for story modal
   const [showStoryModal, setShowStoryModal] = useState(false)
@@ -258,6 +262,38 @@ const MainContent = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
                 <div className="flex items-center space-x-2">
+                  {/* Authentication Controls */}
+                  {isAuthenticated ? (
+                    <div className="flex items-center space-x-3 mr-4">
+                      <div className="flex items-center space-x-2">
+                        <User size={16} className="text-slate-500" />
+                        <span className="text-sm text-slate-700">
+                          {user?.first_name} {user?.last_name}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={logout}
+                        className="text-slate-600 hover:text-slate-800"
+                      >
+                        <LogOut size={14} className="mr-1" />
+                        Logout
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAuthModal(true)}
+                      className="text-slate-600 hover:text-slate-800 mr-4"
+                    >
+                      <LogIn size={14} className="mr-1" />
+                      Login
+                    </Button>
+                  )}
+                  
+                  {/* Create Controls */}
                   <SimpleCreateModal 
                     type="epic" 
                     onSubmit={handleCreateSubmit}
@@ -454,6 +490,13 @@ const MainContent = () => {
         epics={modalEpics}
         users={modalUsers}
         editingStory={editingStory}
+      />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        initialMode="login"
       />
     </div>
   )
