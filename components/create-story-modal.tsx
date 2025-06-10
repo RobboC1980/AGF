@@ -259,20 +259,24 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
       return
     }
 
+    if (!story.epicId) {
+      setAiError("Please select an epic for this story")
+      return
+    }
+
     setIsSaving(true)
     try {
       // Convert frontend story format to backend format expected by the API
       const backendStory = {
-        name: story.name, // Keep name as is for the backend
+        title: story.name, // Backend expects 'title' not 'name'
         description: story.description || "",
-        epicId: story.epicId, // Keep epic ID (backend will handle validation)
-        acceptanceCriteria: story.acceptanceCriteria || [], // Keep as array for now
+        epic_id: story.epicId || "", // Backend expects 'epic_id' not 'epicId' and it's required
+        acceptance_criteria: story.acceptanceCriteria ? story.acceptanceCriteria.join('\n') : "", // Backend expects string not array
         priority: story.priority,
-        storyPoints: story.storyPoints,
-        assigneeId: story.assigneeId,
-        dueDate: story.dueDate,
-        status: story.status || "backlog",
-        tags: story.tags || []
+        story_points: story.storyPoints,
+        assignee_id: story.assigneeId, // Backend expects 'assignee_id' not 'assigneeId'
+        due_date: story.dueDate, // Backend expects 'due_date' not 'dueDate'
+        // Note: status and tags are not part of StoryCreate model in backend
       }
       
       await onSave(backendStory)
@@ -540,19 +544,18 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
-                          <Label htmlFor="epic">Epic</Label>
+                          <Label htmlFor="epic">Epic *</Label>
                           <Select
-                            value={story.epicId || "none"}
+                            value={story.epicId || ""}
                             onValueChange={(value) => setStory(prev => ({ 
                               ...prev, 
-                              epicId: value === "none" ? undefined : value 
+                              epicId: value || undefined 
                             }))}
                           >
                             <SelectTrigger className="mt-2">
                               <SelectValue placeholder="Select epic" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">No Epic</SelectItem>
                               {epics.map((epic) => (
                                 <SelectItem key={epic.id} value={epic.id}>
                                   {epic.name}
