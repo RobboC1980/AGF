@@ -278,19 +278,19 @@ export default function Page() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
                   {pages.map((page) => (
                     <Button
                       key={page.value}
                       variant={currentPage === page.value ? "default" : "outline"}
                       onClick={() => setCurrentPage(page.value as PageType)}
-                      className="flex flex-col h-auto p-3 space-y-2 min-h-[80px] text-center"
+                      className="flex flex-col h-auto p-3 space-y-2 min-h-[100px] text-center justify-start"
                     >
-                      <div className="flex flex-col items-center space-y-1">
+                      <div className="flex flex-col items-center space-y-1 flex-shrink-0">
                         <page.icon size={18} />
-                        <span className="font-medium text-sm leading-tight">{page.label}</span>
+                        <span className="font-medium text-sm leading-tight whitespace-nowrap">{page.label}</span>
                       </div>
-                      <span className="text-xs opacity-75 leading-tight break-words">{page.description}</span>
+                      <span className="text-xs opacity-75 leading-tight text-wrap text-center line-clamp-2 flex-1 flex items-center justify-center px-1">{page.description}</span>
                     </Button>
                   ))}
                 </div>

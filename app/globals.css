@@ -36,6 +36,27 @@ body {
     overflow-wrap: break-word;
     word-break: break-word;
   }
+  
+  /* Additional text wrapping utilities */
+  .text-wrap-anywhere {
+    overflow-wrap: anywhere;
+  }
+  
+  .text-no-wrap {
+    white-space: nowrap;
+  }
+  
+  .text-wrap-balance {
+    text-wrap: balance;
+  }
+  
+  /* Prevent text overflow in buttons and cards */
+  .btn-text-wrap {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
 }
 
 @layer base {
