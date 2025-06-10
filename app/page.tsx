@@ -13,6 +13,7 @@ import KanbanBoard from "../components/kanban-board"
 import AnalyticsDashboard from "../components/analytics-dashboard"
 import CollaborationPanel from "../components/collaboration-panel"
 import SimpleCreateModal from "../components/simple-create-modal"
+import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
@@ -24,6 +25,10 @@ export default function Page() {
   const [currentPage, setCurrentPage] = useState<PageType>("epics")
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
+  
+  // Add state for story modal
+  const [showStoryModal, setShowStoryModal] = useState(false)
+  const [editingStory, setEditingStory] = useState<any>(null)
 
   // Get data for the modals
   const { data: modalStories = [] } = useStories()
@@ -37,6 +42,11 @@ export default function Page() {
 
   const handleCreateNew = () => {
     console.log(`Creating new ${currentPage.slice(0, -1)}`)
+    // If we're on the stories page, open the story modal
+    if (currentPage === "stories") {
+      setShowStoryModal(true)
+      setEditingStory(null)
+    }
   }
 
   const handleCreateSubmit = async (data: any) => {
@@ -48,10 +58,23 @@ export default function Page() {
 
   const handleEdit = (item: any) => {
     console.log("Editing item:", item)
+    // If we're on the stories page, open the story modal for editing
+    if (currentPage === "stories") {
+      setEditingStory(item)
+      setShowStoryModal(true)
+    }
   }
 
   const handleDelete = (item: any) => {
     console.log("Deleting item:", item)
+  }
+
+  const handleStoryModalSave = async (storyData: any) => {
+    console.log("Saving story:", storyData)
+    // Here you would call your API to save the story
+    setShowStoryModal(false)
+    setEditingStory(null)
+    return Promise.resolve()
   }
 
   // Use real data for kanban columns
@@ -295,11 +318,24 @@ export default function Page() {
           )}
 
           {currentPage === "stories" && (
-            <UserStoriesPage
-              onCreateNew={handleCreateNew}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <>
+              <UserStoriesPage
+                onCreateNew={handleCreateNew}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+              <CreateStoryModal
+                isOpen={showStoryModal}
+                onClose={() => {
+                  setShowStoryModal(false)
+                  setEditingStory(null)
+                }}
+                onSave={handleStoryModalSave}
+                epics={modalEpics}
+                users={modalUsers}
+                editingStory={editingStory}
+              />
+            </>
           )}
 
           {currentPage === "tasks" && (
