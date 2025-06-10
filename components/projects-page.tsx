@@ -49,6 +49,7 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useNavigation } from "@/contexts/navigation-context"
 
 interface Project {
   id: string
@@ -108,6 +109,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
   const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics()
   const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
+  const { navigateToProjectEpics, navigateToEpicStories, filters } = useNavigation()
 
   // Combine loading and error states
   const isLoading = storiesLoading || epicsLoading || usersLoading
@@ -661,27 +663,33 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                           <Progress value={project.progress} className="h-2" />
 
                           <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="bg-slate-50 rounded-lg p-2">
-                              <div className="text-sm font-bold text-slate-900">
-                                {project.stats.completedEpics}/{project.stats.totalEpics}
+                            <button 
+                              onClick={() => navigateToProjectEpics(project.id)}
+                              className="bg-slate-50 hover:bg-blue-50 rounded-lg p-2 transition-colors cursor-pointer group"
+                            >
+                              <div className="text-sm font-bold text-slate-900 group-hover:text-blue-700">
+                                {project.stats.completedEpics || 0}/{project.stats.totalEpics || 0}
                               </div>
-                              <div className="text-xs text-slate-600 flex items-center justify-center">
+                              <div className="text-xs text-slate-600 group-hover:text-blue-600 flex items-center justify-center">
                                 <Rocket size={10} className="mr-1" />
                                 Epics
                               </div>
-                            </div>
-                            <div className="bg-slate-50 rounded-lg p-2">
-                              <div className="text-sm font-bold text-slate-900">
+                            </button>
+                            <button 
+                              onClick={() => navigateToEpicStories(project.id)}
+                              className="bg-slate-50 hover:bg-green-50 rounded-lg p-2 transition-colors cursor-pointer group"
+                            >
+                              <div className="text-sm font-bold text-slate-900 group-hover:text-green-700">
                                 {project.stats.completedStories}/{project.stats.totalStories}
                               </div>
-                              <div className="text-xs text-slate-600 flex items-center justify-center">
+                              <div className="text-xs text-slate-600 group-hover:text-green-600 flex items-center justify-center">
                                 <BookOpen size={10} className="mr-1" />
                                 Stories
                               </div>
-                            </div>
+                            </button>
                             <div className="bg-slate-50 rounded-lg p-2">
                               <div className="text-sm font-bold text-slate-900">
-                                {project.stats.completedTasks}/{project.stats.totalTasks}
+                                {project.stats.completedTasks || 0}/{project.stats.totalTasks || 0}
                               </div>
                               <div className="text-xs text-slate-600 flex items-center justify-center">
                                 <CheckSquare size={10} className="mr-1" />

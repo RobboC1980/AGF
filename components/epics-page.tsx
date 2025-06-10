@@ -49,6 +49,7 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useEpics, useStories, useUsers } from "@/hooks/useApi"
+import { useNavigation } from "@/contexts/navigation-context"
 import { type Epic } from "@/services/api"
 
 interface EpicsPageProps {
@@ -66,6 +67,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
   const { data: epics = [], isLoading, error, refetch } = useEpics()
   const { data: stories = [] } = useStories()
   const { data: users = [] } = useUsers()
+  const { navigateToEpicStories, navigateToProject, filters } = useNavigation()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -578,15 +580,18 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         </div>
 
                         {/* Project Info */}
-                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/60 rounded-lg p-3">
+                        <button 
+                          onClick={() => navigateToProject(epic.project_id)}
+                          className="w-full bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border border-purple-200/60 rounded-lg p-3 transition-colors group"
+                        >
                           <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                            <div className="w-3 h-3 rounded-full bg-purple-500 group-hover:bg-purple-600"></div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-purple-800 truncate">AgileForge Platform</p>
+                              <p className="text-sm font-medium text-purple-800 group-hover:text-purple-900 truncate">Project: {epic.project_id}</p>
                             </div>
-                            <Target size={14} className="text-purple-600 flex-shrink-0" />
+                            <Target size={14} className="text-purple-600 group-hover:text-purple-700 flex-shrink-0" />
                           </div>
-                        </div>
+                        </button>
 
                         {/* Progress & Stats */}
                         <div className="space-y-3">
@@ -597,15 +602,18 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                           <Progress value={epic.progress} className="h-2" />
 
                           <div className="grid grid-cols-2 gap-4 text-center">
-                            <div className="bg-slate-50 rounded-lg p-2">
-                              <div className="text-lg font-bold text-slate-900">
+                            <button 
+                              onClick={() => navigateToEpicStories(epic.id)}
+                              className="bg-slate-50 hover:bg-blue-50 rounded-lg p-2 transition-colors group"
+                            >
+                              <div className="text-lg font-bold text-slate-900 group-hover:text-blue-700">
                                 {epic.actual_story_points}/{epic.estimated_story_points || 0}
                               </div>
-                              <div className="text-xs text-slate-600 flex items-center justify-center">
+                              <div className="text-xs text-slate-600 group-hover:text-blue-600 flex items-center justify-center">
                                 <BookOpen size={12} className="mr-1" />
                                 Story Points
                               </div>
-                            </div>
+                            </button>
                             <div className="bg-slate-50 rounded-lg p-2">
                               <div className="text-lg font-bold text-slate-900">
                                 {epic.progress}%

@@ -4,6 +4,8 @@ import { useState } from "react"
 import { QueryProvider } from "../providers/query-provider"
 import { ToastProvider } from "../providers/toast-provider"
 import ErrorBoundary from "../components/error-boundary"
+import { NavigationProvider, useNavigation, type PageType } from "../contexts/navigation-context"
+import { BreadcrumbNavigation } from "../components/breadcrumb-navigation"
 import EpicsPage from "../components/epics-page"
 import ProjectsPage from "../components/projects-page"
 import UserStoriesPage from "../components/user-stories-page"
@@ -19,10 +21,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
 import { useStories, useEpics, useUsers } from "@/hooks/useApi"
 
-type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
-
-export default function Page() {
-  const [currentPage, setCurrentPage] = useState<PageType>("epics")
+const MainContent = () => {
+  const { currentPage, setCurrentPage, filters } = useNavigation()
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
   
@@ -218,10 +218,7 @@ export default function Page() {
   ]
 
   return (
-    <ErrorBoundary>
-      <QueryProvider>
-        <ToastProvider />
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
         {/* Page Selector */}
         <div className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -296,6 +293,9 @@ export default function Page() {
             </Card>
           </div>
         </div>
+
+        {/* Breadcrumb Navigation */}
+        <BreadcrumbNavigation />
 
         {/* Page Content */}
         <div className="relative">
@@ -425,7 +425,19 @@ export default function Page() {
           editingStory={editingStory}
         />
       </div>
-    </QueryProvider>
+    </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <ErrorBoundary>
+      <QueryProvider>
+        <ToastProvider />
+        <NavigationProvider>
+          <MainContent />
+        </NavigationProvider>
+      </QueryProvider>
     </ErrorBoundary>
   )
 }
