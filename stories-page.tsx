@@ -55,16 +55,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
   // Import our custom hooks
-  import { useStories, useCreateStory, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories } from "./hooks/use-stories"
+  import { useStories, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories } from "./hooks/use-stories"
   import { useEpics, useUsers } from "@/hooks/useApi"
   import { useStoryStats } from "./hooks/use-story-stats"
 import type { Story } from "./services/api"
-import CreateStoryModal from "@/components/create-story-modal"
 
-const StoriesPage: React.FC = () => {
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [editingStory, setEditingStory] = useState<Story | null>(null)
-  console.log('showCreateForm state:', showCreateForm)
+
+interface StoriesPageProps {
+  onCreateNew?: () => void
+  onEdit?: (story: any) => void
+  onDelete?: (story: any) => void
+}
+
+const StoriesPage: React.FC<StoriesPageProps> = ({ onCreateNew, onEdit, onDelete }) => {
 
   const [searchQuery, setSearchQuery] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -87,7 +90,6 @@ const StoriesPage: React.FC = () => {
   const { data: stats, isLoading: statsLoading } = useStoryStats()
 
   // Mutations
-  const createStoryMutation = useCreateStory()
   const deleteStoryMutation = useDeleteStory()
   const bulkDeleteMutation = useBulkDeleteStories()
   const bulkUpdateMutation = useBulkUpdateStories()
@@ -270,17 +272,7 @@ const StoriesPage: React.FC = () => {
     }
   }
 
-  const handleCreateStory = async (story: Partial<Story>) => {
-    console.log('Create Story button clicked')
-    try {
-      await createStoryMutation.mutateAsync(story)
-      setShowCreateForm(false)
-      console.log('showCreateForm set to false')
-    } catch (error) {
-      console.error("Failed to create story:", error)
-      throw error
-    }
-  }
+
 
   // Loading state
   if (storiesLoading) {
@@ -378,8 +370,7 @@ const StoriesPage: React.FC = () => {
                 <Button
                   onClick={() => {
                     console.log('Create Story button clicked')
-                    setShowCreateForm(true)
-                    console.log('showCreateForm set to true')
+                    onCreateNew?.()
                   }}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                 >
@@ -602,7 +593,7 @@ const StoriesPage: React.FC = () => {
                   </p>
                   {!searchQuery && priorityFilter === "all" && statusFilter === "all" && (
                     <Button
-                      onClick={() => setShowCreateForm(true)}
+                      onClick={() => onCreateNew?.()}
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
                       <Plus size={16} className="mr-2" />
@@ -669,7 +660,7 @@ const StoriesPage: React.FC = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setEditingStory(story)}>
+                              <DropdownMenuItem onClick={() => onEdit?.(story)}>
                                 <Edit2 size={16} className="mr-2" />
                                 Edit
                               </DropdownMenuItem>
@@ -843,15 +834,7 @@ const StoriesPage: React.FC = () => {
           )}
         </div>
 
-        {/* Create Story Modal */}
-        <CreateStoryModal
-          isOpen={showCreateForm}
-          onClose={() => setShowCreateForm(false)}
-          onSave={handleCreateStory}
-          epics={epics}
-          users={users}
-          editingStory={editingStory}
-        />
+
       </div>
     </TooltipProvider>
   )

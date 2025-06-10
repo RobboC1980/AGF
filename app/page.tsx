@@ -49,6 +49,11 @@ export default function Page() {
     }
   }
 
+  const handleCreateStory = () => {
+    setShowStoryModal(true)
+    setEditingStory(null)
+  }
+
   const handleCreateSubmit = async (data: any) => {
     console.log("Creating item:", data)
     // Here you would typically call your API to create the item
@@ -239,21 +244,14 @@ export default function Page() {
                         </Button>
                       }
                     />
-                    <SimpleCreateModal 
-                      type="story" 
-                      onSubmit={handleCreateSubmit}
-                      epics={[
-                        { id: "1", title: "User Authentication Epic", project: "Demo Project" },
-                        { id: "2", title: "Dashboard Features Epic", project: "AgileForge Platform" },
-                        { id: "3", title: "Mobile App Epic", project: "Demo Project" }
-                      ]}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <BookOpen size={14} className="mr-1" />
-                          Story
-                        </Button>
-                      }
-                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleCreateStory}
+                    >
+                      <BookOpen size={14} className="mr-1" />
+                      Story
+                    </Button>
                     <SimpleCreateModal 
                       type="task" 
                       onSubmit={handleCreateSubmit}
@@ -318,24 +316,11 @@ export default function Page() {
           )}
 
           {currentPage === "stories" && (
-            <>
-              <UserStoriesPage
-                onCreateNew={handleCreateNew}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-              <CreateStoryModal
-                isOpen={showStoryModal}
-                onClose={() => {
-                  setShowStoryModal(false)
-                  setEditingStory(null)
-                }}
-                onSave={handleStoryModalSave}
-                epics={modalEpics}
-                users={modalUsers}
-                editingStory={editingStory}
-              />
-            </>
+            <UserStoriesPage
+              onCreateNew={handleCreateNew}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           )}
 
           {currentPage === "tasks" && (
@@ -426,6 +411,19 @@ export default function Page() {
             />
           )}
         </div>
+
+        {/* Global Create Story Modal */}
+        <CreateStoryModal
+          isOpen={showStoryModal}
+          onClose={() => {
+            setShowStoryModal(false)
+            setEditingStory(null)
+          }}
+          onSave={handleStoryModalSave}
+          epics={modalEpics}
+          users={modalUsers}
+          editingStory={editingStory}
+        />
       </div>
     </QueryProvider>
     </ErrorBoundary>
