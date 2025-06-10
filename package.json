@@ -12,7 +12,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "dev:backend": "source venv/bin/activate && cd backend && python simple_main.py",
+    "dev:backend": "source venv/bin/activate && cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 4000 --reload",
+    "dev:backend:simple": "source venv/bin/activate && cd backend && python simple_main.py",
     "dev:backend:complete": "source venv/bin/activate && cd backend && python complete_main.py",
     "setup:backend": "source venv/bin/activate && pip install -r requirements.txt",
     "health:check": "curl -f http://localhost:4000/health || echo 'Backend not running'",
@@ -21,7 +22,7 @@
     "check-all": "npm run type-check && npm run lint && npm run test && npm run validate-env",
     "start:dev": "concurrently \"npm run dev\" \"npm run dev:backend\" --names \"frontend,backend\" --prefix-colors \"blue,green\"",
     "start:dev:complete": "concurrently \"npm run dev\" \"npm run dev:backend:complete\" --names \"frontend,backend\" --prefix-colors \"blue,green\"",
-    "kill:all": "pkill -f \"next dev\" && pkill -f \"python.*simple_main\" && pkill -f \"python.*complete_main\" || echo \"Services stopped\""
+    "kill:all": "pkill -f \"next dev\" && pkill -f \"python.*main\" && pkill -f \"uvicorn\" || echo \"Services stopped\""
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
