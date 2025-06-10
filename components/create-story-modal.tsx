@@ -272,6 +272,8 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
   }
 
   if (!isOpen) return null
+  
+  console.log('CreateStoryModal rendering with isOpen:', isOpen)
 
   return (
     <AnimatePresence>

@@ -55,7 +55,7 @@ export default function Page() {
   }
 
   // Use real data for kanban columns
-  const { data: stories = [] } = useStories()
+  const { data: kanbanStories = [] } = useStories()
   
   const mockKanbanColumns = [
     {

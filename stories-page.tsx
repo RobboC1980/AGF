@@ -64,6 +64,8 @@ import CreateStoryModal from "@/components/create-story-modal"
 const StoriesPage: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingStory, setEditingStory] = useState<Story | null>(null)
+  console.log('showCreateForm state:', showCreateForm)
+
   const [searchQuery, setSearchQuery] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -269,9 +271,11 @@ const StoriesPage: React.FC = () => {
   }
 
   const handleCreateStory = async (story: Partial<Story>) => {
+    console.log('Create Story button clicked')
     try {
       await createStoryMutation.mutateAsync(story)
       setShowCreateForm(false)
+      console.log('showCreateForm set to false')
     } catch (error) {
       console.error("Failed to create story:", error)
       throw error
@@ -372,7 +376,11 @@ const StoriesPage: React.FC = () => {
                 </div>
 
                 <Button
-                  onClick={() => setShowCreateForm(true)}
+                  onClick={() => {
+                    console.log('Create Story button clicked')
+                    setShowCreateForm(true)
+                    console.log('showCreateForm set to true')
+                  }}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <Plus size={16} className="mr-2" />
