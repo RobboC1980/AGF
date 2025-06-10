@@ -7,6 +7,10 @@ from openai import AsyncOpenAI
 import anthropic
 from pydantic import BaseModel, Field
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

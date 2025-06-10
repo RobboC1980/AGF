@@ -12,7 +12,21 @@ from datetime import datetime, date
 import uvicorn
 import uuid
 import json
+import logging
 from enum import Enum
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Import AI service
+try:
+    from services.ai_service import ai_service
+    AI_SERVICE_AVAILABLE = True
+    logging.info("AI service imported successfully")
+except ImportError as e:
+    AI_SERVICE_AVAILABLE = False
+    logging.warning(f"AI service not available: {e}")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -808,8 +822,87 @@ class GeneratedStoryResponse(BaseModel):
 async def generate_story(request: StoryGenerateRequest):
     """Generate a user story using AI based on description"""
     try:
-        # Simple AI-like story generation (mock implementation)
-        # In a real implementation, this would call an actual AI service
+        if AI_SERVICE_AVAILABLE:
+            # Use real AI service
+            logging.info(f"Generating story with AI service for description: {request.description[:50]}...")
+            
+            # Prepare context for AI
+            epic_context = ""
+            project_context = ""
+            
+            if request.epicId:
+                # In a real implementation, fetch epic details from database
+                epic_context = f"Epic ID: {request.epicId}"
+            
+            # Create AI prompt variables
+            variables = {
+                "user_description": request.description,
+                "priority_level": request.priority,
+                "epic_context": epic_context,
+                "project_context": project_context,
+                "include_acceptance_criteria": request.includeAcceptanceCriteria,
+                "include_tags": request.includeTags
+            }
+            
+            # Generate story using AI service
+            ai_response = await ai_service.generate_completion("story_generator", variables)
+            
+            if ai_response.success:
+                # Parse AI response
+                generated_data = ai_response.data
+                logging.info(f"AI response data type: {type(generated_data)}, content: {str(generated_data)[:200]}...")
+                
+                # Handle both string and dict responses
+                if isinstance(generated_data, str):
+                    try:
+                        import json
+                        import re
+                        
+                        # Extract JSON from markdown code blocks if present
+                        json_match = re.search(r'```json\s*(.*?)\s*```', generated_data, re.DOTALL)
+                        if json_match:
+                            json_str = json_match.group(1)
+                        else:
+                            json_str = generated_data
+                        
+                        generated_data = json.loads(json_str)
+                    except (json.JSONDecodeError, AttributeError) as e:
+                        logging.error(f"Failed to parse AI response as JSON: {str(e)[:200]}...")
+                        # Fall back to mock implementation
+                        pass
+                
+                if isinstance(generated_data, dict):
+                    # Format the response
+                    story_data = {
+                        "name": generated_data.get("title", "Generated User Story"),
+                        "description": generated_data.get("description", request.description),
+                        "acceptanceCriteria": generated_data.get("acceptance_criteria", []) if request.includeAcceptanceCriteria else [],
+                        "tags": generated_data.get("tags", []) if request.includeTags else [],
+                        "storyPoints": generated_data.get("story_points", 3)
+                    }
+                    
+                    return GeneratedStoryResponse(
+                        success=True,
+                        story=story_data,
+                        provider="OpenAI/Anthropic",
+                        model=ai_response.model_used or "unknown",
+                        confidence=generated_data.get("confidence", 0.8),
+                        suggestions=generated_data.get("improvement_suggestions", [
+                            "Consider adding more specific acceptance criteria",
+                            "Review the story points estimation based on your team's velocity"
+                        ])
+                    )
+                else:
+                    logging.error(f"AI response is not a dictionary: {type(generated_data)}")
+                    # Fall back to mock implementation
+                    pass
+            else:
+                logging.error(f"AI generation failed: {ai_response.error}")
+                # Fall back to mock implementation
+                pass
+        
+        # Fallback to mock implementation if AI service is not available or fails
+        logging.info("Using fallback mock AI implementation")
         
         # Extract key concepts from description
         description_lower = request.description.lower()
@@ -829,6 +922,8 @@ async def generate_story(request: StoryGenerateRequest):
             title = "As a user, I want to manage my profile so that I can keep my information up to date"
         elif "notification" in description_lower:
             title = "As a user, I want to receive notifications so that I stay informed about important updates"
+        elif "password" in description_lower and "reset" in description_lower:
+            title = "As a user, I want to reset my password so that I can regain access to my account"
         else:
             title = f"As a user, I want to {request.description.lower()} so that I can achieve my goals"
         
@@ -840,6 +935,12 @@ async def generate_story(request: StoryGenerateRequest):
                     "Given I am on the login page, when I enter valid credentials, then I should be logged in",
                     "Given I enter invalid credentials, when I try to login, then I should see an error message",
                     "Given I am logged in, when I navigate to protected pages, then I should have access"
+                ]
+            elif "password" in description_lower and "reset" in description_lower:
+                acceptance_criteria = [
+                    "Given I am on the password reset page, when I enter my email, then I should receive a reset link",
+                    "Given I click the reset link, when I enter a new password, then my password should be updated",
+                    "Given I have reset my password, when I login with the new password, then I should be authenticated"
                 ]
             elif "search" in description_lower:
                 acceptance_criteria = [
@@ -859,6 +960,8 @@ async def generate_story(request: StoryGenerateRequest):
         if request.includeTags:
             if "login" in description_lower or "auth" in description_lower:
                 tags = ["authentication", "security", "user-management"]
+            elif "password" in description_lower and "reset" in description_lower:
+                tags = ["authentication", "security", "password-management"]
             elif "search" in description_lower:
                 tags = ["search", "functionality", "user-experience"]
             elif "dashboard" in description_lower:
@@ -885,12 +988,14 @@ async def generate_story(request: StoryGenerateRequest):
             "storyPoints": story_points
         }
         
+        provider = "OpenAI/Anthropic (Fallback)" if not AI_SERVICE_AVAILABLE else "AgileForge AI (Fallback)"
+        
         return GeneratedStoryResponse(
             success=True,
             story=story_data,
-            provider="AgileForge AI",
+            provider=provider,
             model="story-generator-v1",
-            confidence=0.85,
+            confidence=0.75,
             suggestions=[
                 "Consider adding more specific acceptance criteria",
                 "Review the story points estimation based on your team's velocity",
@@ -899,6 +1004,7 @@ async def generate_story(request: StoryGenerateRequest):
         )
         
     except Exception as e:
+        logging.error(f"Story generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
 
 # =====================================
