@@ -66,10 +66,10 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Use API hooks to fetch real data
-  const { stories, isLoading, error, refetch } = useStories()
-  const { epics } = useEpics()
-  const { users } = useUsers()
+  // Use API hooks to fetch real data - with fallback to empty arrays
+  const { data: stories = [], isLoading, error, refetch } = useStories()
+  const { data: epics = [] } = useEpics()
+  const { data: users = [] } = useUsers()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -147,32 +147,31 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
 
   // Filter and sort stories
   const filteredAndSortedStories = useMemo(() => {
-    let filtered = stories.filter((story) => {
+    let filtered = (stories as any[]).filter((story: any) => {
       const matchesSearch =
         !searchQuery ||
-        story.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (story.description && story.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (story.tags && story.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+        story.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        story.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = statusFilter === "all" || story.status === statusFilter
       const matchesPriority = priorityFilter === "all" || story.priority === priorityFilter
-      const matchesEpic = epicFilter === "all" || (epicFilter === "no-epic" && !story.epic) || story.epic?.id === epicFilter
+      const matchesEpic = epicFilter === "all" || story.epic_id === epicFilter
       const matchesAssignee =
         assigneeFilter === "all" ||
-        (assigneeFilter === "unassigned" && !story.assignee) ||
-        story.assignee?.id === assigneeFilter
+        (assigneeFilter === "unassigned" && !story.assignee_id) ||
+        story.assignee_id === assigneeFilter
 
       return matchesSearch && matchesStatus && matchesPriority && matchesEpic && matchesAssignee
     })
 
     // Apply tab filter
     if (activeTab !== "all") {
-      filtered = filtered.filter((story) => {
+      filtered = filtered.filter((story: any) => {
         switch (activeTab) {
           case "my-stories":
-            return story.assignee?.id === "current-user-id" // Replace with actual user ID
+            return story.assignee_id === "current-user-id"
           case "overdue":
-            return story.dueDate && new Date(story.dueDate) < new Date()
+            return story.due_date && new Date(story.due_date) < new Date()
           case "high-priority":
             return story.priority === "high" || story.priority === "critical"
           default:
@@ -182,26 +181,26 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
     }
 
     // Sort stories
-    filtered.sort((a, b) => {
+    filtered.sort((a: any, b: any) => {
       let comparison = 0
 
       switch (sortBy) {
         case "name":
-          comparison = a.name.localeCompare(b.name)
+          comparison = a.title.localeCompare(b.title)
           break
         case "status":
           comparison = a.status.localeCompare(b.status)
           break
         case "priority":
-          const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
+          const priorityOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
           comparison = priorityOrder[b.priority] - priorityOrder[a.priority]
           break
         case "points":
-          comparison = (b.storyPoints || 0) - (a.storyPoints || 0)
+          comparison = (b.story_points || 0) - (a.story_points || 0)
           break
         case "updated":
         default:
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          comparison = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           break
       }
 
@@ -220,18 +219,19 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
     if (selectedStories.length === filteredAndSortedStories.length) {
       setSelectedStories([])
     } else {
-      setSelectedStories(filteredAndSortedStories.map((story) => story.id))
+      setSelectedStories(filteredAndSortedStories.map((story: any) => story.id))
     }
   }
 
   // Get statistics
   const stats = useMemo(() => {
-    const total = stories.length
-    const done = stories.filter((story) => story.status === "done").length
-    const inProgress = stories.filter((story) => story.status === "in-progress").length
-    const overdue = stories.filter((story) => story.dueDate && new Date(story.dueDate) < new Date()).length
-    const totalPoints = stories.reduce((sum, story) => sum + (story.storyPoints || 0), 0)
-    const completedPoints = stories.filter((story) => story.status === "done").reduce((sum, story) => sum + (story.storyPoints || 0), 0)
+    const storiesArray = stories as any[]
+    const total = storiesArray.length
+    const done = storiesArray.filter((story: any) => story.status === "done").length
+    const inProgress = storiesArray.filter((story: any) => story.status === "in-progress").length
+    const overdue = storiesArray.filter((story: any) => story.due_date && new Date(story.due_date) < new Date()).length
+    const totalPoints = storiesArray.reduce((sum: number, story: any) => sum + (story.story_points || 0), 0)
+    const completedPoints = storiesArray.filter((story: any) => story.status === "done").reduce((sum: number, story: any) => sum + (story.story_points || 0), 0)
 
     return { total, done, inProgress, overdue, totalPoints, completedPoints }
   }, [stories])
@@ -257,7 +257,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Error Loading User Stories</h3>
             <p className="text-slate-600 mb-6">{error.message || "Something went wrong while loading your user stories."}</p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={refetch} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={() => refetch()} className="bg-blue-600 hover:bg-blue-700">
                 <RefreshCw size={16} className="mr-2" />
                 Try Again
               </Button>
@@ -500,7 +500,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                         />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                            {story.name}
+                            {story.title}
                           </h3>
                           {story.description && (
                             <p className="text-sm text-slate-600 mt-1 line-clamp-2">{story.description}</p>
@@ -539,13 +539,13 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     {/* Status and Priority */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                                                 <Badge
-                           variant="outline"
-                           className={`${statusConfig[story.status].color} ${statusConfig[story.status].bg} ${statusConfig[story.status].border}`}
-                         >
-                           {React.createElement(statusConfig[story.status].icon, { size: 12, className: "mr-1" })}
-                           {story.status.charAt(0).toUpperCase() + story.status.slice(1).replace('-', ' ')}
-                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`${statusConfig[story.status].color} ${statusConfig[story.status].bg} ${statusConfig[story.status].border}`}
+                        >
+                          {React.createElement(statusConfig[story.status].icon, { size: 12, className: "mr-1" })}
+                          {story.status.charAt(0).toUpperCase() + story.status.slice(1).replace('-', ' ')}
+                        </Badge>
                         <Badge
                           variant="outline"
                           className={`${priorityConfig[story.priority].color} ${priorityConfig[story.priority].bg} ${priorityConfig[story.priority].border}`}
@@ -553,16 +553,16 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                           {story.priority.charAt(0).toUpperCase() + story.priority.slice(1)}
                         </Badge>
                       </div>
-                      {story.storyPoints && (
+                      {story.story_points && (
                         <div className="flex items-center text-sm text-slate-600">
                           <Target size={14} className="mr-1" />
-                          {story.storyPoints}
+                          {story.story_points}
                         </div>
                       )}
                     </div>
 
                     {/* Epic */}
-                    {story.epic && (
+                    {story.epic_id && (
                       <div className="flex items-center text-sm text-slate-600">
                         <div className={`w-3 h-3 rounded-full mr-2 ${story.epic.color || 'bg-gray-400'}`}></div>
                         <span>{story.epic.name}</span>
@@ -570,7 +570,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     )}
 
                     {/* Assignee */}
-                    {story.assignee && (
+                    {story.assignee_id && (
                       <div className="flex items-center space-x-2">
                         <Avatar className="w-6 h-6">
                           <AvatarImage src={story.assignee.avatar} alt={story.assignee.name} />
@@ -604,7 +604,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                         <div className="flex items-center space-x-3">
                           <span className="flex items-center">
                             <CheckSquare size={12} className="mr-1" />
-                            {story.stats.completedTasks}/{story.stats.totalTasks}
+                            {story.stats.completed_tasks}/{story.stats.total_tasks}
                           </span>
                           <span className="flex items-center">
                             <MessageSquare size={12} className="mr-1" />
@@ -615,7 +615,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                             {story.stats.attachments || 0}
                           </span>
                         </div>
-                        <span>{new Date(story.updatedAt).toLocaleDateString()}</span>
+                        <span>{new Date(story.created_at).toLocaleDateString()}</span>
                       </div>
                     )}
                   </CardContent>

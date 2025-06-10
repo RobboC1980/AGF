@@ -169,10 +169,10 @@ interface DashboardPageProps {
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
   // Use real API data instead of props
-  const { stories, isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
-  const { epics, isLoading: epicsLoading, error: epicsError } = useEpics()
-  const { users, isLoading: usersLoading, error: usersError } = useUsers()
-  const { analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics()
+  const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
+  const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics()
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useAnalytics()
 
   const isLoading = storiesLoading || epicsLoading || usersLoading || analyticsLoading
   const error = storiesError || epicsError || usersError || analyticsError

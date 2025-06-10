@@ -107,10 +107,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   onExport,
 }) => {
   // Use real API data instead of mock data
-  const { analytics, isLoading, error, refetch } = useAnalytics()
-  const { stories } = useStories()
-  const { epics } = useEpics()
-  const { users } = useUsers()
+  const { data: analytics, isLoading, error, refetch } = useAnalytics()
+  const { data: stories = [] } = useStories()
+  const { data: epics = [] } = useEpics()
+  const { data: users = [] } = useUsers()
   const [activeTab, setActiveTab] = useState("overview")
 
   // Create analytics data from real API data

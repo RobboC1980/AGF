@@ -62,10 +62,10 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Use API hooks to fetch real data
-  const { epics, isLoading, error, refetch } = useEpics()
-  const { stories } = useStories()
-  const { users } = useUsers()
+  // Use API hooks to fetch real data - with fallback to empty arrays
+  const { data: epics = [], isLoading, error, refetch } = useEpics()
+  const { data: stories = [] } = useStories()
+  const { data: users = [] } = useUsers()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -141,19 +141,17 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
     let filtered = epics.filter((epic) => {
       const matchesSearch =
         !searchQuery ||
-        epic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        epic.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        epic.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        epic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        epic.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = statusFilter === "all" || epic.status === statusFilter
       const matchesPriority = priorityFilter === "all" || epic.priority === priorityFilter
-      const matchesProject = projectFilter === "all" || epic.project.id === projectFilter
       const matchesAssignee =
         assigneeFilter === "all" ||
-        (assigneeFilter === "unassigned" && !epic.assignee) ||
-        epic.assignee?.id === assigneeFilter
+        (assigneeFilter === "unassigned" && !epic.assignee_id) ||
+        epic.assignee_id === assigneeFilter
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesAssignee
+      return matchesSearch && matchesStatus && matchesPriority && matchesAssignee
     })
 
     // Apply tab filter
@@ -161,9 +159,9 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
       filtered = filtered.filter((epic) => {
         switch (activeTab) {
           case "my-epics":
-            return epic.assignee?.id === "current-user-id"
+            return epic.assignee_id === "current-user-id"
           case "overdue":
-            return epic.dueDate && new Date(epic.dueDate) < new Date()
+            return epic.target_end_date && new Date(epic.target_end_date) < new Date()
           case "high-priority":
             return epic.priority === "high" || epic.priority === "critical"
           default:
@@ -178,7 +176,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
 
       switch (sortBy) {
         case "name":
-          comparison = a.name.localeCompare(b.name)
+          comparison = a.title.localeCompare(b.title)
           break
         case "status":
           comparison = a.status.localeCompare(b.status)
@@ -192,7 +190,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
           break
         case "updated":
         default:
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          comparison = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           break
       }
 
@@ -200,7 +198,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
     })
 
     return filtered
-  }, [epics, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, activeTab, sortBy, sortOrder])
+  }, [epics, searchQuery, statusFilter, priorityFilter, assigneeFilter, activeTab, sortBy, sortOrder])
 
   // Selection handlers
   const handleEpicSelect = (epicId: string) => {
@@ -220,7 +218,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
     const total = epics.length
     const completed = epics.filter((epic) => epic.status === "completed").length
     const inProgress = epics.filter((epic) => epic.status === "in-progress").length
-    const overdue = epics.filter((epic) => epic.dueDate && new Date(epic.dueDate) < new Date()).length
+    const overdue = epics.filter((epic) => epic.target_end_date && new Date(epic.target_end_date) < new Date()).length
 
     return { total, completed, inProgress, overdue }
   }, [epics])
@@ -572,7 +570,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         {/* Epic Title & Description */}
                         <div>
                           <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 leading-snug group-hover:text-purple-600 transition-colors">
-                            {epic.name}
+                            {epic.title}
                           </h3>
                           {epic.description && (
                             <p className="text-slate-600 text-sm line-clamp-3 leading-relaxed">{epic.description}</p>
@@ -582,9 +580,9 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         {/* Project Info */}
                         <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/60 rounded-lg p-3">
                           <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${epic.project.color}`}></div>
+                            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-purple-800 truncate">{epic.project.name}</p>
+                              <p className="text-sm font-medium text-purple-800 truncate">AgileForge Platform</p>
                             </div>
                             <Target size={14} className="text-purple-600 flex-shrink-0" />
                           </div>
@@ -601,20 +599,20 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                           <div className="grid grid-cols-2 gap-4 text-center">
                             <div className="bg-slate-50 rounded-lg p-2">
                               <div className="text-lg font-bold text-slate-900">
-                                {epic.stats.completedStories}/{epic.stats.totalStories}
+                                {epic.actual_story_points}/{epic.estimated_story_points || 0}
                               </div>
                               <div className="text-xs text-slate-600 flex items-center justify-center">
                                 <BookOpen size={12} className="mr-1" />
-                                Stories
+                                Story Points
                               </div>
                             </div>
                             <div className="bg-slate-50 rounded-lg p-2">
                               <div className="text-lg font-bold text-slate-900">
-                                {epic.stats.completedTasks}/{epic.stats.totalTasks}
+                                {epic.progress}%
                               </div>
                               <div className="text-xs text-slate-600 flex items-center justify-center">
                                 <CheckSquare size={12} className="mr-1" />
-                                Tasks
+                                Complete
                               </div>
                             </div>
                           </div>
@@ -623,49 +621,46 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                             <div className="flex items-center space-x-1">
                               <Target size={12} />
                               <span>
-                                {epic.stats.completedPoints}/{epic.stats.storyPoints} SP
+                                Key: {epic.epic_key}
                               </span>
                             </div>
                           </div>
                         </div>
 
                         {/* Tags */}
-                        {epic.tags && epic.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {epic.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {epic.tags.length > 3 && (
-                              <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
-                                +{epic.tags.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                          >
+                            {epic.priority}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                          >
+                            {epic.status}
+                          </Badge>
+                        </div>
 
                         {/* Assignee & Dates */}
                         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                           <div className="flex items-center space-x-2">
-                            {epic.assignee ? (
+                            {epic.assignee_id ? (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="flex items-center space-x-2">
                                     <Avatar className="w-6 h-6">
-                                      <AvatarImage src={epic.assignee.avatar || "/placeholder.svg"} />
+                                      <AvatarImage src="/placeholder.svg" />
                                       <AvatarFallback className="text-xs">
-                                        {epic.assignee.name
-                                          .split(" ")
-                                          .map((n) => n[0])
-                                          .join("")}
+                                        DA
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className="text-xs text-slate-600 font-medium">{epic.assignee.name}</span>
+                                    <span className="text-xs text-slate-600 font-medium">Demo Assignee</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Assigned to {epic.assignee.name}</p>
+                                  <p>Assigned to Demo Assignee</p>
                                 </TooltipContent>
                               </Tooltip>
                             ) : (
@@ -676,9 +671,9 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                           <div className="flex items-center space-x-2 text-xs text-slate-500">
                             <Calendar size={12} />
                             <span>
-                              {epic.dueDate
-                                ? `Due ${new Date(epic.dueDate).toLocaleDateString('en-GB')}`
-                                : `Updated ${new Date(epic.updatedAt).toLocaleDateString('en-GB')}`}
+                              {epic.target_end_date
+                                ? `Due ${new Date(epic.target_end_date).toLocaleDateString('en-GB')}`
+                                : `Updated ${new Date(epic.created_at).toLocaleDateString('en-GB')}`}
                             </span>
                           </div>
                         </div>

@@ -105,9 +105,9 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   onDelete,
 }) => {
   // Use API hooks to fetch real data
-  const { stories, isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
-  const { epics, isLoading: epicsLoading, error: epicsError } = useEpics()
-  const { users, isLoading: usersLoading, error: usersError } = useUsers()
+  const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
+  const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics()
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
 
   // Combine loading and error states
   const isLoading = storiesLoading || epicsLoading || usersLoading

@@ -78,8 +78,8 @@ const TasksPage: React.FC<TasksPageProps> = ({
   onDelete,
 }) => {
   // Use real API data instead of mock data
-  const { stories, isLoading: storiesLoading, error: storiesError, refetch } = useStories()
-  const { users, isLoading: usersLoading, error: usersError } = useUsers()
+  const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch } = useStories()
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
 
   const isLoading = storiesLoading || usersLoading
   const error = storiesError || usersError
