@@ -115,24 +115,70 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const isLoading = storiesLoading || epicsLoading || usersLoading
   const error = storiesError || epicsError || usersError
 
-  // Create projects from epics data (since projects contain epics)
-  const projects = epics.map(epic => ({
-    id: epic.id,
-    name: epic.name,
-    description: epic.description,
-    status: epic.status,
-    priority: epic.priority,
-    progress: Math.round((stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length / 
-                          Math.max(stories.filter(s => s.epic?.id === epic.id).length, 1)) * 100),
-    project: epic.project,
-    createdAt: epic.createdAt,
-    updatedAt: epic.updatedAt,
-    stories: stories.filter(s => s.epic?.id === epic.id),
-    stats: {
-      totalStories: stories.filter(s => s.epic?.id === epic.id).length,
-      completedStories: stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length,
+  // Map epic status to project status
+  const mapEpicStatusToProjectStatus = (epicStatus: string): "planning" | "active" | "on-hold" | "completed" | "cancelled" => {
+    switch (epicStatus) {
+      case 'backlog':
+      case 'todo':
+      case 'ready':
+        return 'planning'
+      case 'in-progress':
+      case 'review':
+      case 'testing':
+        return 'active'
+      case 'done':
+      case 'closed':
+        return 'completed'
+      case 'cancelled':
+        return 'cancelled'
+      default:
+        return 'planning'
     }
-  }))
+  }
+
+  // Create projects from epics data (since projects contain epics)
+  const projects = (epics || []).map(epic => {
+    if (!epic || !epic.id) return null;
+    
+    const epicStories = (stories || []).filter(s => s && (s.epic?.id === epic.id || s.epic_id === epic.id));
+    const completedStories = epicStories.filter(s => s && s.status === 'done');
+    
+    return {
+      id: epic.id,
+      name: epic.name || epic.title || 'Untitled Epic',
+      description: epic.description || '',
+      status: mapEpicStatusToProjectStatus(epic.status || 'backlog'),
+      priority: epic.priority || 'medium',
+      progress: epicStories.length > 0 ? Math.round((completedStories.length / epicStories.length) * 100) : 0,
+      project: epic.project || { id: '', name: 'Unknown Project', color: '#gray' },
+      createdAt: epic.createdAt || epic.created_at || new Date().toISOString(),
+      updatedAt: epic.updatedAt || epic.updated_at || new Date().toISOString(),
+      startDate: epic.createdAt || epic.created_at || new Date().toISOString(),
+      endDate: epic.updatedAt || epic.updated_at || undefined,
+      dueDate: epic.target_end_date || undefined,
+      budget: undefined,
+      team: {
+        lead: {
+          id: epic.assignee?.id || epic.assignee_id || 'unassigned',
+          name: epic.assignee?.name || 'Unassigned',
+          avatar: epic.assignee?.avatar
+        },
+        members: []
+      },
+      tags: epic.tags || [],
+      stories: epicStories,
+      stats: {
+        totalEpics: 1,
+        completedEpics: mapEpicStatusToProjectStatus(epic.status || 'backlog') === 'completed' ? 1 : 0,
+        totalStories: epicStories.length,
+        completedStories: completedStories.length,
+        totalTasks: 0,
+        completedTasks: 0,
+        storyPoints: epicStories.reduce((sum, story) => sum + (story?.story_points || 0), 0),
+        completedPoints: completedStories.reduce((sum, story) => sum + (story?.story_points || 0), 0)
+      }
+    };
+  }).filter(Boolean) // Remove any null entries
 
   const refetch = () => {
     refetchStories()

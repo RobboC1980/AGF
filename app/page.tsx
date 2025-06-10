@@ -76,10 +76,34 @@ const MainContent = () => {
 
   const handleStoryModalSave = async (storyData: any) => {
     console.log("Saving story:", storyData)
-    // Here you would call your API to save the story
-    setShowStoryModal(false)
-    setEditingStory(null)
-    return Promise.resolve()
+    try {
+      // Call the API to create the story
+      const response = await fetch("/api/stories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer demo`,
+        },
+        body: JSON.stringify(storyData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Failed to create story: ${errorData.detail || response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log("Story created successfully:", result)
+      
+      // Close modal and reset state
+      setShowStoryModal(false)
+      setEditingStory(null)
+      
+      return result
+    } catch (error) {
+      console.error("Error creating story:", error)
+      throw error // Re-throw so the modal can handle the error
+    }
   }
 
   // Use real data for kanban columns
@@ -219,212 +243,211 @@ const MainContent = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-        {/* Page Selector */}
-        <div className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <Card className="shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <SimpleCreateModal 
-                      type="epic" 
-                      onSubmit={handleCreateSubmit}
-                      projects={[
-                        { id: "1", name: "Demo Project" },
-                        { id: "2", name: "AgileForge Platform" }
-                      ]}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <Rocket size={14} className="mr-1" />
-                          Epic
-                        </Button>
-                      }
-                    />
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleCreateStory}
-                    >
-                      <BookOpen size={14} className="mr-1" />
-                      Story
-                    </Button>
-                    <SimpleCreateModal 
-                      type="task" 
-                      onSubmit={handleCreateSubmit}
-                      stories={[
-                        { id: "1", title: "User Registration", epic: "User Authentication Epic" },
-                        { id: "2", title: "User Login", epic: "User Authentication Epic" },
-                        { id: "3", title: "Analytics Dashboard", epic: "Dashboard Features Epic" }
-                      ]}
-                      users={[
-                        { id: "1", name: "Sarah Chen", avatar: "/placeholder.svg" },
-                        { id: "2", name: "Alex Rodriguez", avatar: "/placeholder.svg" },
-                        { id: "3", name: "Emily Johnson", avatar: "/placeholder.svg" }
-                      ]}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <CheckSquare size={14} className="mr-1" />
-                          Task
-                        </Button>
-                      }
-                    />
-                  </div>
+      {/* Page Selector */}
+      <div className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <SimpleCreateModal 
+                    type="epic" 
+                    onSubmit={handleCreateSubmit}
+                    projects={[
+                      { id: "1", name: "Demo Project" },
+                      { id: "2", name: "AgileForge Platform" }
+                    ]}
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <Rocket size={14} className="mr-1" />
+                        Epic
+                      </Button>
+                    }
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleCreateStory}
+                  >
+                    <BookOpen size={14} className="mr-1" />
+                    Story
+                  </Button>
+                  <SimpleCreateModal 
+                    type="task" 
+                    onSubmit={handleCreateSubmit}
+                    stories={[
+                      { id: "1", title: "User Registration", epic: "User Authentication Epic" },
+                      { id: "2", title: "User Login", epic: "User Authentication Epic" },
+                      { id: "3", title: "Analytics Dashboard", epic: "Dashboard Features Epic" }
+                    ]}
+                    users={[
+                      { id: "1", name: "Sarah Chen", avatar: "/placeholder.svg" },
+                      { id: "2", name: "Alex Rodriguez", avatar: "/placeholder.svg" },
+                      { id: "3", name: "Emily Johnson", avatar: "/placeholder.svg" }
+                    ]}
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <CheckSquare size={14} className="mr-1" />
+                        Task
+                      </Button>
+                    }
+                  />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
-                  {pages.map((page) => (
-                    <Button
-                      key={page.value}
-                      variant={currentPage === page.value ? "default" : "outline"}
-                      onClick={() => setCurrentPage(page.value as PageType)}
-                      className="flex flex-col h-auto p-3 space-y-2 min-h-[100px] text-center justify-start"
-                    >
-                      <div className="flex flex-col items-center space-y-1 flex-shrink-0">
-                        <page.icon size={18} />
-                        <span className="font-medium text-sm leading-tight whitespace-nowrap">{page.label}</span>
-                      </div>
-                      <span className="text-xs opacity-75 leading-tight text-wrap text-center line-clamp-2 flex-1 flex items-center justify-center px-1">{page.description}</span>
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Breadcrumb Navigation */}
-        <BreadcrumbNavigation />
-
-        {/* Page Content */}
-        <div className="relative">
-          {currentPage === "epics" && (
-            <EpicsPage
-              onCreateNew={handleCreateNew}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {currentPage === "projects" && (
-            <ProjectsPage
-              onCreateNew={handleCreateNew}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {currentPage === "stories" && (
-            <UserStoriesPage
-              onCreateNew={handleCreateNew}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {currentPage === "tasks" && (
-            <TasksPage
-              onCreateNew={handleCreateNew}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          )}
-
-          {currentPage === "search" && <SearchPage />}
-
-          {currentPage === "kanban" && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <KanbanBoard
-                columns={mockKanbanColumns}
-                onItemMove={(itemId, fromColumn, toColumn, newIndex) => {
-                  console.log(`Moved ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
-                }}
-                onItemEdit={handleEdit}
-                onItemDelete={handleDelete}
-                onAddItem={(columnId) => {
-                  console.log(`Adding item to column ${columnId}`)
-                }}
-                entityType="stories"
-              />
-            </div>
-          )}
-
-          {currentPage === "analytics" && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <AnalyticsDashboard
-                timeRange="30d"
-                onTimeRangeChange={(range) => console.log("Time range changed:", range)}
-                onExport={() => console.log("Exporting analytics")}
-              />
-            </div>
-          )}
-
-          {currentPage === "collaboration" && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div className="flex justify-center">
-                <CollaborationPanel
-                  entityId="story-1"
-                  entityType="story"
-                  onAddComment={(content, mentions, attachments) => {
-                    console.log("Adding comment:", { content, mentions, attachments })
-                  }}
-                  onEditComment={(commentId, content) => {
-                    console.log("Editing comment:", { commentId, content })
-                  }}
-                  onDeleteComment={(commentId) => {
-                    console.log("Deleting comment:", commentId)
-                  }}
-                  onReactToComment={(commentId, reaction) => {
-                    console.log("Reacting to comment:", { commentId, reaction })
-                  }}
-                  onPinComment={(commentId) => {
-                    console.log("Pinning comment:", commentId)
-                  }}
-                />
               </div>
-            </div>
-          )}
-
-          {/* Floating Collaboration Panel for other pages */}
-          {currentPage !== "collaboration" && (
-            <CollaborationPanel
-              entityId={`${currentPage}-demo`}
-              entityType="story"
-              isCollapsed={!showCollaboration}
-              onToggleCollapse={() => setShowCollaboration(!showCollaboration)}
-              onAddComment={(content, mentions, attachments) => {
-                console.log("Adding comment:", { content, mentions, attachments })
-              }}
-              onEditComment={(commentId, content) => {
-                console.log("Editing comment:", { commentId, content })
-              }}
-              onDeleteComment={(commentId) => {
-                console.log("Deleting comment:", commentId)
-              }}
-              onReactToComment={(commentId, reaction) => {
-                console.log("Reacting to comment:", { commentId, reaction })
-              }}
-              onPinComment={(commentId) => {
-                console.log("Pinning comment:", commentId)
-              }}
-            />
-          )}
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
+                {pages.map((page) => (
+                  <Button
+                    key={page.value}
+                    variant={currentPage === page.value ? "default" : "outline"}
+                    onClick={() => setCurrentPage(page.value as PageType)}
+                    className="flex flex-col h-auto p-3 space-y-2 min-h-[100px] text-center justify-start"
+                  >
+                    <div className="flex flex-col items-center space-y-1 flex-shrink-0">
+                      <page.icon size={18} />
+                      <span className="font-medium text-sm leading-tight whitespace-nowrap">{page.label}</span>
+                    </div>
+                    <span className="text-xs opacity-75 leading-tight text-wrap text-center line-clamp-2 flex-1 flex items-center justify-center px-1">{page.description}</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Global Create Story Modal */}
-        <CreateStoryModal
-          isOpen={showStoryModal}
-          onClose={() => {
-            setShowStoryModal(false)
-            setEditingStory(null)
-          }}
-          onSave={handleStoryModalSave}
-          epics={modalEpics}
-          users={modalUsers}
-          editingStory={editingStory}
-        />
       </div>
+
+      {/* Breadcrumb Navigation */}
+      <BreadcrumbNavigation />
+
+      {/* Page Content */}
+      <div className="relative">
+        {currentPage === "epics" && (
+          <EpicsPage
+            onCreateNew={handleCreateNew}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {currentPage === "projects" && (
+          <ProjectsPage
+            onCreateNew={handleCreateNew}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {currentPage === "stories" && (
+          <UserStoriesPage
+            onCreateNew={handleCreateNew}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {currentPage === "tasks" && (
+          <TasksPage
+            onCreateNew={handleCreateNew}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {currentPage === "search" && <SearchPage />}
+
+        {currentPage === "kanban" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <KanbanBoard
+              columns={mockKanbanColumns}
+              onItemMove={(itemId, fromColumn, toColumn, newIndex) => {
+                console.log(`Moved ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
+              }}
+              onItemEdit={handleEdit}
+              onItemDelete={handleDelete}
+              onAddItem={(columnId) => {
+                console.log(`Adding item to column ${columnId}`)
+              }}
+              entityType="stories"
+            />
+          </div>
+        )}
+
+        {currentPage === "analytics" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <AnalyticsDashboard
+              timeRange="30d"
+              onTimeRangeChange={(range) => console.log("Time range changed:", range)}
+              onExport={() => console.log("Exporting analytics")}
+            />
+          </div>
+        )}
+
+        {currentPage === "collaboration" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex justify-center">
+              <CollaborationPanel
+                entityId="story-1"
+                entityType="story"
+                onAddComment={(content, mentions, attachments) => {
+                  console.log("Adding comment:", { content, mentions, attachments })
+                }}
+                onEditComment={(commentId, content) => {
+                  console.log("Editing comment:", { commentId, content })
+                }}
+                onDeleteComment={(commentId) => {
+                  console.log("Deleting comment:", commentId)
+                }}
+                onReactToComment={(commentId, reaction) => {
+                  console.log("Reacting to comment:", { commentId, reaction })
+                }}
+                onPinComment={(commentId) => {
+                  console.log("Pinning comment:", commentId)
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Floating Collaboration Panel for other pages */}
+        {currentPage !== "collaboration" && (
+          <CollaborationPanel
+            entityId={`${currentPage}-demo`}
+            entityType="story"
+            isCollapsed={!showCollaboration}
+            onToggleCollapse={() => setShowCollaboration(!showCollaboration)}
+            onAddComment={(content, mentions, attachments) => {
+              console.log("Adding comment:", { content, mentions, attachments })
+            }}
+            onEditComment={(commentId, content) => {
+              console.log("Editing comment:", { commentId, content })
+            }}
+            onDeleteComment={(commentId) => {
+              console.log("Deleting comment:", commentId)
+            }}
+            onReactToComment={(commentId, reaction) => {
+              console.log("Reacting to comment:", { commentId, reaction })
+            }}
+            onPinComment={(commentId) => {
+              console.log("Pinning comment:", commentId)
+            }}
+          />
+        )}
+      </div>
+
+      {/* Global Create Story Modal */}
+      <CreateStoryModal
+        isOpen={showStoryModal}
+        onClose={() => {
+          setShowStoryModal(false)
+          setEditingStory(null)
+        }}
+        onSave={handleStoryModalSave}
+        epics={modalEpics}
+        users={modalUsers}
+        editingStory={editingStory}
+      />
     </div>
   )
 }

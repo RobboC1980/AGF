@@ -261,7 +261,21 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
 
     setIsSaving(true)
     try {
-      await onSave(story)
+      // Convert frontend story format to backend format
+      const backendStory = {
+        title: story.name, // Convert name to title
+        description: story.description || "",
+        epic_id: story.epicId || "epic-1", // Provide default epic if none selected
+        acceptance_criteria: Array.isArray(story.acceptanceCriteria) 
+          ? story.acceptanceCriteria.join('\n') 
+          : (story.acceptanceCriteria || ""), // Convert array to string
+        priority: story.priority,
+        story_points: story.storyPoints,
+        assignee_id: story.assigneeId,
+        due_date: story.dueDate
+      }
+      
+      await onSave(backendStory)
       onClose()
     } catch (error) {
       console.error("Failed to save story:", error)
