@@ -4,6 +4,7 @@ import asyncio
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
 from openai import AsyncOpenAI
+import anthropic
 from pydantic import BaseModel, Field
 import logging
 
@@ -12,11 +13,23 @@ logger = logging.getLogger(__name__)
 class AIConfig:
     """AI service configuration"""
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        self.ai_provider = os.getenv("AI_PROVIDER", "openai")
         self.model = os.getenv("AI_MODEL", "gpt-4o")
+        self.anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-3-sonnet-20240229")
         self.max_tokens = int(os.getenv("AI_MAX_TOKENS", "2000"))
         self.temperature = float(os.getenv("AI_TEMPERATURE", "0.7"))
         self.timeout = int(os.getenv("AI_TIMEOUT", "30"))
+        
+        # Validate API keys
+        if not self.openai_api_key and not self.anthropic_api_key:
+            logger.warning("No AI API keys found in environment variables")
+        
+        if self.openai_api_key:
+            logger.info("OpenAI API key found")
+        if self.anthropic_api_key:
+            logger.info("Anthropic API key found")
 
 class PromptTemplate(BaseModel):
     """Reusable prompt template with versioning"""
@@ -42,7 +55,28 @@ class AIService:
     
     def __init__(self):
         self.config = AIConfig()
-        self.client = AsyncOpenAI(api_key=self.config.api_key)
+        
+        # Initialize clients only if API keys are available
+        self.openai_client = None
+        self.anthropic_client = None
+        
+        if self.config.openai_api_key:
+            try:
+                self.openai_client = AsyncOpenAI(api_key=self.config.openai_api_key)
+                logger.info("OpenAI client initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {e}")
+        
+        if self.config.anthropic_api_key:
+            try:
+                self.anthropic_client = anthropic.AsyncAnthropic(api_key=self.config.anthropic_api_key)
+                logger.info("Anthropic client initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Anthropic client: {e}")
+        
+        if not self.openai_client and not self.anthropic_client:
+            logger.error("No AI clients available - check your API keys")
+        
         self.prompt_templates = self._load_prompt_templates()
     
     def _load_prompt_templates(self) -> Dict[str, PromptTemplate]:
@@ -364,7 +398,7 @@ class AIService:
         variables: Dict[str, Any],
         custom_config: Optional[Dict[str, Any]] = None
     ) -> AIResponse:
-        """Generate AI completion using a prompt template"""
+        """Generate AI completion using a prompt template with fallback support"""
         start_time = datetime.now()
         
         try:
@@ -389,21 +423,65 @@ class AIService:
             if custom_config:
                 config.update(custom_config)
             
-            # Make API call
-            response = await self.client.chat.completions.create(
-                model=config["model"],
-                messages=[
-                    {"role": "system", "content": template.system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"]
-            )
+            # Try OpenAI first, then fallback to Anthropic
+            response = None
+            model_used = None
+            tokens_used = 0
+            content = None
+            
+            # Try OpenAI first
+            if self.openai_client:
+                try:
+                    logger.info(f"Attempting OpenAI completion for template: {template_name}")
+                    response = await self.openai_client.chat.completions.create(
+                        model=config["model"],
+                        messages=[
+                            {"role": "system", "content": template.system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        max_tokens=config["max_tokens"],
+                        temperature=config["temperature"]
+                    )
+                    
+                    content = response.choices[0].message.content
+                    tokens_used = response.usage.total_tokens
+                    model_used = config["model"]
+                    logger.info(f"OpenAI completion successful for template: {template_name}")
+                    
+                except Exception as e:
+                    logger.warning(f"OpenAI failed for template {template_name}: {str(e)}")
+                    content = None
+            
+            # Fallback to Anthropic if OpenAI failed or unavailable
+            if not content and self.anthropic_client:
+                try:
+                    logger.info(f"Attempting Anthropic completion for template: {template_name}")
+                    
+                    # Combine system and user prompts for Anthropic
+                    combined_prompt = f"{template.system_prompt}\n\nUser Request:\n{user_prompt}"
+                    
+                    anthropic_response = await self.anthropic_client.messages.create(
+                        model=self.config.anthropic_model,
+                        max_tokens=config["max_tokens"],
+                        temperature=config["temperature"],
+                        messages=[
+                            {"role": "user", "content": combined_prompt}
+                        ]
+                    )
+                    
+                    content = anthropic_response.content[0].text
+                    tokens_used = anthropic_response.usage.input_tokens + anthropic_response.usage.output_tokens
+                    model_used = self.config.anthropic_model
+                    logger.info(f"Anthropic completion successful for template: {template_name}")
+                    
+                except Exception as e:
+                    logger.error(f"Anthropic also failed for template {template_name}: {str(e)}")
+                    raise Exception(f"Both OpenAI and Anthropic failed. Last error: {str(e)}")
+            
+            if not content:
+                raise Exception("No AI providers available or all failed")
             
             processing_time = (datetime.now() - start_time).total_seconds()
-            
-            # Parse response
-            content = response.choices[0].message.content
             
             # Try to parse as JSON if template expects it
             try:
@@ -413,14 +491,15 @@ class AIService:
                 else:
                     data = content
             except json.JSONDecodeError:
+                logger.warning(f"Failed to parse JSON response for template {template_name}, returning raw content")
                 data = content
             
             return AIResponse(
                 success=True,
                 data=data,
-                tokens_used=response.usage.total_tokens,
+                tokens_used=tokens_used,
                 processing_time=processing_time,
-                model_used=config["model"]
+                model_used=model_used
             )
             
         except Exception as e:
@@ -432,7 +511,7 @@ class AIService:
                 data=None,
                 tokens_used=0,
                 processing_time=processing_time,
-                model_used=self.config.model,
+                model_used="none",
                 error=str(e)
             )
     

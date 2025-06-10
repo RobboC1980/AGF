@@ -172,7 +172,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer demo`,
         },
         body: JSON.stringify({
           description: aiDescription,
@@ -525,17 +525,17 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                         <div>
                           <Label htmlFor="epic">Epic</Label>
                           <Select
-                            value={story.epicId || ""}
+                            value={story.epicId || "none"}
                             onValueChange={(value) => setStory(prev => ({ 
                               ...prev, 
-                              epicId: value || undefined 
+                              epicId: value === "none" ? undefined : value 
                             }))}
                           >
                             <SelectTrigger className="mt-2">
                               <SelectValue placeholder="Select epic" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">No Epic</SelectItem>
+                              <SelectItem value="none">No Epic</SelectItem>
                               {epics.map((epic) => (
                                 <SelectItem key={epic.id} value={epic.id}>
                                   {epic.name}
@@ -548,17 +548,17 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                         <div>
                           <Label htmlFor="assignee">Assignee</Label>
                           <Select
-                            value={story.assigneeId || ""}
+                            value={story.assigneeId || "unassigned"}
                             onValueChange={(value) => setStory(prev => ({ 
                               ...prev, 
-                              assigneeId: value || undefined 
+                              assigneeId: value === "unassigned" ? undefined : value 
                             }))}
                           >
                             <SelectTrigger className="mt-2">
                               <SelectValue placeholder="Select assignee" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Unassigned</SelectItem>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
                               {users.map((user) => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {user.name}

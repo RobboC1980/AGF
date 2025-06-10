@@ -111,8 +111,8 @@ async def generate_story(
         return GeneratedStoryResponse(
             success=True,
             story=story_data,
-            provider=ai_response.provider or "OpenAI",
-            model=ai_response.model_used or "gpt-4",
+            provider="OpenAI/Anthropic",
+            model=ai_response.model_used or "unknown",
             confidence=generated_data.get("confidence"),
             suggestions=generated_data.get("improvement_suggestions", [])
         )
