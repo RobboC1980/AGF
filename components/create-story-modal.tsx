@@ -261,21 +261,26 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
 
     setIsSaving(true)
     try {
-      // Convert frontend story format to backend format
+      // Convert frontend story format to backend format expected by the API
       const backendStory = {
-        title: story.name, // Convert name to title
+        name: story.name, // Keep name as is for the backend
         description: story.description || "",
-        epic_id: story.epicId || "epic-1", // Provide default epic if none selected
-        acceptance_criteria: Array.isArray(story.acceptanceCriteria) 
-          ? story.acceptanceCriteria.join('\n') 
-          : (story.acceptanceCriteria || ""), // Convert array to string
+        epicId: story.epicId, // Keep epic ID (backend will handle validation)
+        acceptanceCriteria: story.acceptanceCriteria || [], // Keep as array for now
         priority: story.priority,
-        story_points: story.storyPoints,
-        assignee_id: story.assigneeId,
-        due_date: story.dueDate
+        storyPoints: story.storyPoints,
+        assigneeId: story.assigneeId,
+        dueDate: story.dueDate,
+        status: story.status || "backlog",
+        tags: story.tags || []
       }
       
       await onSave(backendStory)
+      
+      // Show success notification
+      console.log("✅ Story saved successfully!")
+      
+      // Close modal only after successful save
       onClose()
     } catch (error) {
       console.error("Failed to save story:", error)
@@ -305,10 +310,10 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl"
+          className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-slate-200">
+          <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
                 <Plus size={20} className="text-white" />
@@ -688,7 +693,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+          <div className="flex-shrink-0 flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
             <div className="text-sm text-slate-600">
               {generatedStory && (
                 <div className="flex items-center space-x-2">
