@@ -16,7 +16,7 @@ import SimpleCreateModal from "../components/simple-create-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
-import { useStories } from "@/hooks/useApi"
+import { useStories, useEpics, useUsers } from "@/hooks/useApi"
 
 type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
 
@@ -24,6 +24,11 @@ export default function Page() {
   const [currentPage, setCurrentPage] = useState<PageType>("epics")
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
+
+  // Get data for the modals
+  const { data: modalStories = [] } = useStories()
+  const { data: modalEpics = [] } = useEpics()
+  const { data: modalUsers = [] } = useUsers()
 
   const handleRefresh = () => {
     setIsLoading(true)
@@ -50,7 +55,7 @@ export default function Page() {
   }
 
   // Use real data for kanban columns
-  const { stories } = useStories()
+  const { data: stories = [] } = useStories()
   
   const mockKanbanColumns = [
     {
@@ -200,6 +205,10 @@ export default function Page() {
                     <SimpleCreateModal 
                       type="epic" 
                       onSubmit={handleCreateSubmit}
+                      projects={[
+                        { id: "1", name: "Demo Project" },
+                        { id: "2", name: "AgileForge Platform" }
+                      ]}
                       trigger={
                         <Button variant="outline" size="sm">
                           <Rocket size={14} className="mr-1" />
@@ -210,6 +219,11 @@ export default function Page() {
                     <SimpleCreateModal 
                       type="story" 
                       onSubmit={handleCreateSubmit}
+                      epics={[
+                        { id: "1", title: "User Authentication Epic", project: "Demo Project" },
+                        { id: "2", title: "Dashboard Features Epic", project: "AgileForge Platform" },
+                        { id: "3", title: "Mobile App Epic", project: "Demo Project" }
+                      ]}
                       trigger={
                         <Button variant="outline" size="sm">
                           <BookOpen size={14} className="mr-1" />
@@ -220,6 +234,16 @@ export default function Page() {
                     <SimpleCreateModal 
                       type="task" 
                       onSubmit={handleCreateSubmit}
+                      stories={[
+                        { id: "1", title: "User Registration", epic: "User Authentication Epic" },
+                        { id: "2", title: "User Login", epic: "User Authentication Epic" },
+                        { id: "3", title: "Analytics Dashboard", epic: "Dashboard Features Epic" }
+                      ]}
+                      users={[
+                        { id: "1", name: "Sarah Chen", avatar: "/placeholder.svg" },
+                        { id: "2", name: "Alex Rodriguez", avatar: "/placeholder.svg" },
+                        { id: "3", name: "Emily Johnson", avatar: "/placeholder.svg" }
+                      ]}
                       trigger={
                         <Button variant="outline" size="sm">
                           <CheckSquare size={14} className="mr-1" />
