@@ -562,7 +562,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     </div>
 
                     {/* Epic */}
-                    {story.epic_id && (
+                    {story.epic_id && story.epic && (
                       <div className="flex items-center text-sm text-slate-600">
                         <div className={`w-3 h-3 rounded-full mr-2 ${story.epic.color || 'bg-gray-400'}`}></div>
                         <span>{story.epic.name}</span>
@@ -570,7 +570,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     )}
 
                     {/* Assignee */}
-                    {story.assignee_id && (
+                    {story.assignee_id && story.assignee && (
                       <div className="flex items-center space-x-2">
                         <Avatar className="w-6 h-6">
                           <AvatarImage src={story.assignee.avatar} alt={story.assignee.name} />

@@ -12,23 +12,44 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       // Keep cache for 10 minutes
       gcTime: 10 * 60 * 1000,
-      // Retry failed requests 3 times
-      retry: 3,
+      // Retry failed requests 3 times with exponential backoff
+      retry: (failureCount, error) => {
+        // Don't retry for client errors (4xx)
+        if (error instanceof Error && error.message.includes('HTTP 4')) {
+          return false
+        }
+        return failureCount < 3
+      },
       // Retry with exponential backoff
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      // Refetch on window focus for real-time data
-      refetchOnWindowFocus: true,
+      // Only refetch on window focus for critical data
+      refetchOnWindowFocus: process.env.NODE_ENV === 'development',
       // Refetch on network reconnect
       refetchOnReconnect: true,
-      // Background refetch for fresh data
-      refetchInterval: 30000, // 30 seconds
+      // Disable background refetch by default for better performance
+      refetchInterval: false,
+      // Network mode for better offline handling
+      networkMode: 'online',
     },
     mutations: {
-      // Retry mutations once
-      retry: 1,
-      // Optimistic updates
+      // Retry mutations once for server errors only
+      retry: (failureCount, error) => {
+        if (error instanceof Error && error.message.includes('HTTP 5')) {
+          return failureCount < 1
+        }
+        return false
+      },
+      // Network mode for mutations
+      networkMode: 'online',
+      // Error handling
       onError: (error) => {
         console.error('Mutation error:', error)
+        
+        // Show user-friendly error message
+        if (error instanceof Error) {
+          // You can integrate with a toast library here
+          console.error('User-facing error:', error.message)
+        }
       },
     },
   },

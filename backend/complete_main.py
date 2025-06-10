@@ -26,7 +26,12 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "http://localhost:3001", 
+        "http://127.0.0.1:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -622,10 +627,19 @@ async def delete_project(project_id: str):
 @app.get("/api/epics", response_model=List[Epic])
 async def get_epics(project_id: Optional[str] = Query(None)):
     """Get all epics, optionally filtered by project"""
-    epics = list(epics_db.values())
-    if project_id:
-        epics = [epic for epic in epics if epic.project_id == project_id]
-    return epics
+    try:
+        epics = list(epics_db.values())
+        
+        # Validate project_id parameter
+        if project_id and project_id.strip():
+            # Check if project_id is not a serialized object
+            if project_id.startswith('[object') or '{' in project_id:
+                raise HTTPException(status_code=400, detail="Invalid project_id format")
+            epics = [epic for epic in epics if epic.project_id == project_id]
+            
+        return epics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch epics: {str(e)}")
 
 @app.get("/api/epics/{epic_id}", response_model=Epic)
 async def get_epic(epic_id: str):
@@ -693,10 +707,19 @@ async def delete_epic(epic_id: str):
 @app.get("/api/stories", response_model=List[Story])
 async def get_stories(epic_id: Optional[str] = Query(None)):
     """Get all stories, optionally filtered by epic"""
-    stories = list(stories_db.values())
-    if epic_id:
-        stories = [story for story in stories if story.epic_id == epic_id]
-    return stories
+    try:
+        stories = list(stories_db.values())
+        
+        # Validate epic_id parameter
+        if epic_id and epic_id.strip():
+            # Check if epic_id is not a serialized object
+            if epic_id.startswith('[object') or '{' in epic_id:
+                raise HTTPException(status_code=400, detail="Invalid epic_id format")
+            stories = [story for story in stories if story.epic_id == epic_id]
+            
+        return stories
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch stories: {str(e)}")
 
 @app.get("/api/stories/{story_id}", response_model=Story)
 async def get_story(story_id: str):

@@ -111,17 +111,49 @@ class ApiClient {
     }
 
     try {
+      console.log(`API Request: ${config.method || 'GET'} ${url}`)
       const response = await fetch(url, config)
       
       if (!response.ok) {
-        const errorData = await response.text()
-        throw new Error(`HTTP ${response.status}: ${errorData}`)
+        let errorMessage = `HTTP ${response.status}`
+        try {
+          const errorData = await response.text()
+          errorMessage += `: ${errorData}`
+        } catch {
+          errorMessage += ': Unknown error'
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
+      console.log(`API Response: ${config.method || 'GET'} ${url} - Success`)
       return data
     } catch (error) {
       console.error(`API request failed for ${endpoint}:`, error)
+      
+      // Provide user-friendly error messages
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error: Unable to connect to server. Please check your internet connection.')
+      }
+      
+      if (error instanceof Error && error.message.includes('HTTP 401')) {
+        // Clear invalid token and redirect to login
+        this.clearAuth()
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      
+      if (error instanceof Error && error.message.includes('HTTP 403')) {
+        throw new Error('Access denied. You do not have permission to perform this action.')
+      }
+      
+      if (error instanceof Error && error.message.includes('HTTP 404')) {
+        throw new Error('Resource not found.')
+      }
+      
+      if (error instanceof Error && error.message.includes('HTTP 5')) {
+        throw new Error('Server error. Please try again later.')
+      }
+      
       throw error
     }
   }
@@ -448,8 +480,11 @@ export const api = {
 
   // Epics
   epics: {
-    getAll: (projectId?: string) => 
-      apiClient.get<Epic[]>(`/api/epics${projectId ? `?project_id=${projectId}` : ''}`),
+    getAll: (projectId?: string) => {
+      // Ensure projectId is a string or null, not an object
+      const validProjectId = projectId && typeof projectId === 'string' ? projectId : undefined;
+      return apiClient.get<Epic[]>(`/api/epics${validProjectId ? `?project_id=${validProjectId}` : ''}`);
+    },
     getById: (id: string) => apiClient.get<Epic>(`/api/epics/${id}`),
     create: (data: Omit<Epic, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'epic_key' | 'actual_story_points' | 'progress'>) => 
       apiClient.post<Epic>('/api/epics', data),
@@ -459,8 +494,11 @@ export const api = {
 
   // Stories
   stories: {
-    getAll: (epicId?: string) => 
-      apiClient.get<Story[]>(`/api/stories${epicId ? `?epic_id=${epicId}` : ''}`),
+    getAll: (epicId?: string) => {
+      // Ensure epicId is a string or null, not an object
+      const validEpicId = epicId && typeof epicId === 'string' ? epicId : undefined;
+      return apiClient.get<Story[]>(`/api/stories${validEpicId ? `?epic_id=${validEpicId}` : ''}`);
+    },
     getById: (id: string) => apiClient.get<Story>(`/api/stories/${id}`),
     create: (data: Omit<Story, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'story_key'>) => 
       apiClient.post<Story>('/api/stories', data),
@@ -470,8 +508,11 @@ export const api = {
 
   // Tasks
   tasks: {
-    getAll: (storyId?: string) => 
-      apiClient.get<Task[]>(`/api/tasks${storyId ? `?story_id=${storyId}` : ''}`),
+    getAll: (storyId?: string) => {
+      // Ensure storyId is a string or null, not an object
+      const validStoryId = storyId && typeof storyId === 'string' ? storyId : undefined;
+      return apiClient.get<Task[]>(`/api/tasks${validStoryId ? `?story_id=${validStoryId}` : ''}`);
+    },
     getById: (id: string) => apiClient.get<Task>(`/api/tasks/${id}`),
     create: (data: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'task_key' | 'actual_hours'>) => 
       apiClient.post<Task>('/api/tasks', data),

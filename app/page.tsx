@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { QueryProvider } from "../providers/query-provider"
 import { ToastProvider } from "../providers/toast-provider"
+import ErrorBoundary from "../components/error-boundary"
 import EpicsPage from "../components/epics-page"
 import ProjectsPage from "../components/projects-page"
 import UserStoriesPage from "../components/user-stories-page"
@@ -184,9 +185,10 @@ export default function Page() {
   ]
 
   return (
-    <QueryProvider>
-      <ToastProvider />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <ErrorBoundary>
+      <QueryProvider>
+        <ToastProvider />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
         {/* Page Selector */}
         <div className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -229,19 +231,19 @@ export default function Page() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
                   {pages.map((page) => (
                     <Button
                       key={page.value}
                       variant={currentPage === page.value ? "default" : "outline"}
                       onClick={() => setCurrentPage(page.value as PageType)}
-                      className="flex flex-col h-auto p-4 space-y-2"
+                      className="flex flex-col h-auto p-3 space-y-2 min-h-[80px] text-center"
                     >
-                      <div className="flex items-center space-x-2">
-                        <page.icon size={20} />
-                        <span className="font-medium">{page.label}</span>
+                      <div className="flex flex-col items-center space-y-1">
+                        <page.icon size={18} />
+                        <span className="font-medium text-sm leading-tight">{page.label}</span>
                       </div>
-                      <span className="text-xs opacity-75">{page.description}</span>
+                      <span className="text-xs opacity-75 leading-tight break-words">{page.description}</span>
                     </Button>
                   ))}
                 </div>
@@ -366,5 +368,6 @@ export default function Page() {
         </div>
       </div>
     </QueryProvider>
+    </ErrorBoundary>
   )
 }
