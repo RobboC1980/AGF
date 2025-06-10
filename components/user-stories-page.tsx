@@ -193,7 +193,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
           break
         case "priority":
           const priorityOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
-          comparison = priorityOrder[b.priority] - priorityOrder[a.priority]
+          comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
           break
         case "points":
           comparison = (b.story_points || 0) - (a.story_points || 0)
@@ -541,16 +541,16 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                       <div className="flex items-center space-x-2">
                         <Badge
                           variant="outline"
-                          className={`${statusConfig[story.status].color} ${statusConfig[story.status].bg} ${statusConfig[story.status].border}`}
+                          className={`${statusConfig[story.status]?.color || 'text-slate-700'} ${statusConfig[story.status]?.bg || 'bg-slate-50'} ${statusConfig[story.status]?.border || 'border-slate-200'}`}
                         >
-                          {React.createElement(statusConfig[story.status].icon, { size: 12, className: "mr-1" })}
-                          {story.status.charAt(0).toUpperCase() + story.status.slice(1).replace('-', ' ')}
+                          {React.createElement(statusConfig[story.status]?.icon || Circle, { size: 12, className: "mr-1" })}
+                          {story.status?.charAt(0).toUpperCase() + story.status?.slice(1).replace('-', ' ') || 'Unknown'}
                         </Badge>
                         <Badge
                           variant="outline"
-                          className={`${priorityConfig[story.priority].color} ${priorityConfig[story.priority].bg} ${priorityConfig[story.priority].border}`}
+                          className={`${priorityConfig[story.priority]?.color || 'text-slate-700'} ${priorityConfig[story.priority]?.bg || 'bg-slate-50'} ${priorityConfig[story.priority]?.border || 'border-slate-200'}`}
                         >
-                          {story.priority.charAt(0).toUpperCase() + story.priority.slice(1)}
+                          {story.priority?.charAt(0).toUpperCase() + story.priority?.slice(1) || 'Unknown'}
                         </Badge>
                       </div>
                       {story.story_points && (

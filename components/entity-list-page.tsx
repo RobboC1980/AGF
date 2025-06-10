@@ -670,7 +670,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                               {item.priority && (
                                 <Badge
                                   variant="secondary"
-                                  className={`${priorityConfig[item.priority].bg} ${priorityConfig[item.priority].color} ${priorityConfig[item.priority].border} border`}
+                                  className={`${priorityConfig[item.priority]?.bg || 'bg-slate-50'} ${priorityConfig[item.priority]?.color || 'text-slate-700'} ${priorityConfig[item.priority]?.border || 'border-slate-200'} border`}
                                 >
                                   {item.priority}
                                 </Badge>
@@ -826,7 +826,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                                   {item.priority && (
                                     <Badge
                                       variant="secondary"
-                                      className={`${priorityConfig[item.priority].bg} ${priorityConfig[item.priority].color} ${priorityConfig[item.priority].border} border text-xs`}
+                                      className={`${priorityConfig[item.priority]?.bg || 'bg-slate-50'} ${priorityConfig[item.priority]?.color || 'text-slate-700'} ${priorityConfig[item.priority]?.border || 'border-slate-200'} border text-xs`}
                                     >
                                       {item.priority}
                                     </Badge>
@@ -962,7 +962,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                           {item.priority && (
                             <Badge
                               variant="secondary"
-                              className={`${priorityConfig[item.priority].bg} ${priorityConfig[item.priority].color} ${priorityConfig[item.priority].border} border`}
+                              className={`${priorityConfig[item.priority]?.bg || 'bg-slate-50'} ${priorityConfig[item.priority]?.color || 'text-slate-700'} ${priorityConfig[item.priority]?.border || 'border-slate-200'} border`}
                             >
                               {item.priority}
                             </Badge>

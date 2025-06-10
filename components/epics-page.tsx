@@ -183,7 +183,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
           break
         case "priority":
           const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
-          comparison = priorityOrder[b.priority] - priorityOrder[a.priority]
+          comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
           break
         case "progress":
           comparison = b.progress - a.progress
@@ -516,19 +516,19 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                             <div className="flex items-center space-x-2">
                               <Badge
                                 variant="secondary"
-                                className={`${priorityConfig[epic.priority].bg} ${priorityConfig[epic.priority].color} ${priorityConfig[epic.priority].border} border`}
+                                className={`${priorityConfig[epic.priority]?.bg || 'bg-slate-50'} ${priorityConfig[epic.priority]?.color || 'text-slate-700'} ${priorityConfig[epic.priority]?.border || 'border-slate-200'} border`}
                               >
-                                {epic.priority}
+                                {epic.priority || 'Unknown'}
                               </Badge>
                               <Badge
                                 variant="outline"
-                                className={`${statusConfig[epic.status].bg} ${statusConfig[epic.status].color} ${statusConfig[epic.status].border} border`}
+                                className={`${statusConfig[epic.status]?.bg || 'bg-slate-50'} ${statusConfig[epic.status]?.color || 'text-slate-700'} ${statusConfig[epic.status]?.border || 'border-slate-200'} border`}
                               >
-                                {React.createElement(statusConfig[epic.status].icon, {
+                                {React.createElement(statusConfig[epic.status]?.icon || Circle, {
                                   size: 12,
                                   className: "mr-1.5",
                                 })}
-                                {epic.status.replace("-", " ")}
+                                {epic.status?.replace("-", " ") || 'Unknown'}
                               </Badge>
                             </div>
                           </div>

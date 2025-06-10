@@ -54,11 +54,10 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-// Import our custom hooks
-import { useStories, useCreateStory, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories } from "./hooks/use-stories"
-import { useEpics } from "./hooks/use-epics"
-import { useUsers } from "./hooks/use-users"
-import { useStoryStats } from "./hooks/use-story-stats"
+  // Import our custom hooks
+  import { useStories, useCreateStory, useDeleteStory, useBulkDeleteStories, useBulkUpdateStories } from "./hooks/use-stories"
+  import { useEpics, useUsers } from "@/hooks/useApi"
+  import { useStoryStats } from "./hooks/use-story-stats"
 import type { Story } from "./services/api"
 import CreateStoryModal from "@/components/create-story-modal"
 
@@ -199,7 +198,7 @@ const StoriesPage: React.FC = () => {
       switch (sortBy) {
         case "priority":
           const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
-          comparison = priorityOrder[b.priority] - priorityOrder[a.priority]
+          comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
           break
         case "points":
           comparison = (b.storyPoints || 0) - (a.storyPoints || 0)
@@ -631,22 +630,22 @@ const StoriesPage: React.FC = () => {
                             <div className="flex items-center space-x-2">
                               <Badge
                                 variant="secondary"
-                                className={`${priorityConfig[story.priority].bg} ${priorityConfig[story.priority].color} ${priorityConfig[story.priority].border} border`}
+                                className={`${priorityConfig[story.priority]?.bg || 'bg-slate-50'} ${priorityConfig[story.priority]?.color || 'text-slate-700'} ${priorityConfig[story.priority]?.border || 'border-slate-200'} border`}
                               >
                                 <div
-                                  className={`w-2 h-2 rounded-full ${priorityConfig[story.priority].dot} mr-1.5`}
+                                  className={`w-2 h-2 rounded-full ${priorityConfig[story.priority]?.dot || 'bg-slate-400'} mr-1.5`}
                                 ></div>
-                                {story.priority}
+                                {story.priority || 'Unknown'}
                               </Badge>
                               <Badge
                                 variant="outline"
-                                className={`${statusConfig[story.status].bg} ${statusConfig[story.status].color} ${statusConfig[story.status].border} border`}
+                                className={`${statusConfig[story.status]?.bg || 'bg-slate-50'} ${statusConfig[story.status]?.color || 'text-slate-700'} ${statusConfig[story.status]?.border || 'border-slate-200'} border`}
                               >
-                                {React.createElement(statusConfig[story.status].icon, {
+                                {React.createElement(statusConfig[story.status]?.icon || Circle, {
                                   size: 12,
                                   className: "mr-1.5",
                                 })}
-                                {story.status.replace("-", " ")}
+                                {story.status?.replace("-", " ") || 'Unknown'}
                               </Badge>
                             </div>
                           </div>

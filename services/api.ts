@@ -81,6 +81,11 @@ class ApiClient {
     }
   }
 
+  // Alias for compatibility
+  setToken(token: string) {
+    this.setAuthToken(token)
+  }
+
   // Clear authentication
   clearAuth() {
     this.authToken = null

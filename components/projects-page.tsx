@@ -254,7 +254,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
           break
         case "priority":
           const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 }
-          comparison = priorityOrder[b.priority] - priorityOrder[a.priority]
+          comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
           break
         case "progress":
           comparison = b.progress - a.progress
@@ -591,19 +591,19 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                             <div className="flex items-center space-x-2">
                               <Badge
                                 variant="secondary"
-                                className={`${priorityConfig[project.priority].bg} ${priorityConfig[project.priority].color} ${priorityConfig[project.priority].border} border`}
+                                className={`${priorityConfig[project.priority]?.bg || 'bg-slate-50'} ${priorityConfig[project.priority]?.color || 'text-slate-700'} ${priorityConfig[project.priority]?.border || 'border-slate-200'} border`}
                               >
-                                {project.priority}
+                                {project.priority || 'Unknown'}
                               </Badge>
                               <Badge
                                 variant="outline"
-                                className={`${statusConfig[project.status].bg} ${statusConfig[project.status].color} ${statusConfig[project.status].border} border`}
+                                className={`${statusConfig[project.status]?.bg || 'bg-slate-50'} ${statusConfig[project.status]?.color || 'text-slate-700'} ${statusConfig[project.status]?.border || 'border-slate-200'} border`}
                               >
-                                {React.createElement(statusConfig[project.status].icon, {
+                                {React.createElement(statusConfig[project.status]?.icon || Circle, {
                                   size: 12,
                                   className: "mr-1.5",
                                 })}
-                                {project.status.replace("-", " ")}
+                                {project.status?.replace("-", " ") || 'Unknown'}
                               </Badge>
                             </div>
                           </div>

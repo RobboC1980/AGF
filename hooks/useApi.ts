@@ -21,7 +21,7 @@ export const queryKeys = {
 export const useStories = () => {
   return useQuery({
     queryKey: queryKeys.stories,
-    queryFn: api.stories.getAll,
+    queryFn: () => api.stories.getAll(),
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
 }
@@ -82,7 +82,7 @@ export const useDeleteStory = () => {
 export const useEpics = () => {
   return useQuery({
     queryKey: queryKeys.epics,
-    queryFn: api.epics.getAll,
+    queryFn: () => api.epics.getAll(),
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
 }
@@ -138,7 +138,7 @@ export const useDeleteEpic = () => {
 export const useUsers = () => {
   return useQuery({
     queryKey: queryKeys.users,
-    queryFn: api.users.getAll,
+    queryFn: () => api.users.getAll(),
     staleTime: 5 * 60 * 1000, // 5 minutes - users change less frequently
   })
 }
@@ -161,7 +161,7 @@ export const useCreateUser = () => {
 export const useAnalytics = () => {
   return useQuery({
     queryKey: queryKeys.analytics,
-    queryFn: api.analytics.getOverview,
+    queryFn: () => api.analytics.getOverview(),
     staleTime: 1 * 60 * 1000, // 1 minute - analytics should be fresh
   })
 }
@@ -170,7 +170,7 @@ export const useAnalytics = () => {
 export const useProjects = () => {
   return useQuery({
     queryKey: queryKeys.projects,
-    queryFn: api.projects.getAll,
+    queryFn: () => api.projects.getAll(),
     staleTime: 3 * 60 * 1000, // 3 minutes
   })
 }
@@ -193,7 +193,7 @@ export const useCreateProject = () => {
 export const useTasks = () => {
   return useQuery({
     queryKey: queryKeys.tasks,
-    queryFn: api.tasks.getAll,
+    queryFn: () => api.tasks.getAll(),
     staleTime: 1 * 60 * 1000, // 1 minute - tasks change frequently
   })
 }
