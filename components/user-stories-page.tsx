@@ -503,7 +503,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                             {story.title}
                           </h3>
                           {story.description && (
-                            <p className="text-sm text-slate-600 mt-1 line-clamp-2">{story.description}</p>
+                            <p className="text-sm text-slate-600 mt-1 line-clamp-2 text-wrap break-words">{story.description}</p>
                           )}
                         </div>
                       </div>

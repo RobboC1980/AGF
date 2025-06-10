@@ -654,7 +654,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                                 className="flex items-start space-x-2 p-3 bg-slate-50 rounded-lg border"
                               >
                                 <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                                <span className="text-sm flex-1">{criteria}</span>
+                                <span className="text-sm flex-1 text-wrap break-words">{criteria}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"

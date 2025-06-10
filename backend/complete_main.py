@@ -30,7 +30,9 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://127.0.0.1:3000",
         "http://localhost:3001", 
-        "http://127.0.0.1:3001"
+        "http://127.0.0.1:3001",
+        "http://localhost:3002", 
+        "http://127.0.0.1:3002"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -782,6 +784,122 @@ async def delete_story(story_id: str):
     
     del stories_db[story_id]
     return {"message": "Story deleted successfully"}
+
+# =====================================
+# AI STORY GENERATION ENDPOINTS
+# =====================================
+
+class StoryGenerateRequest(BaseModel):
+    description: str
+    priority: Optional[str] = "medium"
+    epicId: Optional[str] = None
+    includeAcceptanceCriteria: bool = True
+    includeTags: bool = True
+
+class GeneratedStoryResponse(BaseModel):
+    success: bool
+    story: Dict[str, Any]
+    provider: str
+    model: str
+    confidence: Optional[float] = None
+    suggestions: Optional[List[str]] = None
+
+@app.post("/api/stories/generate", response_model=GeneratedStoryResponse)
+async def generate_story(request: StoryGenerateRequest):
+    """Generate a user story using AI based on description"""
+    try:
+        # Simple AI-like story generation (mock implementation)
+        # In a real implementation, this would call an actual AI service
+        
+        # Extract key concepts from description
+        description_lower = request.description.lower()
+        
+        # Generate title based on common patterns
+        if "login" in description_lower or "sign in" in description_lower:
+            title = "As a user, I want to log into my account so that I can access my personal information"
+        elif "register" in description_lower or "sign up" in description_lower:
+            title = "As a user, I want to create an account so that I can use the platform"
+        elif "search" in description_lower:
+            title = "As a user, I want to search for content so that I can find what I'm looking for quickly"
+        elif "filter" in description_lower:
+            title = "As a user, I want to filter results so that I can find relevant items"
+        elif "dashboard" in description_lower:
+            title = "As a user, I want to view a dashboard so that I can see an overview of my data"
+        elif "profile" in description_lower:
+            title = "As a user, I want to manage my profile so that I can keep my information up to date"
+        elif "notification" in description_lower:
+            title = "As a user, I want to receive notifications so that I stay informed about important updates"
+        else:
+            title = f"As a user, I want to {request.description.lower()} so that I can achieve my goals"
+        
+        # Generate acceptance criteria
+        acceptance_criteria = []
+        if request.includeAcceptanceCriteria:
+            if "login" in description_lower:
+                acceptance_criteria = [
+                    "Given I am on the login page, when I enter valid credentials, then I should be logged in",
+                    "Given I enter invalid credentials, when I try to login, then I should see an error message",
+                    "Given I am logged in, when I navigate to protected pages, then I should have access"
+                ]
+            elif "search" in description_lower:
+                acceptance_criteria = [
+                    "Given I am on the search page, when I enter a search term, then I should see relevant results",
+                    "Given I search for something that doesn't exist, when I submit the search, then I should see a 'no results' message",
+                    "Given I have search results, when I click on a result, then I should navigate to that item"
+                ]
+            else:
+                acceptance_criteria = [
+                    f"Given I am a user, when I {request.description.lower()}, then the system should respond appropriately",
+                    "Given the feature is working correctly, when I use it, then I should see the expected outcome",
+                    "Given there are edge cases, when they occur, then the system should handle them gracefully"
+                ]
+        
+        # Generate tags
+        tags = []
+        if request.includeTags:
+            if "login" in description_lower or "auth" in description_lower:
+                tags = ["authentication", "security", "user-management"]
+            elif "search" in description_lower:
+                tags = ["search", "functionality", "user-experience"]
+            elif "dashboard" in description_lower:
+                tags = ["dashboard", "analytics", "overview"]
+            elif "profile" in description_lower:
+                tags = ["profile", "user-settings", "account"]
+            else:
+                tags = ["feature", "user-story", "functionality"]
+        
+        # Estimate story points based on complexity
+        story_points = 3  # Default
+        if any(word in description_lower for word in ["complex", "integration", "multiple", "advanced"]):
+            story_points = 8
+        elif any(word in description_lower for word in ["simple", "basic", "quick"]):
+            story_points = 2
+        elif any(word in description_lower for word in ["dashboard", "analytics", "reporting"]):
+            story_points = 5
+        
+        story_data = {
+            "name": title,
+            "description": request.description,
+            "acceptanceCriteria": acceptance_criteria,
+            "tags": tags,
+            "storyPoints": story_points
+        }
+        
+        return GeneratedStoryResponse(
+            success=True,
+            story=story_data,
+            provider="AgileForge AI",
+            model="story-generator-v1",
+            confidence=0.85,
+            suggestions=[
+                "Consider adding more specific acceptance criteria",
+                "Review the story points estimation based on your team's velocity",
+                "Add relevant tags for better organization"
+            ]
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
 
 # =====================================
 # TASK ENDPOINTS
