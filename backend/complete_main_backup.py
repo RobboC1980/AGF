@@ -9,7 +9,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
-from contextlib import asynccontextmanager
 import uvicorn
 import uuid
 import json
@@ -33,50 +32,13 @@ except ImportError as e:
     AI_SERVICE_AVAILABLE = False
     logging.warning(f"AI service not available: {e}")
 
-# Import billing service
-try:
-    from services.billing_service import billing_service
-    from api.billing import router as billing_router
-    from middleware.usage_tracking import get_usage_middleware, track_usage
-    BILLING_SERVICE_AVAILABLE = True
-    logging.info("Billing service imported successfully")
-except ImportError as e:
-    BILLING_SERVICE_AVAILABLE = False
-    logging.warning(f"Billing service not available: {e}")
-
-# Lifespan event handler
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan event handler for startup and shutdown"""
-    # Startup
-    try:
-        await init_db()
-        await init_sample_data()
-        
-        # Initialize billing system
-        if BILLING_SERVICE_AVAILABLE:
-            await billing_service.initialize_plans()
-            logging.info("Billing system initialized")
-        
-        logging.info("Database initialized successfully")
-    except Exception as e:
-        logging.error(f"Failed to initialize database: {e}")
-        raise
-    
-    yield
-    
-    # Shutdown
-    await close_db()
-    logging.info("Database connections closed")
-
 # Initialize FastAPI app
 app = FastAPI(
     title="AgileForge API",
     description="Complete Agile Project Management Platform API",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
+    redoc_url="/redoc"
 )
 
 # CORS middleware
@@ -95,16 +57,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add usage tracking middleware
-if BILLING_SERVICE_AVAILABLE:
-    app.middleware("http")(get_usage_middleware)
-
-# Include billing routes
-if BILLING_SERVICE_AVAILABLE:
-    app.include_router(billing_router, prefix="/api/billing", tags=["billing"])
-
 # Security
 security = HTTPBearer()
+
+# Application startup/shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database connection on startup"""
+    try:
+        await init_db()
+        await init_sample_data()
+        logging.info("Database initialized successfully")
+    except Exception as e:
+        logging.error(f"Failed to initialize database: {e}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection on shutdown"""
+    await close_db()
+    logging.info("Database connections closed")
 
 # =====================================
 # ENUMS & MODELS (Simplified)
@@ -370,30 +342,10 @@ async def init_sample_data():
                 user_data["first_name"], user_data["last_name"], user_data["avatar_url"], 
                 user_data["password_hash"], True)
         
-        # Sample Organizations
-        sample_organizations = [
-            {
-                "id": "org-1",
-                "name": "TechCorp Inc",
-                "slug": "techcorp",
-                "description": "Leading technology company",
-                "created_by": "user-1"
-            }
-        ]
-        
-        # Insert organizations
-        for org_data in sample_organizations:
-            await conn.execute("""
-                INSERT INTO organizations (id, name, slug, description, created_by)
-                VALUES ($1, $2, $3, $4, $5)
-            """, org_data["id"], org_data["name"], org_data["slug"], 
-                org_data["description"], org_data["created_by"])
-        
         # Sample Projects
         sample_projects = [
             {
                 "id": "proj-1",
-                "organization_id": "org-1",
                 "name": "E-commerce Platform",
                 "key": "ECOM",
                 "description": "Next-generation e-commerce platform with AI recommendations",
@@ -406,7 +358,6 @@ async def init_sample_data():
             },
             {
                 "id": "proj-2",
-                "organization_id": "org-1",
                 "name": "Mobile App",
                 "key": "MOBILE",
                 "description": "Cross-platform mobile application",
@@ -422,9 +373,9 @@ async def init_sample_data():
         # Insert projects
         for proj_data in sample_projects:
             await conn.execute("""
-                INSERT INTO projects (id, organization_id, name, key, description, status, priority, start_date, target_end_date, progress, created_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            """, proj_data["id"], proj_data["organization_id"], proj_data["name"], proj_data["key"], proj_data["description"],
+                INSERT INTO projects (id, name, key, description, status, priority, start_date, target_end_date, progress, created_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            """, proj_data["id"], proj_data["name"], proj_data["key"], proj_data["description"],
                 proj_data["status"], proj_data["priority"], proj_data["start_date"], 
                 proj_data["target_end_date"], proj_data["progress"], proj_data["created_by"])
     
@@ -815,40 +766,16 @@ async def delete_project(project_id: str):
 async def get_epics(project_id: Optional[str] = Query(None)):
     """Get all epics, optionally filtered by project"""
     try:
-        async with db_manager.get_connection() as conn:
-            if project_id and project_id.strip():
-                # Check if project_id is not a serialized object
-                if project_id.startswith('[object') or '{' in project_id:
-                    raise HTTPException(status_code=400, detail="Invalid project_id format")
-                
-                # Fetch epics filtered by project_id
-                rows = await conn.fetch("SELECT * FROM epics WHERE project_id = $1 ORDER BY created_at DESC", project_id)
-            else:
-                # Fetch all epics
-                rows = await conn.fetch("SELECT * FROM epics ORDER BY created_at DESC")
+        epics = list(epics_db.values())
+        
+        # Validate project_id parameter
+        if project_id and project_id.strip():
+            # Check if project_id is not a serialized object
+            if project_id.startswith('[object') or '{' in project_id:
+                raise HTTPException(status_code=400, detail="Invalid project_id format")
+            epics = [epic for epic in epics if epic.project_id == project_id]
             
-            epics = []
-            for row in rows:
-                epic = Epic(
-                    id=row['id'],
-                    project_id=row['project_id'],
-                    title=row['title'],
-                    description=row['description'],
-                    epic_key=row['epic_key'],
-                    status=StatusType(row['status']),
-                    priority=PriorityLevel(row['priority']),
-                    start_date=row['start_date'],
-                    target_end_date=row['target_end_date'],
-                    estimated_story_points=row['estimated_story_points'],
-                    actual_story_points=row['actual_story_points'],
-                    progress=row['progress'],
-                    created_by=row['created_by'],
-                    created_at=row['created_at'],
-                    updated_at=row['updated_at']
-                )
-                epics.append(epic)
-            
-            return epics
+        return epics
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch epics: {str(e)}")
 
@@ -919,212 +846,80 @@ async def delete_epic(epic_id: str):
 async def get_stories(epic_id: Optional[str] = Query(None)):
     """Get all stories, optionally filtered by epic"""
     try:
-        async with db_manager.get_connection() as conn:
-            if epic_id and epic_id.strip():
-                # Check if epic_id is not a serialized object
-                if epic_id.startswith('[object') or '{' in epic_id:
-                    raise HTTPException(status_code=400, detail="Invalid epic_id format")
-                
-                # Fetch stories filtered by epic_id
-                rows = await conn.fetch("SELECT * FROM stories WHERE epic_id = $1 ORDER BY created_at DESC", epic_id)
-            else:
-                # Fetch all stories
-                rows = await conn.fetch("SELECT * FROM stories ORDER BY created_at DESC")
+        stories = list(stories_db.values())
+        
+        # Validate epic_id parameter
+        if epic_id and epic_id.strip():
+            # Check if epic_id is not a serialized object
+            if epic_id.startswith('[object') or '{' in epic_id:
+                raise HTTPException(status_code=400, detail="Invalid epic_id format")
+            stories = [story for story in stories if story.epic_id == epic_id]
             
-            stories = []
-            for row in rows:
-                story = Story(
-                    id=row['id'],
-                    epic_id=row['epic_id'],
-                    title=row['title'],
-                    description=row['description'],
-                    story_key=row['story_key'],
-                    as_a=row['as_a'],
-                    i_want=row['i_want'],
-                    so_that=row['so_that'],
-                    acceptance_criteria=row['acceptance_criteria'],
-                    status=StatusType(row['status']),
-                    priority=PriorityLevel(row['priority']),
-                    story_points=row['story_points'],
-                    assignee_id=row['assignee_id'],
-                    due_date=row['due_date'],
-                    created_by=row['created_by'],
-                    created_at=row['created_at'],
-                    updated_at=row['updated_at']
-                )
-                stories.append(story)
-            
-            return stories
+        return stories
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch stories: {str(e)}")
 
 @app.get("/api/stories/{story_id}", response_model=Story)
 async def get_story(story_id: str):
     """Get story by ID"""
-    async with db_manager.get_connection() as conn:
-        row = await conn.fetchrow("SELECT * FROM stories WHERE id = $1", story_id)
-        if not row:
-            raise HTTPException(status_code=404, detail="Story not found")
-        
-        return Story(
-            id=row['id'],
-            epic_id=row['epic_id'],
-            title=row['title'],
-            description=row['description'],
-            story_key=row['story_key'],
-            as_a=row['as_a'],
-            i_want=row['i_want'],
-            so_that=row['so_that'],
-            acceptance_criteria=row['acceptance_criteria'],
-            status=StatusType(row['status']),
-            priority=PriorityLevel(row['priority']),
-            story_points=row['story_points'],
-            assignee_id=row['assignee_id'],
-            due_date=row['due_date'],
-            created_by=row['created_by'],
-            created_at=row['created_at'],
-            updated_at=row['updated_at']
-        )
+    if story_id not in stories_db:
+        raise HTTPException(status_code=404, detail="Story not found")
+    return stories_db[story_id]
 
 @app.post("/api/stories", response_model=Story, status_code=201)
 async def create_story(story_data: StoryCreate):
     """Create new story"""
-    async with db_manager.get_connection() as conn:
-        # Verify epic exists
-        epic = await conn.fetchrow("SELECT * FROM epics WHERE id = $1", story_data.epic_id)
-        if not epic:
-            raise HTTPException(status_code=404, detail="Epic not found")
-        
-        # Get project info for key generation
-        project = await conn.fetchrow("SELECT * FROM projects WHERE id = $1", epic['project_id'])
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        
-        story_id = str(uuid.uuid4())
-        story_key = await generate_key(project['key'], "story")
-        now = datetime.now()
-        
-        # Insert into database
-        await conn.execute("""
-            INSERT INTO stories (id, epic_id, title, description, story_key, as_a, i_want, so_that,
-                               acceptance_criteria, status, priority, story_points, assignee_id, due_date, created_by, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        """, story_id, story_data.epic_id, story_data.title, story_data.description, story_key,
-            story_data.as_a, story_data.i_want, story_data.so_that, story_data.acceptance_criteria,
-            "backlog", story_data.priority.value, story_data.story_points, story_data.assignee_id,
-            story_data.due_date, get_current_user(), now)
-        
-        # Return the created story
-        return Story(
-            id=story_id,
-            epic_id=story_data.epic_id,
-            title=story_data.title,
-            description=story_data.description,
-            story_key=story_key,
-            as_a=story_data.as_a,
-            i_want=story_data.i_want,
-            so_that=story_data.so_that,
-            acceptance_criteria=story_data.acceptance_criteria,
-            priority=story_data.priority,
-            story_points=story_data.story_points,
-            assignee_id=story_data.assignee_id,
-            due_date=story_data.due_date,
-            created_by=get_current_user(),
-            created_at=now
-        )
+    if story_data.epic_id not in epics_db:
+        raise HTTPException(status_code=404, detail="Epic not found")
+    
+    story_id = str(uuid.uuid4())
+    epic = epics_db[story_data.epic_id]
+    project = projects_db[epic.project_id]
+    story_key = generate_key(project.key, "story")
+    
+    story = Story(
+        id=story_id,
+        epic_id=story_data.epic_id,
+        title=story_data.title,
+        description=story_data.description,
+        story_key=story_key,
+        as_a=story_data.as_a,
+        i_want=story_data.i_want,
+        so_that=story_data.so_that,
+        acceptance_criteria=story_data.acceptance_criteria,
+        priority=story_data.priority,
+        story_points=story_data.story_points,
+        assignee_id=story_data.assignee_id,
+        due_date=story_data.due_date,
+        created_by=get_current_user(),
+        created_at=datetime.now()
+    )
+    stories_db[story_id] = story
+    return story
 
 @app.put("/api/stories/{story_id}", response_model=Story)
 async def update_story(story_id: str, story_data: StoryUpdate):
     """Update story"""
-    async with db_manager.get_connection() as conn:
-        # Check if story exists
-        existing_story = await conn.fetchrow("SELECT * FROM stories WHERE id = $1", story_id)
-        if not existing_story:
-            raise HTTPException(status_code=404, detail="Story not found")
-        
-        # Prepare update data
-        update_data = story_data.dict(exclude_unset=True)
-        if not update_data:
-            # No fields to update, return existing story
-            return Story(
-                id=existing_story['id'],
-                epic_id=existing_story['epic_id'],
-                title=existing_story['title'],
-                description=existing_story['description'],
-                story_key=existing_story['story_key'],
-                as_a=existing_story['as_a'],
-                i_want=existing_story['i_want'],
-                so_that=existing_story['so_that'],
-                acceptance_criteria=existing_story['acceptance_criteria'],
-                status=StatusType(existing_story['status']),
-                priority=PriorityLevel(existing_story['priority']),
-                story_points=existing_story['story_points'],
-                assignee_id=existing_story['assignee_id'],
-                due_date=existing_story['due_date'],
-                created_by=existing_story['created_by'],
-                created_at=existing_story['created_at'],
-                updated_at=existing_story['updated_at']
-            )
-        
-        # Build dynamic update query
-        set_clauses = []
-        values = []
-        param_count = 1
-        
-        for field, value in update_data.items():
-            if field in ['status', 'priority'] and value:
-                set_clauses.append(f"{field} = ${param_count}")
-                values.append(value.value if hasattr(value, 'value') else value)
-            else:
-                set_clauses.append(f"{field} = ${param_count}")
-                values.append(value)
-            param_count += 1
-        
-        # Add updated_at
-        set_clauses.append(f"updated_at = ${param_count}")
-        values.append(datetime.now())
-        param_count += 1
-        
-        # Add story_id for WHERE clause
-        values.append(story_id)
-        
-        query = f"UPDATE stories SET {', '.join(set_clauses)} WHERE id = ${param_count} RETURNING *"
-        
-        # Execute update
-        updated_row = await conn.fetchrow(query, *values)
-        
-        return Story(
-            id=updated_row['id'],
-            epic_id=updated_row['epic_id'],
-            title=updated_row['title'],
-            description=updated_row['description'],
-            story_key=updated_row['story_key'],
-            as_a=updated_row['as_a'],
-            i_want=updated_row['i_want'],
-            so_that=updated_row['so_that'],
-            acceptance_criteria=updated_row['acceptance_criteria'],
-            status=StatusType(updated_row['status']),
-            priority=PriorityLevel(updated_row['priority']),
-            story_points=updated_row['story_points'],
-            assignee_id=updated_row['assignee_id'],
-            due_date=updated_row['due_date'],
-            created_by=updated_row['created_by'],
-            created_at=updated_row['created_at'],
-            updated_at=updated_row['updated_at']
-        )
+    if story_id not in stories_db:
+        raise HTTPException(status_code=404, detail="Story not found")
+    
+    story = stories_db[story_id]
+    update_data = story_data.dict(exclude_unset=True)
+    
+    for field, value in update_data.items():
+        setattr(story, field, value)
+    
+    story.updated_at = datetime.now()
+    return story
 
 @app.delete("/api/stories/{story_id}")
 async def delete_story(story_id: str):
     """Delete story"""
-    async with db_manager.get_connection() as conn:
-        # Check if story exists
-        existing_story = await conn.fetchrow("SELECT * FROM stories WHERE id = $1", story_id)
-        if not existing_story:
-            raise HTTPException(status_code=404, detail="Story not found")
-        
-        # Delete the story
-        await conn.execute("DELETE FROM stories WHERE id = $1", story_id)
-        return {"message": "Story deleted successfully"}
+    if story_id not in stories_db:
+        raise HTTPException(status_code=404, detail="Story not found")
+    
+    del stories_db[story_id]
+    return {"message": "Story deleted successfully"}
 
 # =====================================
 # AI STORY GENERATION ENDPOINTS
@@ -1146,9 +941,8 @@ class GeneratedStoryResponse(BaseModel):
     suggestions: Optional[List[str]] = None
 
 @app.post("/api/stories/generate", response_model=GeneratedStoryResponse)
-@track_usage("ai_story_generation", 1) if BILLING_SERVICE_AVAILABLE else lambda f: f
 async def generate_story(request: StoryGenerateRequest):
-    """Generate AI stories based on description"""
+    """Generate a user story using AI based on description"""
     try:
         if AI_SERVICE_AVAILABLE:
             # Use real AI service
