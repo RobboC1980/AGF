@@ -19,7 +19,7 @@ import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User, Settings } from "lucide-react"
-import { useStories, useEpics, useUsers, useCreateStory } from "@/hooks/useApi"
+import { useStories, useEpics, useUsers, useCreateStory, useCreateProject } from "@/hooks/useApi"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
 import { UserSettingsModal } from "@/components/user-settings-modal"
@@ -39,6 +39,10 @@ const MainContent = () => {
   // Add state for story modal
   const [showStoryModal, setShowStoryModal] = useState(false)
   const [editingStory, setEditingStory] = useState<any>(null)
+  
+  // Add state for project modal
+  const [showProjectModal, setShowProjectModal] = useState(false)
+  const [editingProject, setEditingProject] = useState<any>(null)
 
   // Get data for the modals
   const { data: modalStories = [], refetch: refetchStories } = useStories()
@@ -47,6 +51,9 @@ const MainContent = () => {
   
   // Mutation hook for creating stories
   const createStoryMutation = useCreateStory()
+  
+  // Mutation hook for creating projects
+  const createProjectMutation = useCreateProject()
 
   const handleRefresh = () => {
     setIsLoading(true)
@@ -59,6 +66,11 @@ const MainContent = () => {
     if (currentPage === "stories") {
       setShowStoryModal(true)
       setEditingStory(null)
+    }
+    // If we're on the projects page, open the project modal
+    else if (currentPage === "projects") {
+      setShowProjectModal(true)
+      setEditingProject(null)
     }
   }
 
@@ -113,6 +125,37 @@ const MainContent = () => {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create story",
+        variant: "destructive",
+      })
+      
+      // Re-throw so the modal can handle the error
+      throw error
+    }
+  }
+
+  const handleProjectModalSave = async (projectData: any): Promise<void> => {
+    console.log("Saving project:", projectData)
+    try {
+      // Use the mutation hook to create the project
+      const result = await createProjectMutation.mutateAsync(projectData)
+      
+      console.log("Project created successfully:", result)
+      
+      // Show success toast
+      toast({
+        title: "Project Created",
+        description: `Successfully created "${(result as any).name || 'project'}"`,
+        variant: "default",
+      })
+      
+      // If we're on the projects page, it will automatically update due to React Query cache invalidation
+    } catch (error) {
+      console.error("Error creating project:", error)
+      
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create project",
         variant: "destructive",
       })
       
@@ -391,6 +434,19 @@ const MainContent = () => {
         epics={modalEpics}
         users={modalUsers}
         editingStory={editingStory}
+      />
+
+      {/* Project Creation Modal */}
+      <SimpleCreateModal
+        type="project"
+        onSubmit={handleProjectModalSave}
+        open={showProjectModal}
+        onOpenChange={(isOpen) => {
+          setShowProjectModal(isOpen)
+          if (!isOpen) {
+            setEditingProject(null)
+          }
+        }}
       />
 
       {/* Authentication Modal */}

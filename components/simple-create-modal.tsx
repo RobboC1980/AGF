@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarDays, Plus, Rocket, BookOpen, CheckSquare, X } from "lucide-react"
+import { CalendarDays, Plus, Rocket, BookOpen, CheckSquare, X, Target } from "lucide-react"
 import { format } from "date-fns"
 
 // Validation schemas
@@ -63,7 +63,16 @@ const taskSchema = z.object({
   subtasks: z.array(z.string()).default([]),
 })
 
-type EntityType = "epic" | "story" | "task"
+const projectSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  key: z.string().min(2, "Project key must be at least 2 characters").max(10, "Key must be less than 10 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  priority: z.enum(["low", "medium", "high", "critical"]),
+  status: z.enum(["backlog", "todo", "ready", "in-progress", "review", "testing", "done", "closed", "cancelled"]),
+  tags: z.array(z.string()).default([]),
+})
+
+type EntityType = "epic" | "story" | "task" | "project"
 
 interface SimpleCreateModalProps {
   type: EntityType
@@ -73,6 +82,8 @@ interface SimpleCreateModalProps {
   epics?: Array<{ id: string; title: string; project: string }>
   stories?: Array<{ id: string; title: string; epic: string }>
   users?: Array<{ id: string; name: string; avatar?: string }>
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
@@ -83,13 +94,23 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
   epics = [],
   stories = [],
   users = [],
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
 }) => {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  
+  // Use external state if provided, otherwise use internal state
+  const open = externalOpen !== undefined ? externalOpen : internalOpen
+  const setOpen = externalOnOpenChange || setInternalOpen
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newTag, setNewTag] = useState("")
   const [newSubtask, setNewSubtask] = useState("")
   const [dueDate, setDueDate] = useState<Date>()
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [startDate, setStartDate] = useState<Date>()
+  const [startCalendarOpen, setStartCalendarOpen] = useState(false)
+  const [targetEndDate, setTargetEndDate] = useState<Date>()
+  const [endCalendarOpen, setEndCalendarOpen] = useState(false)
 
   // Get the appropriate schema
   const getSchema = () => {
@@ -100,6 +121,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
         return storySchema
       case "task":
         return taskSchema
+      case "project":
+        return projectSchema
       default:
         return epicSchema
     }
@@ -120,6 +143,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
       storyPoints: type === "story" ? 3 : undefined,
       estimatedHours: type === "task" ? 4 : undefined,
       subtasks: type === "task" ? [] : undefined,
+      status: type === "project" ? "backlog" : undefined,
+      progress: type === "project" ? 0 : undefined,
     },
   })
 
@@ -129,10 +154,21 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
   const handleFormSubmit = async (data: any) => {
     setIsSubmitting(true)
     try {
-      await onSubmit({ ...data, dueDate })
+      const formData = {
+        ...data,
+        dueDate,
+        ...(type === "project" && {
+          start_date: startDate?.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+          target_end_date: targetEndDate?.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+          progress: 0, // Default progress for new projects
+        })
+      }
+      await onSubmit(formData)
       setOpen(false)
       reset()
       setDueDate(undefined)
+      setStartDate(undefined)
+      setTargetEndDate(undefined)
     } catch (error) {
       console.error("Error creating item:", error)
     } finally {
@@ -185,6 +221,13 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
           color: "from-orange-600 to-red-600",
           description: "Create a new task for implementation work",
         }
+      case "project":
+        return {
+          title: "Create Project",
+          icon: Target,
+          color: "from-blue-600 to-cyan-600",
+          description: "Create a new project to organize epics and stories",
+        }
     }
   }
 
@@ -228,19 +271,47 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4 p-4">
-                {/* Title */}
+                {/* Title/Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title *</Label>
+                  <Label htmlFor={type === "project" ? "name" : "title"}>
+                    {type === "project" ? "Name" : "Title"} *
+                  </Label>
                   <Input
-                    id="title"
-                    placeholder={`Enter ${type} title...`}
-                    {...register("title")}
-                    className={errors.title ? "border-red-500" : ""}
+                    id={type === "project" ? "name" : "title"}
+                    placeholder={`Enter ${type} ${type === "project" ? "name" : "title"}...`}
+                    {...register(type === "project" ? "name" : "title")}
+                    className={errors[type === "project" ? "name" : "title"] ? "border-red-500" : ""}
                   />
-                  {errors.title && (
-                    <p className="text-sm text-red-500">{errors.title.message as string}</p>
+                  {errors[type === "project" ? "name" : "title"] && (
+                    <p className="text-sm text-red-500">
+                      {errors[type === "project" ? "name" : "title"]?.message as string}
+                    </p>
                   )}
                 </div>
+
+                {/* Project Key (only for projects) */}
+                {type === "project" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="key">Project Key *</Label>
+                    <Input
+                      id="key"
+                      placeholder="e.g., ECOM, WEB, PROJ"
+                      {...register("key")}
+                      className={errors.key ? "border-red-500" : ""}
+                      maxLength={10}
+                      style={{ textTransform: 'uppercase' }}
+                      onChange={(e) => {
+                        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                      }}
+                    />
+                    {errors.key && (
+                      <p className="text-sm text-red-500">{errors.key.message as string}</p>
+                    )}
+                    <p className="text-xs text-slate-500">
+                      A short, unique identifier for this project (2-10 characters, letters and numbers only)
+                    </p>
+                  </div>
+                )}
 
                 {/* Description */}
                 <div className="space-y-2">
@@ -292,6 +363,26 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Project Status (only for projects) */}
+                {type === "project" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status *</Label>
+                    <Select onValueChange={(value) => setValue("status", value)} defaultValue="backlog">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="backlog">Backlog</SelectItem>
+                        <SelectItem value="ready">Ready</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="review">Review</SelectItem>
+                        <SelectItem value="testing">Testing</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Parent Relation */}
                 {type === "epic" && (
@@ -478,32 +569,92 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                   </div>
                 )}
 
-                {/* Due Date */}
-                <div className="space-y-2">
-                  <Label>Due Date</Label>
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarDays size={16} className="mr-2" />
-                        {dueDate ? format(dueDate, "PPP") : "Pick a date (optional)"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dueDate}
-                        onSelect={(date) => {
-                          setDueDate(date)
-                          setCalendarOpen(false)
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                {/* Due Date (for non-projects) */}
+                {type !== "project" && (
+                  <div className="space-y-2">
+                    <Label>Due Date</Label>
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarDays size={16} className="mr-2" />
+                          {dueDate ? format(dueDate, "PPP") : "Pick a date (optional)"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dueDate}
+                          onSelect={(date) => {
+                            setDueDate(date)
+                            setCalendarOpen(false)
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                {/* Project Dates (only for projects) */}
+                {type === "project" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Popover open={startCalendarOpen} onOpenChange={setStartCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            <CalendarDays size={16} className="mr-2" />
+                            {startDate ? format(startDate, "PPP") : "Pick start date (optional)"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => {
+                              setStartDate(date)
+                              setStartCalendarOpen(false)
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Target End Date</Label>
+                      <Popover open={endCalendarOpen} onOpenChange={setEndCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            <CalendarDays size={16} className="mr-2" />
+                            {targetEndDate ? format(targetEndDate, "PPP") : "Pick target end date (optional)"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={targetEndDate}
+                            onSelect={(date) => {
+                              setTargetEndDate(date)
+                              setEndCalendarOpen(false)
+                            }}
+                            disabled={(date) => startDate ? date < startDate : false}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                )}
 
                 {/* Acceptance Criteria */}
                 {(type === "story" || type === "epic") && (
