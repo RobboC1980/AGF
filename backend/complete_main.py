@@ -1224,6 +1224,87 @@ async def search(
     }
 
 # =====================================
+# AUTHENTICATION ENDPOINTS
+# =====================================
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserRegister(BaseModel):
+    email: str
+    password: str
+    name: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: Dict[str, Any]
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+async def login(login_data: UserLogin):
+    """Mock login endpoint - returns a test token"""
+    # For demo purposes, accept any email/password combination
+    user_id = str(uuid.uuid4())
+    user_data = {
+        "id": user_id,
+        "email": login_data.email,
+        "username": login_data.email.split("@")[0],
+        "first_name": "Test",
+        "last_name": "User"
+    }
+    
+    # Create a mock JWT token (in production, use proper JWT)
+    mock_token = f"test-token-{user_id}"
+    
+    return TokenResponse(
+        access_token=mock_token,
+        token_type="bearer",
+        user=user_data
+    )
+
+@app.post("/api/auth/register", response_model=TokenResponse)
+async def register(register_data: UserRegister):
+    """Mock register endpoint - creates a test user"""
+    user_id = str(uuid.uuid4())
+    now = datetime.now()
+    
+    # Parse the name field (could be "First Last" format)
+    name_parts = register_data.name.split(" ", 1)
+    first_name = name_parts[0] if name_parts else "User"
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
+    username = register_data.email.split("@")[0]  # Use email prefix as username
+    
+    # Create user in mock database
+    user = User(
+        id=user_id,
+        username=username,
+        email=register_data.email,
+        first_name=first_name,
+        last_name=last_name,
+        is_active=True,
+        created_at=now
+    )
+    users_db[user_id] = user
+    
+    user_data = {
+        "id": user_id,
+        "email": register_data.email,
+        "username": username,
+        "first_name": first_name,
+        "last_name": last_name
+    }
+    
+    # Create a mock JWT token (in production, use proper JWT)
+    mock_token = f"test-token-{user_id}"
+    
+    return TokenResponse(
+        access_token=mock_token,
+        token_type="bearer",
+        user=user_data
+    )
+
+# =====================================
 # RUN SERVER
 # =====================================
 
