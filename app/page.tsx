@@ -127,8 +127,8 @@ const MainContent = () => {
   // Mock data has been replaced with real API integration in the KanbanBoard component
 
   const pages = [
-    { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },
     { value: "projects", label: "Projects", icon: Target, description: "Strategic project portfolio" },
+    { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },
     { value: "stories", label: "User Stories", icon: BookOpen, description: "Feature requirements and user workflows" },
     { value: "tasks", label: "Tasks", icon: CheckSquare, description: "Individual work items and deliverables" },
     { value: "search", label: "Search", icon: Search, description: "Find anything quickly" },
@@ -148,7 +148,7 @@ const MainContent = () => {
                 <div className="flex items-center space-x-3">
                   <Logo size="lg" />
                   <div>
-                    <CardTitle className="text-lg">Complete Platform Demo</CardTitle>
+                    <CardTitle className="text-lg">AgileForge</CardTitle>
                     <p className="text-sm text-slate-600">AI-Powered Agile Project Management</p>
                   </div>
                 </div>
