@@ -19,13 +19,16 @@ import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User } from "lucide-react"
-import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useStories, useEpics, useUsers, useCreateStory } from "@/hooks/useApi"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
+import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 
 const MainContent = () => {
   const { currentPage, setCurrentPage, filters } = useNavigation()
   const { user, isAuthenticated, logout } = useAuth()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -35,9 +38,12 @@ const MainContent = () => {
   const [editingStory, setEditingStory] = useState<any>(null)
 
   // Get data for the modals
-  const { data: modalStories = [] } = useStories()
+  const { data: modalStories = [], refetch: refetchStories } = useStories()
   const { data: modalEpics = [] } = useEpics()
   const { data: modalUsers = [] } = useUsers()
+  
+  // Mutation hook for creating stories
+  const createStoryMutation = useCreateStory()
 
   const handleRefresh = () => {
     setIsLoading(true)
@@ -78,42 +84,37 @@ const MainContent = () => {
     console.log("Deleting item:", item)
   }
 
-  const handleStoryModalSave = async (storyData: any) => {
+  const handleStoryModalSave = async (storyData: any): Promise<void> => {
     console.log("Saving story:", storyData)
     try {
-      // Call the API to create the story
-      const response = await fetch("/api/stories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer demo`,
-        },
-        body: JSON.stringify(storyData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(`Failed to create story: ${errorData.detail || response.statusText}`)
-      }
-
-      const result = await response.json()
+      // Use the mutation hook to create the story
+      const result = await createStoryMutation.mutateAsync(storyData)
+      
       console.log("Story created successfully:", result)
       
-      // Show success message
-      console.log("✅ Story saved successfully!")
+      // Show success toast
+      toast({
+        title: "Story Created",
+        description: `Successfully created "${(result as any).title || 'story'}"`,
+        variant: "default",
+      })
       
-      return result
+      // Refresh the stories list to show the new story
+      await refetchStories()
+      
+      // If we're on the stories page, it will automatically update
     } catch (error) {
       console.error("Error creating story:", error)
       
-      // Fallback: For demo purposes, just log success if backend is not available
-      if (error instanceof Error && error.message.includes("Failed to fetch")) {
-        console.log("⚠️ Backend not available, but story data was prepared:", storyData)
-        console.log("✅ Story would be saved in a real implementation!")
-        return { id: Date.now().toString(), ...storyData }
-      }
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create story",
+        variant: "destructive",
+      })
       
-      throw error // Re-throw so the modal can handle the error
+      // Re-throw so the modal can handle the error
+      throw error
     }
   }
 
@@ -498,6 +499,9 @@ const MainContent = () => {
         onClose={() => setShowAuthModal(false)}
         initialMode="login"
       />
+      
+      {/* Toast Notifications */}
+      <Toaster />
     </div>
   )
 }

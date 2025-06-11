@@ -912,22 +912,31 @@ async def generate_story(request: StoryGenerateRequest):
         # Generate title based on common patterns
         if "login" in description_lower or "sign in" in description_lower:
             title = "As a user, I want to log into my account so that I can access my personal information"
+            enhanced_description = "Enable users to securely authenticate into the system using their credentials. The login process should include validation, error handling, session management, and optional features like remember me functionality."
         elif "register" in description_lower or "sign up" in description_lower:
             title = "As a user, I want to create an account so that I can use the platform"
+            enhanced_description = "Allow new users to create an account on the platform. The registration process should include email validation, password strength requirements, terms acceptance, and welcome email functionality."
         elif "search" in description_lower:
             title = "As a user, I want to search for content so that I can find what I'm looking for quickly"
+            enhanced_description = "Implement a comprehensive search functionality that allows users to find content across the platform. Include features like auto-complete, filters, search history, and relevant result ranking."
         elif "filter" in description_lower:
             title = "As a user, I want to filter results so that I can find relevant items"
+            enhanced_description = "Provide advanced filtering capabilities to help users narrow down results based on multiple criteria. Include options for saving filter presets and combining multiple filters."
         elif "dashboard" in description_lower:
             title = "As a user, I want to view a dashboard so that I can see an overview of my data"
+            enhanced_description = "Create an intuitive dashboard that displays key metrics, recent activities, and important notifications. The dashboard should be customizable and provide quick access to frequently used features."
         elif "profile" in description_lower:
             title = "As a user, I want to manage my profile so that I can keep my information up to date"
+            enhanced_description = "Enable users to view and edit their profile information including personal details, preferences, avatar, and account settings. Include validation and confirmation for sensitive changes."
         elif "notification" in description_lower:
             title = "As a user, I want to receive notifications so that I stay informed about important updates"
+            enhanced_description = "Implement a notification system that keeps users informed about relevant activities, updates, and alerts. Include options for notification preferences, delivery methods (email, in-app), and notification history."
         elif "password" in description_lower and "reset" in description_lower:
             title = "As a user, I want to reset my password so that I can regain access to my account"
+            enhanced_description = "Provide a secure password reset mechanism that allows users to recover their account access. The process should include email verification, secure token generation, password strength validation, and confirmation of the password change. Consider implementing additional security measures like security questions or two-factor authentication."
         else:
             title = f"As a user, I want to {request.description.lower()} so that I can achieve my goals"
+            enhanced_description = f"This feature will enable users to {request.description.lower()}. The implementation should focus on user experience, security, and performance while ensuring the feature integrates seamlessly with existing functionality."
         
         # Generate acceptance criteria
         acceptance_criteria = []
@@ -984,7 +993,7 @@ async def generate_story(request: StoryGenerateRequest):
         
         story_data = {
             "name": title,
-            "description": request.description,
+            "description": enhanced_description,
             "acceptanceCriteria": acceptance_criteria,
             "tags": tags,
             "storyPoints": story_points

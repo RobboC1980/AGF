@@ -529,10 +529,46 @@ export const api = {
 
   // Stories
   stories: {
-    getAll: (epicId?: string) => {
+    getAll: async (epicId?: string) => {
       // Ensure epicId is a string or null, not an object
       const validEpicId = epicId && typeof epicId === 'string' ? epicId : undefined;
-      return apiClient.get<Story[]>(`/api/stories${validEpicId ? `?epic_id=${validEpicId}` : ''}`);
+      const stories = await apiClient.get<Story[]>(`/api/stories${validEpicId ? `?epic_id=${validEpicId}` : ''}`);
+      
+      // Transform backend format to frontend format
+      // Backend returns 'title' but some frontend components expect 'name'
+      // Also need to transform nested epic and assignee data
+      return stories.map(story => ({
+        ...story,
+        name: story.title, // Add name field for frontend compatibility
+        // Transform assignee if present
+        assignee: story.assignee_id ? {
+          id: story.assignee_id,
+          name: 'Unknown User', // This will be replaced with actual user data
+          avatar: '/placeholder.svg?height=32&width=32'
+        } : undefined,
+        // Add epic details if needed
+        epic: story.epic_id ? {
+          id: story.epic_id,
+          name: 'Unknown Epic', // This will be replaced with actual epic data
+          color: 'bg-blue-500',
+          project: {
+            id: 'proj-1',
+            name: 'E-commerce Platform'
+          }
+        } : undefined,
+        // Transform dates
+        createdAt: story.created_at,
+        updatedAt: story.updated_at || story.created_at,
+        dueDate: story.due_date,
+        // Add stats
+        stats: {
+          totalTasks: 0,
+          completedTasks: 0,
+          completionPercentage: 0,
+          comments: 0,
+          attachments: 0
+        }
+      })) as any;
     },
     getById: (id: string) => apiClient.get<Story>(`/api/stories/${id}`),
     create: (data: Omit<Story, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'story_key'>) => 
