@@ -18,10 +18,12 @@ import SimpleCreateModal from "../components/simple-create-modal"
 import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User } from "lucide-react"
+import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User, Settings } from "lucide-react"
 import { useStories, useEpics, useUsers, useCreateStory } from "@/hooks/useApi"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
+import { UserSettingsModal } from "@/components/user-settings-modal"
+import { Logo } from "@/components/ui/logo"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 
@@ -32,6 +34,7 @@ const MainContent = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
   
   // Add state for story modal
   const [showStoryModal, setShowStoryModal] = useState(false)
@@ -261,7 +264,13 @@ const MainContent = () => {
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
+                <div className="flex items-center space-x-3">
+                  <Logo size="lg" />
+                  <div>
+                    <CardTitle className="text-lg">Complete Platform Demo</CardTitle>
+                    <p className="text-sm text-slate-600">AI-Powered Agile Project Management</p>
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   {/* Authentication Controls */}
                   {isAuthenticated ? (
@@ -272,6 +281,15 @@ const MainContent = () => {
                           {user?.first_name} {user?.last_name}
                         </span>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowSettingsModal(true)}
+                        className="text-slate-600 hover:text-slate-800"
+                      >
+                        <Settings size={14} className="mr-1" />
+                        Settings
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -498,6 +516,12 @@ const MainContent = () => {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         initialMode="login"
+      />
+
+      {/* User Settings Modal */}
+      <UserSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
       />
       
       {/* Toast Notifications */}

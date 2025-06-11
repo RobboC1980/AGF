@@ -1246,10 +1246,12 @@ async def login(login_data: UserLogin):
     """Mock login endpoint - returns a test token"""
     # For demo purposes, accept any email/password combination
     user_id = str(uuid.uuid4())
+    username = login_data.email.split("@")[0]
     user_data = {
         "id": user_id,
         "email": login_data.email,
-        "username": login_data.email.split("@")[0],
+        "name": f"Test User",  # Include full name for frontend compatibility
+        "username": username,
         "first_name": "Test",
         "last_name": "User"
     }
@@ -1290,6 +1292,7 @@ async def register(register_data: UserRegister):
     user_data = {
         "id": user_id,
         "email": register_data.email,
+        "name": register_data.name,  # Include full name for frontend compatibility
         "username": username,
         "first_name": first_name,
         "last_name": last_name
@@ -1303,6 +1306,21 @@ async def register(register_data: UserRegister):
         token_type="bearer",
         user=user_data
     )
+
+@app.get("/api/auth/me")
+async def get_current_user_info():
+    """Get current user information - mock endpoint"""
+    # For now, return a mock user since we don't have proper JWT validation
+    # In a real implementation, this would validate the JWT token
+    return {
+        "id": "demo-user",
+        "email": "demo@agileforge.com", 
+        "name": "Demo User",
+        "username": "demo",
+        "first_name": "Demo",
+        "last_name": "User",
+        "avatar_url": "/placeholder.svg?height=32&width=32"
+    }
 
 # =====================================
 # RUN SERVER

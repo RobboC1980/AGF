@@ -100,12 +100,13 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       api.auth.setToken(response.access_token)
       
       // Convert backend user format to frontend User format
+      const userName = response.user.name || response.user.username || 'User'
       const frontendUser: User = {
         id: response.user.id,
-        username: response.user.name, // Backend uses 'name', frontend expects 'username'
+        username: response.user.username || userName, // Backend uses 'name', frontend expects 'username'
         email: response.user.email,
-        first_name: response.user.name.split(' ')[0] || response.user.name,
-        last_name: response.user.name.split(' ').slice(1).join(' ') || '',
+        first_name: response.user.first_name || userName.split(' ')[0] || 'User',
+        last_name: response.user.last_name || userName.split(' ').slice(1).join(' ') || '',
         avatar_url: response.user.avatar_url || '/placeholder.svg?height=32&width=32',
         is_active: true,
         created_at: new Date().toISOString(),
