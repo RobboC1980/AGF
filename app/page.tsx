@@ -124,126 +124,7 @@ const MainContent = () => {
   // Use real data for kanban columns
   const { data: kanbanStories = [] } = useStories()
   
-  const mockKanbanColumns = [
-    {
-      id: "backlog",
-      title: "Backlog",
-      color: "bg-slate-500",
-      items: [
-        {
-          id: "item-1",
-          title: "User Profile Management",
-          description: "Allow users to update their profile information",
-          type: "story" as const,
-          priority: "medium" as const,
-          assignee: {
-            id: "1",
-            name: "Sarah Chen",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["profile", "user-management"],
-          progress: 0,
-          storyPoints: 5,
-          createdAt: "2024-01-15T10:00:00Z",
-        },
-      ],
-    },
-    {
-      id: "todo",
-      title: "To Do",
-      color: "bg-blue-500",
-      limit: 5,
-      items: [
-        {
-          id: "item-2",
-          title: "Authentication System",
-          description: "Implement secure user login and registration",
-          type: "epic" as const,
-          priority: "high" as const,
-          assignee: {
-            id: "2",
-            name: "Alex Rodriguez",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["auth", "security"],
-          progress: 25,
-          storyPoints: 13,
-          dueDate: "2024-01-25T23:59:59Z",
-          createdAt: "2024-01-10T08:00:00Z",
-        },
-      ],
-    },
-    {
-      id: "in-progress",
-      title: "In Progress",
-      color: "bg-purple-500",
-      limit: 3,
-      items: [
-        {
-          id: "item-3",
-          title: "Dashboard Analytics",
-          description: "Create comprehensive analytics dashboard",
-          type: "project" as const,
-          priority: "critical" as const,
-          assignee: {
-            id: "3",
-            name: "Emily Johnson",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["analytics", "dashboard"],
-          progress: 60,
-          storyPoints: 21,
-          createdAt: "2024-01-05T12:00:00Z",
-        },
-      ],
-    },
-    {
-      id: "review",
-      title: "Review",
-      color: "bg-amber-500",
-      items: [
-        {
-          id: "item-4",
-          title: "Mobile Responsive Design",
-          description: "Ensure all pages work on mobile devices",
-          type: "task" as const,
-          priority: "medium" as const,
-          assignee: {
-            id: "4",
-            name: "Michael Brown",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["mobile", "responsive"],
-          progress: 90,
-          storyPoints: 8,
-          createdAt: "2024-01-12T14:00:00Z",
-        },
-      ],
-    },
-    {
-      id: "done",
-      title: "Done",
-      color: "bg-emerald-500",
-      items: [
-        {
-          id: "item-5",
-          title: "Database Schema Design",
-          description: "Design and implement the database schema",
-          type: "task" as const,
-          priority: "high" as const,
-          assignee: {
-            id: "1",
-            name: "Sarah Chen",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["database", "schema"],
-          progress: 100,
-          storyPoints: 8,
-          createdAt: "2024-01-01T09:00:00Z",
-        },
-      ],
-    },
-  ]
+  // Mock data has been replaced with real API integration in the KanbanBoard component
 
   const pages = [
     { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },
@@ -422,7 +303,6 @@ const MainContent = () => {
         {currentPage === "kanban" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <KanbanBoard
-              columns={mockKanbanColumns}
               onItemMove={(itemId, fromColumn, toColumn, newIndex) => {
                 console.log(`Moved ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
               }}
@@ -430,8 +310,10 @@ const MainContent = () => {
               onItemDelete={handleDelete}
               onAddItem={(columnId) => {
                 console.log(`Adding item to column ${columnId}`)
+                // Could trigger the story creation modal here
+                setShowStoryModal(true)
               }}
-              entityType="stories"
+              showBothStoriesAndTasks={true}
             />
           </div>
         )}

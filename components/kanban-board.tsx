@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import {
@@ -18,6 +18,8 @@ import {
   Rocket,
   Clock,
   TrendingUp,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +35,9 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useToast } from "@/hooks/use-toast"
+import { api } from "@/services/api"
+import type { Story, Task } from "@/services/api"
 
 interface KanbanItem {
   id: string
@@ -40,6 +45,7 @@ interface KanbanItem {
   description?: string
   type: "project" | "epic" | "story" | "task"
   priority: "low" | "medium" | "high" | "critical"
+  status: "backlog" | "todo" | "ready" | "in-progress" | "review" | "testing" | "done" | "closed" | "cancelled"
   assignee?: {
     id: string
     name: string
@@ -48,8 +54,14 @@ interface KanbanItem {
   tags?: string[]
   progress?: number
   storyPoints?: number
+  estimatedHours?: number
+  actualHours?: number
   dueDate?: string
   createdAt: string
+  // Additional fields for API integration
+  epic_id?: string
+  story_id?: string
+  acceptance_criteria?: string
 }
 
 interface KanbanColumn {
@@ -61,13 +73,24 @@ interface KanbanColumn {
 }
 
 interface KanbanBoardProps {
-  columns: KanbanColumn[]
+  columns?: KanbanColumn[]
   onItemMove?: (itemId: string, fromColumn: string, toColumn: string, newIndex: number) => void
   onItemEdit?: (item: KanbanItem) => void
   onItemDelete?: (item: KanbanItem) => void
   onAddItem?: (columnId: string) => void
   entityType?: "projects" | "epics" | "stories" | "tasks"
+  showBothStoriesAndTasks?: boolean
 }
+
+const DEFAULT_COLUMNS: KanbanColumn[] = [
+  { id: "backlog", title: "Backlog", color: "bg-slate-500", items: [] },
+  { id: "todo", title: "To Do", color: "bg-blue-500", items: [], limit: 5 },
+  { id: "ready", title: "Ready", color: "bg-indigo-500", items: [] },
+  { id: "in-progress", title: "In Progress", color: "bg-purple-500", items: [], limit: 3 },
+  { id: "review", title: "Review", color: "bg-amber-500", items: [] },
+  { id: "testing", title: "Testing", color: "bg-orange-500", items: [] },
+  { id: "done", title: "Done", color: "bg-emerald-500", items: [] },
+]
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
   columns: initialColumns,
@@ -76,8 +99,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onItemDelete,
   onAddItem,
   entityType = "stories",
+  showBothStoriesAndTasks = true,
 }) => {
-  const [columns, setColumns] = useState(initialColumns)
+  const [columns, setColumns] = useState<KanbanColumn[]>(initialColumns || DEFAULT_COLUMNS)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const typeConfig = {
     project: { icon: Target, color: "text-blue-700", bg: "bg-blue-50" },
@@ -93,7 +120,124 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     critical: { color: "text-red-700", bg: "bg-red-50", border: "border-red-200" },
   }
 
-  const handleDragEnd = (result: DropResult) => {
+  // Convert API data to KanbanItem format
+  const convertStoryToKanbanItem = (story: Story): KanbanItem => ({
+    id: story.id,
+    title: story.title,
+    description: story.description,
+    type: "story",
+    priority: story.priority,
+    status: story.status,
+    storyPoints: story.story_points,
+    dueDate: story.due_date,
+    createdAt: story.created_at,
+    epic_id: story.epic_id,
+    acceptance_criteria: story.acceptance_criteria,
+    assignee: story.assignee_id ? {
+      id: story.assignee_id,
+      name: "Assigned User", // We'll need to fetch user data
+      avatar: "/placeholder.svg"
+    } : undefined,
+    tags: [],
+  })
+
+  const convertTaskToKanbanItem = (task: Task): KanbanItem => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    type: "task",
+    priority: task.priority,
+    status: task.status,
+    estimatedHours: task.estimated_hours,
+    actualHours: task.actual_hours,
+    dueDate: task.due_date,
+    createdAt: task.created_at,
+    story_id: task.story_id,
+    assignee: task.assignee_id ? {
+      id: task.assignee_id,
+      name: "Assigned User", // We'll need to fetch user data
+      avatar: "/placeholder.svg"
+    } : undefined,
+    tags: [],
+    progress: task.actual_hours > 0 && task.estimated_hours > 0 
+      ? Math.min(100, Math.round((task.actual_hours / task.estimated_hours) * 100))
+      : 0,
+  })
+
+  // Fetch data from API
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      let allItems: KanbanItem[] = []
+
+      if (showBothStoriesAndTasks || entityType === "stories") {
+        const storiesResponse = await api.stories.getAll()
+        const stories = storiesResponse.map(convertStoryToKanbanItem)
+        allItems = [...allItems, ...stories]
+      }
+
+      if (showBothStoriesAndTasks || entityType === "tasks") {
+        const tasksResponse = await api.tasks.getAll()
+        const tasks = tasksResponse.map(convertTaskToKanbanItem)
+        allItems = [...allItems, ...tasks]
+      }
+
+      // Distribute items across columns based on status
+      const newColumns = DEFAULT_COLUMNS.map(column => ({
+        ...column,
+        items: allItems.filter(item => item.status === column.id)
+      }))
+
+      setColumns(newColumns)
+    } catch (err) {
+      console.error("Error fetching kanban data:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch data")
+      toast({
+        title: "Error",
+        description: "Failed to load kanban board data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [entityType, showBothStoriesAndTasks, toast])
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Update item status via API
+  const updateItemStatus = async (item: KanbanItem, newStatus: string) => {
+    try {
+      if (item.type === "story") {
+        await api.stories.update(item.id, { 
+          status: newStatus as any 
+        })
+      } else if (item.type === "task") {
+        await api.tasks.update(item.id, { 
+          status: newStatus as any 
+        })
+      }
+      
+      toast({
+        title: "Success",
+        description: `${item.type} status updated successfully`,
+      })
+    } catch (err) {
+      console.error("Error updating item status:", err)
+      toast({
+        title: "Error",
+        description: `Failed to update ${item.type} status`,
+        variant: "destructive",
+      })
+      throw err // Re-throw to handle in drag handler
+    }
+  }
+
+  const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result
 
     if (!destination) return
@@ -112,6 +256,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
     const [movedItem] = sourceItems.splice(source.index, 1)
 
+    // Optimistically update UI
     if (source.droppableId === destination.droppableId) {
       sourceItems.splice(destination.index, 0, movedItem)
       setColumns((prev) => prev.map((col) => (col.id === source.droppableId ? { ...col, items: sourceItems } : col)))
@@ -130,11 +275,86 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
       )
     }
 
-    onItemMove?.(draggableId, source.droppableId, destination.droppableId, destination.index)
+    // Update via API
+    try {
+      await updateItemStatus(movedItem, destination.droppableId)
+      onItemMove?.(draggableId, source.droppableId, destination.droppableId, destination.index)
+    } catch (err) {
+      // Revert UI changes on API failure
+      fetchData()
+    }
+  }
+
+  const handleRefresh = () => {
+    fetchData()
+  }
+
+  const handleItemEdit = (item: KanbanItem) => {
+    onItemEdit?.(item)
+  }
+
+  const handleItemDelete = async (item: KanbanItem) => {
+    try {
+      if (item.type === "story") {
+        await api.stories.delete(item.id)
+      } else if (item.type === "task") {
+        await api.tasks.delete(item.id)
+      }
+      
+      toast({
+        title: "Success",
+        description: `${item.type} deleted successfully`,
+      })
+      
+      // Refresh data
+      fetchData()
+      onItemDelete?.(item)
+    } catch (err) {
+      console.error("Error deleting item:", err)
+      toast({
+        title: "Error",
+        description: `Failed to delete ${item.type}`,
+        variant: "destructive",
+      })
+    }
   }
 
   const getTotalItems = () => {
     return columns.reduce((total, column) => total + column.items.length, 0)
+  }
+
+  const getEntityTypeLabel = () => {
+    if (showBothStoriesAndTasks) return "Stories & Tasks"
+    return entityType === "stories" ? "Stories" : "Tasks"
+  }
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <span>Loading kanban board...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Error Loading Kanban Board</h2>
+            <p className="text-gray-600">{error}</p>
+          </div>
+          <Button onClick={handleRefresh} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -145,10 +365,14 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
           <div>
             <h2 className="text-xl font-bold text-slate-900">Kanban Board</h2>
             <p className="text-sm text-slate-600">
-              {getTotalItems()} items across {columns.length} columns
+              {getTotalItems()} {getEntityTypeLabel().toLowerCase()} across {columns.length} columns
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw size={16} className="mr-2" />
+              Refresh
+            </Button>
             <Button variant="outline" size="sm">
               <Users size={16} className="mr-2" />
               Team View
@@ -234,10 +458,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      initial={{ opacity: 0, y: 20 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0, y: -20 }}
-                                      transition={{ delay: index * 0.05 }}
                                       className={`transform transition-transform ${
                                         snapshot.isDragging ? "rotate-2 scale-105" : ""
                                       }`}
@@ -274,7 +494,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                                 </Button>
                                               </DropdownMenuTrigger>
                                               <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => onItemEdit?.(item)}>
+                                                <DropdownMenuItem onClick={() => handleItemEdit(item)}>
                                                   <Edit2 size={16} className="mr-2" />
                                                   Edit
                                                 </DropdownMenuItem>
@@ -285,7 +505,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                   className="text-red-600"
-                                                  onClick={() => onItemDelete?.(item)}
+                                                  onClick={() => handleItemDelete(item)}
                                                 >
                                                   <Trash2 size={16} className="mr-2" />
                                                   Delete
@@ -366,6 +586,11 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                                   {item.storyPoints} SP
                                                 </Badge>
                                               )}
+                                              {item.estimatedHours && (
+                                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                                  {item.estimatedHours}h
+                                                </Badge>
+                                              )}
                                             </div>
 
                                             {item.dueDate && (
@@ -392,7 +617,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             onClick={() => onAddItem?.(column.id)}
                           >
                             <Plus size={16} className="mr-2" />
-                            Add {entityType.slice(0, -1)}
+                            Add {showBothStoriesAndTasks ? "Item" : entityType.slice(0, -1)}
                           </Button>
                         </div>
                       </div>
