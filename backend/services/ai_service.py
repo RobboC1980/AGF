@@ -491,11 +491,25 @@ class AIService:
             try:
                 if template_name in ["sprint_planning", "standup_reporter", "retrospective_summarizer", 
                                    "story_generator", "story_validator", "backlog_coach", "risk_radar"]:
-                    data = json.loads(content)
+                    # Handle markdown-wrapped JSON responses
+                    json_content = content.strip()
+                    
+                    # Remove common markdown code block wrappers
+                    if json_content.startswith("```json"):
+                        json_content = json_content[7:]  # Remove ```json
+                    elif json_content.startswith("```"):
+                        json_content = json_content[3:]   # Remove ```
+                    
+                    if json_content.endswith("```"):
+                        json_content = json_content[:-3]  # Remove trailing ```
+                    
+                    json_content = json_content.strip()
+                    data = json.loads(json_content)
+                    logger.info(f"Successfully parsed JSON response for template {template_name}")
                 else:
                     data = content
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse JSON response for template {template_name}, returning raw content")
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON response for template {template_name}: {str(e)}, returning raw content")
                 data = content
             
             return AIResponse(
