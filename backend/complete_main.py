@@ -1217,10 +1217,12 @@ async def search(
 # =====================================
 
 if __name__ == "__main__":
+    import os
+    port = int(os.getenv("PORT", 4000))
     uvicorn.run(
         "complete_main:app",
         host="0.0.0.0",
-        port=3001,
+        port=port,
         reload=True,
         log_level="info"
     ) 
