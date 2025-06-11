@@ -479,7 +479,17 @@ export const api = {
 
   // Users
   users: {
-    getAll: () => apiClient.get<User[]>('/api/users'),
+    getAll: async () => {
+      const users = await apiClient.get<User[]>('/api/users');
+      
+      // Transform backend format to frontend format
+      // Backend returns first_name/last_name but frontend expects name
+      return users.map(user => ({
+        ...user,
+        name: `${user.first_name} ${user.last_name}`,
+        avatar: user.avatar_url, // Also map avatar_url to avatar
+      })) as any;
+    },
     getById: (id: string) => apiClient.get<User>(`/api/users/${id}`),
     create: (data: Omit<User, 'id' | 'created_at'>) => apiClient.post<User>('/api/users', data),
     update: (id: string, data: Partial<User>) => apiClient.put<User>(`/api/users/${id}`, data),
@@ -498,10 +508,17 @@ export const api = {
 
   // Epics
   epics: {
-    getAll: (projectId?: string) => {
+    getAll: async (projectId?: string) => {
       // Ensure projectId is a string or null, not an object
       const validProjectId = projectId && typeof projectId === 'string' ? projectId : undefined;
-      return apiClient.get<Epic[]>(`/api/epics${validProjectId ? `?project_id=${validProjectId}` : ''}`);
+      const epics = await apiClient.get<Epic[]>(`/api/epics${validProjectId ? `?project_id=${validProjectId}` : ''}`);
+      
+      // Transform backend format to frontend format
+      // Backend returns 'title' but frontend expects 'name'
+      return epics.map(epic => ({
+        ...epic,
+        name: epic.title, // Add name field for frontend compatibility
+      })) as any;
     },
     getById: (id: string) => apiClient.get<Epic>(`/api/epics/${id}`),
     create: (data: Omit<Epic, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'epic_key' | 'actual_story_points' | 'progress'>) => 

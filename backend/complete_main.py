@@ -479,7 +479,9 @@ init_sample_data()
 
 def generate_key(prefix: str, entity_type: str) -> str:
     """Generate unique key for entities"""
-    count = len([k for k in globals()[f"{entity_type}s_db"].keys() if k.startswith(prefix)]) + 1
+    # Handle plural forms correctly
+    db_name = f"{entity_type}s_db" if entity_type != "story" else "stories_db"
+    count = len([k for k in globals()[db_name].keys() if k.startswith(prefix)]) + 1
     return f"{prefix}-{count}"
 
 def get_current_user() -> str:
