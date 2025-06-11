@@ -189,6 +189,21 @@ export const useCreateProject = () => {
   })
 }
 
+export const useUpdateProject = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.projects.update(id, data),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(queryKeys.project(variables.id), data)
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+    },
+    onError: (error) => {
+      console.error('Failed to update project:', error)
+    },
+  })
+}
+
 // Tasks hooks
 export const useTasks = () => {
   return useQuery({

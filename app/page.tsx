@@ -19,7 +19,7 @@ import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User, Settings } from "lucide-react"
-import { useStories, useEpics, useUsers, useCreateStory, useCreateProject } from "@/hooks/useApi"
+import { useStories, useEpics, useUsers, useCreateStory, useCreateProject, useUpdateStory, useUpdateEpic, useUpdateTask, useUpdateProject } from "@/hooks/useApi"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
 import { UserSettingsModal } from "@/components/user-settings-modal"
@@ -36,24 +36,33 @@ const MainContent = () => {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   
-  // Add state for story modal
+  // Add state for all entity modals and editing
   const [showStoryModal, setShowStoryModal] = useState(false)
   const [editingStory, setEditingStory] = useState<any>(null)
   
-  // Add state for project modal
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [editingProject, setEditingProject] = useState<any>(null)
 
+  const [showEpicModal, setShowEpicModal] = useState(false)
+  const [editingEpic, setEditingEpic] = useState<any>(null)
+
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [editingTask, setEditingTask] = useState<any>(null)
+
   // Get data for the modals
   const { data: modalStories = [], refetch: refetchStories } = useStories()
-  const { data: modalEpics = [] } = useEpics()
+  const { data: modalEpics = [], refetch: refetchEpics } = useEpics()
   const { data: modalUsers = [] } = useUsers()
   
-  // Mutation hook for creating stories
+  // Mutation hooks for creating and updating entities
   const createStoryMutation = useCreateStory()
+  const updateStoryMutation = useUpdateStory()
   
-  // Mutation hook for creating projects
   const createProjectMutation = useCreateProject()
+  const updateProjectMutation = useUpdateProject()
+  
+  const updateEpicMutation = useUpdateEpic()
+  const updateTaskMutation = useUpdateTask()
 
   const handleRefresh = () => {
     setIsLoading(true)
@@ -88,10 +97,20 @@ const MainContent = () => {
 
   const handleEdit = (item: any) => {
     console.log("Editing item:", item)
-    // If we're on the stories page, open the story modal for editing
+    
+    // Determine which modal to open based on current page
     if (currentPage === "stories") {
       setEditingStory(item)
       setShowStoryModal(true)
+    } else if (currentPage === "epics") {
+      setEditingEpic(item)
+      setShowEpicModal(true)
+    } else if (currentPage === "tasks") {
+      setEditingTask(item)
+      setShowTaskModal(true)
+    } else if (currentPage === "projects") {
+      setEditingProject(item)
+      setShowProjectModal(true)
     }
   }
 
@@ -156,6 +175,83 @@ const MainContent = () => {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create project",
+        variant: "destructive",
+      })
+      
+      // Re-throw so the modal can handle the error
+      throw error
+    }
+  }
+
+  const handleEpicModalSave = async (epicData: any): Promise<void> => {
+    console.log("Saving epic:", epicData)
+    try {
+      let result
+      
+      if (editingEpic) {
+        // Update existing epic
+        result = await updateEpicMutation.mutateAsync({
+          id: editingEpic.id,
+          data: epicData
+        })
+        
+        toast({
+          title: "Epic Updated",
+          description: `Successfully updated "${result.title || result.name || 'epic'}"`,
+          variant: "default",
+        })
+      } else {
+        // Create new epic - will be handled by the SimpleCreateModal
+        throw new Error("Epic creation should be handled by SimpleCreateModal")
+      }
+      
+      // Refresh the epics list
+      await refetchEpics()
+      
+    } catch (error) {
+      console.error("Error saving epic:", error)
+      
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save epic",
+        variant: "destructive",
+      })
+      
+      // Re-throw so the modal can handle the error
+      throw error
+    }
+  }
+
+  const handleTaskModalSave = async (taskData: any): Promise<void> => {
+    console.log("Saving task:", taskData)
+    try {
+      let result
+      
+      if (editingTask) {
+        // Update existing task
+        result = await updateTaskMutation.mutateAsync({
+          id: editingTask.id,
+          data: taskData
+        })
+        
+        toast({
+          title: "Task Updated",
+          description: `Successfully updated "${result.title || result.name || 'task'}"`,
+          variant: "default",
+        })
+      } else {
+        // Create new task - will be handled by the SimpleCreateModal
+        throw new Error("Task creation should be handled by SimpleCreateModal")
+      }
+      
+    } catch (error) {
+      console.error("Error saving task:", error)
+      
+      // Show error toast
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save task",
         variant: "destructive",
       })
       
@@ -430,16 +526,60 @@ const MainContent = () => {
           setShowStoryModal(false)
           setEditingStory(null)
         }}
-        onSave={handleStoryModalSave}
+        onSave={editingStory ? async (storyData: any) => {
+          try {
+            const result = await updateStoryMutation.mutateAsync({
+              id: editingStory.id,
+              data: storyData
+            })
+            
+            toast({
+              title: "Story Updated",
+              description: `Successfully updated "${result.title || result.name || 'story'}"`,
+              variant: "default",
+            })
+            
+            await refetchStories()
+          } catch (error) {
+            console.error("Error updating story:", error)
+            toast({
+              title: "Error",
+              description: error instanceof Error ? error.message : "Failed to update story",
+              variant: "destructive",
+            })
+            throw error
+          }
+        } : handleStoryModalSave}
         epics={modalEpics}
         users={modalUsers}
         editingStory={editingStory}
       />
 
-      {/* Project Creation Modal */}
+      {/* Project Creation/Edit Modal */}
       <SimpleCreateModal
         type="project"
-        onSubmit={handleProjectModalSave}
+        onSubmit={editingProject ? async (projectData: any) => {
+          try {
+            const result = await updateProjectMutation.mutateAsync({
+              id: editingProject.id,
+              data: projectData
+            })
+            
+            toast({
+              title: "Project Updated",
+              description: `Successfully updated "${result.name || 'project'}"`,
+              variant: "default",
+            })
+          } catch (error) {
+            console.error("Error updating project:", error)
+            toast({
+              title: "Error",
+              description: error instanceof Error ? error.message : "Failed to update project",
+              variant: "destructive",
+            })
+            throw error
+          }
+        } : handleProjectModalSave}
         open={showProjectModal}
         onOpenChange={(isOpen) => {
           setShowProjectModal(isOpen)
@@ -447,6 +587,45 @@ const MainContent = () => {
             setEditingProject(null)
           }
         }}
+        editingData={editingProject}
+      />
+
+      {/* Epic Edit Modal */}
+      <SimpleCreateModal
+        type="epic"
+        onSubmit={handleEpicModalSave}
+        projects={[
+          { id: "1", name: "Demo Project" },
+          { id: "2", name: "AgileForge Platform" }
+        ]}
+        open={showEpicModal}
+        onOpenChange={(isOpen) => {
+          setShowEpicModal(isOpen)
+          if (!isOpen) {
+            setEditingEpic(null)
+          }
+        }}
+        editingData={editingEpic}
+      />
+
+      {/* Task Edit Modal */}
+      <SimpleCreateModal
+        type="task"
+        onSubmit={handleTaskModalSave}
+        stories={modalStories.map(story => ({
+          id: story.id,
+          title: story.name || story.title,
+          epic: story.epic?.name || story.epic?.title || "Unknown Epic"
+        }))}
+        users={modalUsers}
+        open={showTaskModal}
+        onOpenChange={(isOpen) => {
+          setShowTaskModal(isOpen)
+          if (!isOpen) {
+            setEditingTask(null)
+          }
+        }}
+        editingData={editingTask}
       />
 
       {/* Authentication Modal */}

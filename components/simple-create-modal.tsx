@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -84,6 +84,7 @@ interface SimpleCreateModalProps {
   users?: Array<{ id: string; name: string; avatar?: string }>
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  editingData?: any
 }
 
 export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
@@ -96,6 +97,7 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
   users = [],
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
+  editingData,
 }) => {
   const [internalOpen, setInternalOpen] = useState(false)
   
