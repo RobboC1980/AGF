@@ -48,7 +48,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useStories, useEpics, useUsers, useProjects } from "@/hooks/useApi"
 import { useNavigation } from "@/contexts/navigation-context"
 
 interface Project {
@@ -108,16 +108,17 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   // Use API hooks to fetch real data
   const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
   const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics()
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch: refetchProjects } = useProjects()
   const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
   const { navigateToProjectEpics, navigateToEpicStories, filters } = useNavigation()
 
   // Combine loading and error states
-  const isLoading = storiesLoading || epicsLoading || usersLoading
-  const error = storiesError || epicsError || usersError
+  const isLoading = storiesLoading || epicsLoading || usersLoading || projectsLoading
+  const error = storiesError || epicsError || usersError || projectsError
 
-  // Map epic status to project status
-  const mapEpicStatusToProjectStatus = (epicStatus: string): "planning" | "active" | "on-hold" | "completed" | "cancelled" => {
-    switch (epicStatus) {
+  // Map project status to display status
+  const mapProjectStatusToDisplayStatus = (projectStatus: string): "planning" | "active" | "on-hold" | "completed" | "cancelled" => {
+    switch (projectStatus) {
       case 'backlog':
       case 'todo':
       case 'ready':
@@ -131,50 +132,60 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
         return 'completed'
       case 'cancelled':
         return 'cancelled'
+      case 'on-hold':
+        return 'on-hold'
       default:
         return 'planning'
     }
   }
 
-  // Create projects from epics data (since projects contain epics)
-  const projects = (epics || []).map(epic => {
-    if (!epic || !epic.id) return null;
+  // Create display projects from actual projects data
+  const displayProjects = (projects || []).map(project => {
+    if (!project || !project.id) return null;
     
-    const epicStories = (stories || []).filter(s => s && (s.epic?.id === epic.id || s.epic_id === epic.id));
-    const completedStories = epicStories.filter(s => s && s.status === 'done');
+    // Find epics belonging to this project
+    const projectEpics = (epics || []).filter(epic => epic && epic.project_id === project.id);
+    const completedEpics = projectEpics.filter(epic => epic && (epic.status === 'done' || epic.status === 'closed'));
+    
+    // Find all stories belonging to epics of this project
+    const projectStories = (stories || []).filter(story => {
+      if (!story || !story.epic_id) return false;
+      return projectEpics.some(epic => epic && epic.id === story.epic_id);
+    });
+    const completedStories = projectStories.filter(story => story && story.status === 'done');
     
     return {
-      id: epic.id,
-      name: epic.name || epic.title || 'Untitled Epic',
-      description: epic.description || '',
-      status: mapEpicStatusToProjectStatus(epic.status || 'backlog'),
-      priority: epic.priority || 'medium',
-      progress: epicStories.length > 0 ? Math.round((completedStories.length / epicStories.length) * 100) : 0,
-      project: epic.project || { id: '', name: 'Unknown Project', color: '#gray' },
-      createdAt: epic.createdAt || epic.created_at || new Date().toISOString(),
-      updatedAt: epic.updatedAt || epic.updated_at || new Date().toISOString(),
-      startDate: epic.createdAt || epic.created_at || new Date().toISOString(),
-      endDate: epic.updatedAt || epic.updated_at || undefined,
-      dueDate: epic.target_end_date || undefined,
-      budget: undefined,
+      id: project.id,
+      name: project.name || 'Untitled Project',
+      description: project.description || '',
+      status: mapProjectStatusToDisplayStatus(project.status || 'backlog'),
+      priority: project.priority || 'medium',
+      progress: projectStories.length > 0 ? Math.round((completedStories.length / projectStories.length) * 100) : 0,
+      project: { id: project.id, name: project.name, color: '#blue' },
+      createdAt: project.created_at || new Date().toISOString(),
+      updatedAt: project.updated_at || new Date().toISOString(),
+      startDate: project.start_date || project.created_at || new Date().toISOString(),
+      endDate: project.target_end_date || undefined,
+      dueDate: project.target_end_date || undefined,
+      budget: undefined, // Projects don't have budget info in the current model
       team: {
         lead: {
-          id: epic.assignee?.id || epic.assignee_id || 'unassigned',
-          name: epic.assignee?.name || 'Unassigned',
-          avatar: epic.assignee?.avatar
+          id: project.created_by || 'unassigned',
+          name: 'Project Owner', // Would need to lookup user by created_by
+          avatar: undefined
         },
         members: []
       },
-      tags: epic.tags || [],
-      stories: epicStories,
+      tags: [], // Projects don't have tags in the current model
+      epics: projectEpics,
       stats: {
-        totalEpics: 1,
-        completedEpics: mapEpicStatusToProjectStatus(epic.status || 'backlog') === 'completed' ? 1 : 0,
-        totalStories: epicStories.length,
+        totalEpics: projectEpics.length,
+        completedEpics: completedEpics.length,
+        totalStories: projectStories.length,
         completedStories: completedStories.length,
-        totalTasks: 0,
+        totalTasks: 0, // Would need to calculate from stories
         completedTasks: 0,
-        storyPoints: epicStories.reduce((sum, story) => sum + (story?.story_points || 0), 0),
+        storyPoints: projectStories.reduce((sum, story) => sum + (story?.story_points || 0), 0),
         completedPoints: completedStories.reduce((sum, story) => sum + (story?.story_points || 0), 0)
       }
     };
@@ -182,6 +193,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
   const refetch = () => {
     refetchStories()
+    refetchProjects()
   }
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -254,7 +266,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
   // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
-    let filtered = projects.filter((project) => {
+    let filtered = displayProjects.filter((project) => {
       const matchesSearch =
         !searchQuery ||
         project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -317,7 +329,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
     })
 
     return filtered
-  }, [projects, searchQuery, statusFilter, priorityFilter, teamFilter, activeTab, sortBy, sortOrder])
+  }, [displayProjects, searchQuery, statusFilter, priorityFilter, teamFilter, activeTab, sortBy, sortOrder])
 
   // Selection handlers
   const handleProjectSelect = (projectId: string) => {
@@ -336,13 +348,13 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
   // Get statistics
   const stats = useMemo(() => {
-    const total = projects.length
-    const completed = projects.filter((project) => project.status === "completed").length
-    const active = projects.filter((project) => project.status === "active").length
-    const overdue = projects.filter((project) => project.dueDate && new Date(project.dueDate) < new Date()).length
+    const total = displayProjects.length
+    const completed = displayProjects.filter((project) => project.status === "completed").length
+    const active = displayProjects.filter((project) => project.status === "active").length
+    const overdue = displayProjects.filter((project) => project.dueDate && new Date(project.dueDate) < new Date()).length
 
     return { total, completed, active, overdue }
-  }, [projects])
+  }, [displayProjects])
 
   if (isLoading) {
     return (

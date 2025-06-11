@@ -182,6 +182,7 @@ export const useCreateProject = () => {
     mutationFn: api.projects.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+      queryClient.invalidateQueries({ queryKey: queryKeys.epics })
     },
     onError: (error) => {
       console.error('Failed to create project:', error)

@@ -36,6 +36,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -269,6 +270,9 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             <Settings size={20} />
             <span>User Settings</span>
           </DialogTitle>
+          <DialogDescription>
+            Manage your profile, account settings, and preferences
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">

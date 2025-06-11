@@ -19,7 +19,7 @@ import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, LogIn, LogOut, User, Settings } from "lucide-react"
-import { useStories, useEpics, useUsers, useCreateStory, useCreateProject, useUpdateStory, useUpdateEpic, useUpdateTask, useUpdateProject } from "@/hooks/useApi"
+import { useStories, useEpics, useUsers, useProjects, useCreateStory, useCreateProject, useCreateEpic, useUpdateStory, useUpdateEpic, useUpdateTask, useUpdateProject } from "@/hooks/useApi"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
 import { UserSettingsModal } from "@/components/user-settings-modal"
@@ -53,6 +53,7 @@ const MainContent = () => {
   const { data: modalStories = [], refetch: refetchStories } = useStories()
   const { data: modalEpics = [], refetch: refetchEpics } = useEpics()
   const { data: modalUsers = [] } = useUsers()
+  const { data: modalProjects = [] } = useProjects()
   
   // Mutation hooks for creating and updating entities
   const createStoryMutation = useCreateStory()
@@ -61,6 +62,7 @@ const MainContent = () => {
   const createProjectMutation = useCreateProject()
   const updateProjectMutation = useUpdateProject()
   
+  const createEpicMutation = useCreateEpic()
   const updateEpicMutation = useUpdateEpic()
   const updateTaskMutation = useUpdateTask()
 
@@ -197,12 +199,20 @@ const MainContent = () => {
         
         toast({
           title: "Epic Updated",
-          description: `Successfully updated "${result.title || result.name || 'epic'}"`,
+          description: `Successfully updated "${(result as any).title || (result as any).name || 'epic'}"`,
           variant: "default",
         })
       } else {
-        // Create new epic - will be handled by the SimpleCreateModal
-        throw new Error("Epic creation should be handled by SimpleCreateModal")
+        // Create new epic
+        result = await createEpicMutation.mutateAsync(epicData)
+        
+        console.log("Epic created successfully:", result)
+        
+        toast({
+          title: "Epic Created",
+          description: `Successfully created "${(result as any).title || (result as any).name || 'epic'}"`,
+          variant: "default",
+        })
       }
       
       // Refresh the epics list
@@ -237,7 +247,7 @@ const MainContent = () => {
         
         toast({
           title: "Task Updated",
-          description: `Successfully updated "${result.title || result.name || 'task'}"`,
+          description: `Successfully updated "${(result as any).title || 'task'}"`,
           variant: "default",
         })
       } else {
@@ -334,12 +344,22 @@ const MainContent = () => {
                   
                   {/* Create Controls */}
                   <SimpleCreateModal 
+                    type="project" 
+                    onSubmit={handleProjectModalSave}
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <Target size={14} className="mr-1" />
+                        Project
+                      </Button>
+                    }
+                  />
+                  <SimpleCreateModal 
                     type="epic" 
-                    onSubmit={handleCreateSubmit}
-                    projects={[
-                      { id: "1", name: "Demo Project" },
-                      { id: "2", name: "AgileForge Platform" }
-                    ]}
+                    onSubmit={handleEpicModalSave}
+                    projects={modalProjects.map((project: any) => ({
+                      id: project.id,
+                      name: project.name
+                    }))}
                     trigger={
                       <Button variant="outline" size="sm">
                         <Rocket size={14} className="mr-1" />
@@ -535,7 +555,7 @@ const MainContent = () => {
             
             toast({
               title: "Story Updated",
-              description: `Successfully updated "${result.title || result.name || 'story'}"`,
+              description: `Successfully updated "${(result as any).title || (result as any).name || 'story'}"`,
               variant: "default",
             })
             
@@ -567,7 +587,7 @@ const MainContent = () => {
             
             toast({
               title: "Project Updated",
-              description: `Successfully updated "${result.name || 'project'}"`,
+              description: `Successfully updated "${(result as any).name || 'project'}"`,
               variant: "default",
             })
           } catch (error) {
@@ -612,9 +632,9 @@ const MainContent = () => {
       <SimpleCreateModal
         type="task"
         onSubmit={handleTaskModalSave}
-        stories={modalStories.map(story => ({
+        stories={modalStories.map((story: any) => ({
           id: story.id,
-          title: story.name || story.title,
+          title: (story as any).name || (story as any).title,
           epic: story.epic?.name || story.epic?.title || "Unknown Epic"
         }))}
         users={modalUsers}
