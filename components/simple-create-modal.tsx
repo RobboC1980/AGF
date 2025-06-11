@@ -68,7 +68,7 @@ const projectSchema = z.object({
   key: z.string().min(2, "Project key must be at least 2 characters").max(10, "Key must be less than 10 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   priority: z.enum(["low", "medium", "high", "critical"]),
-  status: z.enum(["backlog", "todo", "ready", "in-progress", "review", "testing", "done", "closed", "cancelled"]),
+  status: z.enum(["backlog", "ready", "in-progress", "review", "testing", "done"]),
   tags: z.array(z.string()).default([]),
 })
 
@@ -252,8 +252,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="flex-shrink-0 p-6 pb-4">
           <DialogTitle className="flex items-center space-x-2">
             <div className={`w-10 h-10 bg-gradient-to-r ${config.color} rounded-lg flex items-center justify-center`}>
               <IconComponent size={20} className="text-white" />
@@ -263,16 +263,16 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
           <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col h-full min-h-0">
+          <div className="flex-1 overflow-y-auto px-6">
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="advanced">Advanced</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="basic" className="space-y-4 p-4">
+              <TabsContent value="basic" className="space-y-4 pb-4">
                 {/* Title/Name */}
                 <div className="space-y-2">
                   <Label htmlFor={type === "project" ? "name" : "title"}>
@@ -298,13 +298,14 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                     <Input
                       id="key"
                       placeholder="e.g., ECOM, WEB, PROJ"
-                      {...register("key")}
+                      {...register("key", {
+                        onChange: (e) => {
+                          e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                        }
+                      })}
                       className={errors.key ? "border-red-500" : ""}
                       maxLength={10}
                       style={{ textTransform: 'uppercase' }}
-                      onChange={(e) => {
-                        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
-                      }}
                     />
                     {errors.key && (
                       <p className="text-sm text-red-500">{errors.key.message as string}</p>
@@ -457,8 +458,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                 )}
               </TabsContent>
 
-                             <TabsContent value="details" className="space-y-4 p-4">
-                 {/* User Story Format */}
+              <TabsContent value="details" className="space-y-4 pb-4">
+                {/* User Story Format */}
                 {type === "story" && (
                   <Card>
                     <CardContent className="p-4 space-y-4">
@@ -678,8 +679,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                 )}
               </TabsContent>
 
-                             <TabsContent value="advanced" className="space-y-4 p-4">
-                 {/* Tags */}
+              <TabsContent value="advanced" className="space-y-4 pb-4">
+                {/* Tags */}
                 <div className="space-y-2">
                   <Label>Tags</Label>
                   <div className="flex space-x-2">
@@ -741,11 +742,17 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                   </div>
                 )}
               </TabsContent>
-                         </Tabs>
-           </div>
+            </Tabs>
+          </div>
  
-           {/* Submit Buttons - Fixed Footer */}
-           <div className="flex-shrink-0 flex justify-end space-x-2 pt-4 border-t bg-white">
+                     {/* Submit Buttons - Fixed Footer */}
+           <div className="flex-shrink-0 flex justify-end space-x-2 p-6 pt-4 border-t bg-white">
+             {/* Show validation errors if any */}
+             {Object.keys(errors).length > 0 && (
+               <div className="flex-1 text-sm text-red-500">
+                 Please fix the validation errors above
+               </div>
+             )}
              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                Cancel
              </Button>
