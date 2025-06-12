@@ -205,12 +205,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     efficiency: 89,
   }
 
-  const velocityChange = calculateChange(analyticsData.overview.averageVelocity, previousData.velocity)
-  const completionChange = calculateChange(
-    (analyticsData.overview.completedStoryPoints / analyticsData.overview.totalStoryPoints) * 100,
-    previousData.completion,
-  )
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -237,6 +231,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       </div>
     )
   }
+
+  // Calculate changes now that we know analyticsData is not null
+  const velocityChange = calculateChange(analyticsData.overview.averageVelocity, previousData.velocity)
+  const completionChange = calculateChange(
+    (analyticsData.overview.completedStoryPoints / analyticsData.overview.totalStoryPoints) * 100,
+    previousData.completion,
+  )
 
   return (
     <TooltipProvider>
