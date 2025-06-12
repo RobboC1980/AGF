@@ -104,8 +104,13 @@ async def run_migrations():
                 CREATE TABLE IF NOT EXISTS projects (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     name VARCHAR(255) NOT NULL,
+                    key VARCHAR(50) NOT NULL,
                     description TEXT,
-                    status VARCHAR(50) DEFAULT 'active',
+                    status VARCHAR(50) DEFAULT 'backlog',
+                    priority VARCHAR(20) DEFAULT 'medium',
+                    start_date DATE,
+                    target_end_date DATE,
+                    progress INTEGER DEFAULT 0,
                     created_by UUID REFERENCES users(id),
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
@@ -113,19 +118,30 @@ async def run_migrations():
                 
                 CREATE TABLE IF NOT EXISTS epics (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    name VARCHAR(255) NOT NULL,
+                    title VARCHAR(255) NOT NULL,
                     description TEXT,
                     project_id UUID REFERENCES projects(id),
-                    color VARCHAR(7) DEFAULT '#3B82F6',
-                    status VARCHAR(50) DEFAULT 'active',
+                    epic_key VARCHAR(50) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'backlog',
+                    priority VARCHAR(20) DEFAULT 'medium',
+                    start_date DATE,
+                    target_end_date DATE,
+                    estimated_story_points INTEGER,
+                    actual_story_points INTEGER DEFAULT 0,
+                    progress INTEGER DEFAULT 0,
+                    created_by UUID REFERENCES users(id),
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 );
                 
                 CREATE TABLE IF NOT EXISTS stories (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    name VARCHAR(255) NOT NULL,
+                    title VARCHAR(255) NOT NULL,
                     description TEXT,
+                    story_key VARCHAR(50) NOT NULL,
+                    as_a TEXT,
+                    i_want TEXT,
+                    so_that TEXT,
                     acceptance_criteria TEXT,
                     story_points INTEGER,
                     priority VARCHAR(20) DEFAULT 'medium',
@@ -134,6 +150,7 @@ async def run_migrations():
                     assignee_id UUID REFERENCES users(id),
                     tags TEXT[],
                     due_date TIMESTAMP,
+                    created_by UUID REFERENCES users(id),
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 );

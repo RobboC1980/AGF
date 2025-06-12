@@ -95,6 +95,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Custom exception handler to ensure CORS headers are included in error responses
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+    # Add CORS headers manually
+    origin = request.headers.get("origin")
+    if origin in ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"]:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    import traceback
+    logging.error(f"Unhandled exception: {exc}")
+    logging.error(traceback.format_exc())
+    
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"}
+    )
+    # Add CORS headers manually
+    origin = request.headers.get("origin")
+    if origin in ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"]:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
 # Add usage tracking middleware
 if BILLING_SERVICE_AVAILABLE:
     app.middleware("http")(get_usage_middleware)
@@ -799,7 +834,7 @@ async def create_project(project_data: ProjectCreate):
         await conn.execute("""
             INSERT INTO projects (id, organization_id, name, key, description, status, priority, start_date, target_end_date, progress, created_by, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        """, project_id, "org-1", project_data.name, project_key, project_data.description,
+        """, project_id, "default-org", project_data.name, project_key, project_data.description,
             "backlog", project_data.priority.value, project_data.start_date, 
             project_data.target_end_date, 0, get_current_user(), now)
     
