@@ -308,6 +308,17 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
 
 # =====================================
+# IN-MEMORY STORAGE
+# =====================================
+
+# In-memory storage for entities (for development/testing)
+users_db: Dict[str, User] = {}
+projects_db: Dict[str, Project] = {}
+epics_db: Dict[str, Epic] = {}
+stories_db: Dict[str, Story] = {}
+tasks_db: Dict[str, Task] = {}
+
+# =====================================
 # DATABASE INITIALIZATION & SAMPLE DATA
 # =====================================
 
@@ -766,8 +777,10 @@ async def get_project(project_id: str):
 async def create_project(project_data: ProjectCreate):
     """Create new project"""
     project_id = str(uuid.uuid4())
-    project_key = generate_key(project_data.key, "project")
+    project_key = await generate_key(project_data.key, "project")
+    now = datetime.now()
     
+    # Create project object
     project = Project(
         id=project_id,
         name=project_data.name,
@@ -778,8 +791,18 @@ async def create_project(project_data: ProjectCreate):
         target_end_date=project_data.target_end_date,
         progress=0,
         created_by=get_current_user(),
-        created_at=datetime.now()
+        created_at=now
     )
+    
+    # Store in both database and memory for consistency
+    async with db_manager.get_connection() as conn:
+        await conn.execute("""
+            INSERT INTO projects (id, organization_id, name, key, description, status, priority, start_date, target_end_date, progress, created_by, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        """, project_id, "org-1", project_data.name, project_key, project_data.description,
+            "backlog", project_data.priority.value, project_data.start_date, 
+            project_data.target_end_date, 0, get_current_user(), now)
+    
     projects_db[project_id] = project
     return project
 
@@ -862,13 +885,17 @@ async def get_epic(epic_id: str):
 @app.post("/api/epics", response_model=Epic, status_code=201)
 async def create_epic(epic_data: EpicCreate):
     """Create new epic"""
-    if epic_data.project_id not in projects_db:
-        raise HTTPException(status_code=404, detail="Project not found")
+    # Check if project exists in database
+    async with db_manager.get_connection() as conn:
+        project = await conn.fetchrow("SELECT * FROM projects WHERE id = $1", epic_data.project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
     
     epic_id = str(uuid.uuid4())
-    project = projects_db[epic_data.project_id]
-    epic_key = generate_key(project.key, "epic")
+    epic_key = await generate_key(project['key'], "epic")
+    now = datetime.now()
     
+    # Create epic object
     epic = Epic(
         id=epic_id,
         project_id=epic_data.project_id,
@@ -882,8 +909,19 @@ async def create_epic(epic_data: EpicCreate):
         actual_story_points=0,
         progress=0,
         created_by=get_current_user(),
-        created_at=datetime.now()
+        created_at=now
     )
+    
+    # Store in both database and memory for consistency
+    async with db_manager.get_connection() as conn:
+        await conn.execute("""
+            INSERT INTO epics (id, project_id, title, description, epic_key, status, priority, 
+                             estimated_story_points, actual_story_points, progress, created_by, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        """, epic_id, epic_data.project_id, epic_data.title, epic_data.description,
+            epic_key, "backlog", epic_data.priority.value, 
+            epic_data.estimated_story_points, 0, 0, get_current_user(), now)
+    
     epics_db[epic_id] = epic
     return epic
 
@@ -1366,15 +1404,25 @@ async def get_task(task_id: str):
 @app.post("/api/tasks", response_model=Task, status_code=201)
 async def create_task(task_data: TaskCreate):
     """Create new task"""
-    if task_data.story_id not in stories_db:
-        raise HTTPException(status_code=404, detail="Story not found")
+    # Check if story exists in database and get project info
+    async with db_manager.get_connection() as conn:
+        story = await conn.fetchrow("SELECT * FROM stories WHERE id = $1", task_data.story_id)
+        if not story:
+            raise HTTPException(status_code=404, detail="Story not found")
+        
+        epic = await conn.fetchrow("SELECT * FROM epics WHERE id = $1", story['epic_id'])
+        if not epic:
+            raise HTTPException(status_code=404, detail="Epic not found")
+        
+        project = await conn.fetchrow("SELECT * FROM projects WHERE id = $1", epic['project_id'])
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
     
     task_id = str(uuid.uuid4())
-    story = stories_db[task_data.story_id]
-    epic = epics_db[story.epic_id]
-    project = projects_db[epic.project_id]
-    task_key = generate_key(project.key, "task")
+    task_key = await generate_key(project['key'], "task")
+    now = datetime.now()
     
+    # Create task object
     task = Task(
         id=task_id,
         story_id=task_data.story_id,
@@ -1387,8 +1435,20 @@ async def create_task(task_data: TaskCreate):
         actual_hours=0.0,
         due_date=task_data.due_date,
         created_by=get_current_user(),
-        created_at=datetime.now()
+        created_at=now
     )
+    
+    # Store in both database and memory for consistency
+    async with db_manager.get_connection() as conn:
+        await conn.execute("""
+            INSERT INTO tasks (id, story_id, title, description, task_key, status, priority, 
+                             assignee_id, estimated_hours, actual_hours, due_date, created_by, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        """, task_id, task_data.story_id, task_data.title, task_data.description,
+            task_key, "todo", task_data.priority.value, 
+            task_data.assignee_id, task_data.estimated_hours, 0.0, 
+            task_data.due_date, get_current_user(), now)
+    
     tasks_db[task_id] = task
     return task
 
