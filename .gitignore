@@ -25,3 +25,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# Database files (SQLite - should not be used in production)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
