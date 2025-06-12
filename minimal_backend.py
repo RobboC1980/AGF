@@ -228,6 +228,76 @@ async def get_users():
         }
     ]
 
+@app.get("/api/tasks")
+async def get_tasks():
+    return [
+        {
+            "id": "task-1",
+            "story_id": "story-1",
+            "title": "Set up authentication backend",
+            "description": "Create API endpoints for login and registration",
+            "status": "todo",
+            "priority": "high",
+            "assignee_id": "user-1",
+            "story_points": 3,
+            "tags": ["backend", "auth"],
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        },
+        {
+            "id": "task-2",
+            "story_id": "story-1",
+            "title": "Create login UI",
+            "description": "Design and implement login form with validation",
+            "status": "in_progress",
+            "priority": "high",
+            "assignee_id": "user-2",
+            "story_points": 2,
+            "tags": ["frontend", "ui"],
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z"
+        },
+        {
+            "id": "task-3",
+            "story_id": "story-2",
+            "title": "Database schema design",
+            "description": "Design database schema for user preferences",
+            "status": "done",
+            "priority": "medium",
+            "assignee_id": "user-1",
+            "story_points": 1,
+            "tags": ["database", "design"],
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-03T00:00:00Z"
+        },
+        {
+            "id": "task-4",
+            "story_id": "story-1",
+            "title": "Add JWT token handling",
+            "description": "Implement JWT token generation and validation",
+            "status": "todo",
+            "priority": "high",
+            "assignee_id": None,
+            "story_points": 2,
+            "tags": ["backend", "security"],
+            "created_at": "2024-01-02T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z"
+        },
+        {
+            "id": "task-5",
+            "story_id": "story-2",
+            "title": "Implement data persistence",
+            "description": "Create service layer for saving user data",
+            "status": "in_progress",
+            "priority": "medium",
+            "assignee_id": "user-2",
+            "story_points": 3,
+            "tags": ["backend", "database"],
+            "created_at": "2024-01-02T00:00:00Z",
+            "updated_at": "2024-01-03T00:00:00Z"
+        }
+    ]
+
 @app.get("/api/analytics/overview")
 async def get_analytics_overview():
     return {
