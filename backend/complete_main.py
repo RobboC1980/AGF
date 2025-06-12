@@ -3,6 +3,10 @@ AgileForge Complete Backend Implementation
 FastAPI application with full CRUD operations for all entities
 """
 
+# Load environment variables FIRST before any other imports
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Depends, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -15,14 +19,10 @@ import uuid
 import json
 import logging
 from enum import Enum
-from dotenv import load_dotenv
 
 # Database imports
 import asyncpg
 from database.connection import db_manager, init_db, close_db, get_db_connection
-
-# Load environment variables
-load_dotenv()
 
 # Import AI service
 try:
