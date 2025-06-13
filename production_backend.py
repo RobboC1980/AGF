@@ -579,19 +579,22 @@ async def get_projects(current_user = Depends(get_current_active_user)):
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
-async def create_project(project_data: ProjectCreate, current_user: dict = Depends(get_current_user)):
-    """Create a new project"""
+async def create_project(project_data: ProjectCreate, current_user = Depends(require_create_project)):
+    """Create a new project (requires create project permission)"""
     try:
         # Add created_by from current user
         data = project_data.dict()
-        data["created_by"] = current_user.get("user_id")
+        data["created_by"] = current_user.id
+        data["created_at"] = datetime.utcnow().isoformat()
         
         result = supabase.table("projects").insert(data).execute()
         if result.data:
-            logger.info(f"Project created: {result.data[0]['id']}")
+            logger.info(f"Project created: {result.data[0]['id']} by user: {current_user.email}")
             return result.data[0]
         else:
             raise HTTPException(status_code=400, detail="Failed to create project")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating project: {e}")
         raise HTTPException(status_code=500, detail="Failed to create project")
