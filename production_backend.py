@@ -27,6 +27,17 @@ import openai
 import redis
 from contextlib import asynccontextmanager
 
+# Import enhanced authentication system
+from backend.auth.enhanced_auth import (
+    EnhancedAuthManager, auth_manager, get_current_user, get_current_active_user,
+    require_admin, require_manager, require_team_lead,
+    require_create_project, require_manage_team, require_view_analytics, require_use_ai,
+    UserRole, Permission
+)
+from backend.auth.auth_endpoints import auth_router
+from backend.webhooks.database_webhooks import webhooks_router
+from backend.cron.scheduled_jobs import cron_router, jobs_manager
+
 # Load environment variables
 load_dotenv()
 
@@ -70,6 +81,12 @@ if supabase_url and supabase_key:
     try:
         supabase = create_client(supabase_url, supabase_key)
         logger.info("Supabase client initialized successfully")
+        
+        # Initialize enhanced authentication manager
+        from backend.auth.enhanced_auth import auth_manager as auth_mgr_module
+        auth_mgr_module = EnhancedAuthManager(supabase)
+        logger.info("Enhanced authentication manager initialized")
+        
     except Exception as e:
         logger.error(f"Failed to initialize Supabase client: {e}")
         supabase = None
@@ -185,6 +202,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Redis connection failed: {e}")
     
+    # Setup cron jobs
+    try:
+        await jobs_manager.setup_cron_jobs()
+        logger.info("Cron jobs setup completed")
+    except Exception as e:
+        logger.warning(f"Cron jobs setup failed: {e}")
+    
     yield
     
     # Shutdown
@@ -199,6 +223,11 @@ app = FastAPI(
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
     lifespan=lifespan
 )
+
+# Include enhanced authentication and feature routers
+app.include_router(auth_router)
+app.include_router(webhooks_router)
+app.include_router(cron_router)
 
 # Security middleware
 app.add_middleware(
@@ -528,11 +557,23 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = 
 
 # Projects endpoints
 @app.get("/api/projects")
-async def get_projects(current_user: dict = Depends(get_current_user)):
-    """Get all projects"""
+async def get_projects(current_user = Depends(get_current_active_user)):
+    """Get all projects (requires view project permission)"""
     try:
+        # Check if user has permission to view projects
+        from backend.auth.enhanced_auth import get_auth_manager, Permission
+        auth_mgr = get_auth_manager()
+        
+        if not auth_mgr.has_permission(current_user, Permission.VIEW_PROJECT):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission to view projects required"
+            )
+        
         result = supabase.table("projects").select("*").execute()
         return result.data
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching projects: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
