@@ -87,7 +87,8 @@ async def get_stories():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8001))
+    logger.info(f"Starting server on port {port}")
     uvicorn.run(
         "simple_supabase_backend:app",
         host="0.0.0.0",

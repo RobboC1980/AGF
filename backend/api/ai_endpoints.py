@@ -5,8 +5,8 @@ from datetime import datetime, date
 import logging
 
 from ..services.ai_service import ai_service, AIResponse
-from ..models.database import get_db_session
 from ..auth.dependencies import get_current_user
+from ..database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ai", tags=["AI Features"])
@@ -117,16 +117,16 @@ class RiskAnalysisResponse(BaseModel):
 async def plan_sprint(
     request: SprintPlanningRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """AI-powered sprint planning assistant"""
     try:
         # Fetch team data and stories
         # This would integrate with your database models
-        team_data = await fetch_team_data(request.team_id, db)
-        candidate_stories = await fetch_stories(request.candidate_story_ids, db)
-        historical_velocity = await calculate_velocity(request.team_id, db)
-        dependencies = await analyze_dependencies(request.candidate_story_ids, db)
+        team_data = await fetch_team_data(request.team_id, supabase)
+        candidate_stories = await fetch_stories(request.candidate_story_ids, supabase)
+        historical_velocity = await calculate_velocity(request.team_id, supabase)
+        dependencies = await analyze_dependencies(request.candidate_story_ids, supabase)
         
         # Prepare AI variables
         variables = {
@@ -168,13 +168,13 @@ async def plan_sprint(
 async def generate_standup_report(
     request: StandupRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Generate AI standup reports"""
     try:
         # Fetch task updates for the team and date
-        task_updates = await fetch_task_updates(request.team_id, request.date, db)
-        team_info = await fetch_team_info(request.team_id, db)
+        task_updates = await fetch_task_updates(request.team_id, request.date, supabase)
+        team_info = await fetch_team_info(request.team_id, supabase)
         
         variables = {
             "team_name": team_info["name"],
@@ -217,12 +217,12 @@ async def summarize_retrospective(
     request: RetrospectiveRequest,
     background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Summarize retrospective feedback and create action items"""
     try:
-        sprint_info = await fetch_sprint_info(request.sprint_id, db)
-        team_info = await fetch_team_info(sprint_info["team_id"], db)
+        sprint_info = await fetch_sprint_info(request.sprint_id, supabase)
+        team_info = await fetch_team_info(sprint_info["team_id"], supabase)
         
         # Combine feedback entries
         feedback_text = "\n\n".join([
@@ -251,7 +251,7 @@ async def summarize_retrospective(
                 ai_data["action_items"],
                 sprint_info["team_id"],
                 current_user.id,
-                db
+                supabase
             )
         
         return RetrospectiveResponse(
@@ -313,7 +313,7 @@ async def validate_story(
 async def analyze_backlog(
     request: BacklogRefinementRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Analyze backlog for refinement opportunities"""
     try:
@@ -321,7 +321,7 @@ async def analyze_backlog(
             request.project_id, 
             request.include_completed,
             request.max_stories,
-            db
+            supabase
         )
         
         variables = {
@@ -356,12 +356,12 @@ async def analyze_backlog(
 async def generate_release_notes(
     request: ReleaseNotesRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Generate release notes from completed stories"""
     try:
-        release_info = await fetch_release_info(request.release_id, db)
-        completed_stories = await fetch_release_stories(request.release_id, db)
+        release_info = await fetch_release_info(request.release_id, supabase)
+        completed_stories = await fetch_release_stories(request.release_id, supabase)
         
         variables = {
             "release_name": release_info["name"],
@@ -400,14 +400,14 @@ async def generate_release_notes(
 async def analyze_project_risks(
     request: RiskAnalysisRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Analyze project risks and provide mitigation suggestions"""
     try:
         project_data = await fetch_project_risk_data(
             request.project_id,
             request.analysis_period_days,
-            db
+            supabase
         )
         
         variables = {
@@ -448,11 +448,11 @@ async def get_velocity_forecast(
     team_id: str,
     sprints_back: int = 6,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Get velocity trends and forecasting"""
     try:
-        velocity_data = await fetch_velocity_data(team_id, sprints_back, db)
+        velocity_data = await fetch_velocity_data(team_id, sprints_back, supabase)
         
         # Calculate trends and generate AI insights
         variables = {
@@ -481,26 +481,26 @@ async def get_velocity_forecast(
         raise HTTPException(status_code=500, detail=str(e))
 
 # Helper functions (these would be implemented based on your database models)
-async def fetch_team_data(team_id: str, db): pass
-async def fetch_stories(story_ids: List[str], db): pass
-async def calculate_velocity(team_id: str, db): pass
-async def analyze_dependencies(story_ids: List[str], db): pass
+async def fetch_team_data(team_id: str, supabase): pass
+async def fetch_stories(story_ids: List[str], supabase): pass
+async def calculate_velocity(team_id: str, supabase): pass
+async def analyze_dependencies(story_ids: List[str], supabase): pass
 async def format_stories_for_ai(stories): pass
 async def format_dependencies_for_ai(dependencies): pass
-async def fetch_task_updates(team_id: str, date: date, db): pass
-async def fetch_team_info(team_id: str, db): pass
+async def fetch_task_updates(team_id: str, date: date, supabase): pass
+async def fetch_team_info(team_id: str, supabase): pass
 async def format_task_updates_for_ai(updates): pass
-async def fetch_sprint_info(sprint_id: str, db): pass
-async def create_action_item_tasks(action_items, team_id, user_id, db): pass
-async def fetch_project_stories(project_id: str, include_completed: bool, max_stories: int, db): pass
+async def fetch_sprint_info(sprint_id: str, supabase): pass
+async def create_action_item_tasks(action_items, team_id, user_id, supabase): pass
+async def fetch_project_stories(project_id: str, include_completed: bool, max_stories: int, supabase): pass
 async def format_stories_for_refinement_ai(stories): pass
-async def fetch_release_info(release_id: str, db): pass
-async def fetch_release_stories(release_id: str, db): pass
+async def fetch_release_info(release_id: str, supabase): pass
+async def fetch_release_stories(release_id: str, supabase): pass
 async def format_stories_for_release_notes(stories): pass
 async def parse_release_notes_sections(markdown: str): pass
-async def fetch_project_risk_data(project_id: str, days: int, db): pass
+async def fetch_project_risk_data(project_id: str, days: int, supabase): pass
 async def format_sprint_data_for_ai(data): pass
 async def format_blockers_for_ai(data): pass
 async def format_estimates_for_ai(data): pass
 async def format_capacity_trends_for_ai(data): pass
-async def fetch_velocity_data(team_id: str, sprints_back: int, db): pass
+async def fetch_velocity_data(team_id: str, sprints_back: int, supabase): pass

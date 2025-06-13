@@ -1,30 +1,53 @@
 services:
-  # Web Service (FastAPI Backend)
+  # Backend API Service
   - type: web
-    name: agilescribe-api
+    name: agileforge-api
     env: python
-    plan: starter
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: starter  # Free tier, upgrade to standard for production
+    buildCommand: pip install -r requirements-production.txt
+    startCommand: python production_backend.py
     envVars:
       - key: ENVIRONMENT
         value: production
-      - key: JWT_SECRET
-        generateValue: true
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: DATABASE_URL
+      - key: PORT
+        value: 8000
+      - key: SUPABASE_URL
         fromDatabase:
-          name: agilescribe-db
-          property: connectionString
+          name: supabase-config
+          property: url
+      - key: SUPABASE_SERVICE_KEY
+        fromDatabase:
+          name: supabase-config
+          property: service_key
       - key: FRONTEND_URL
-        value: https://v0-agile-forge-40higfdur-clariq.vercel.app
+        value: https://your-frontend-domain.vercel.app
+      - key: PRODUCTION_DOMAINS
+        value: your-frontend-domain.vercel.app,your-custom-domain.com
+      - key: ALLOWED_HOST
+        value: agileforge-api.onrender.com
+    healthCheckPath: /health
+    
+  # Frontend (if deploying on Render instead of Vercel)
+  - type: web
+    name: agileforge-frontend
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://agileforge-api.onrender.com
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        fromDatabase:
+          name: supabase-config
+          property: url
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        fromDatabase:
+          name: supabase-config
+          property: anon_key
 
 databases:
-  # PostgreSQL Database
-  - name: agilescribe-db
-    plan: starter
-    databaseName: agilescribe
-    user: agilescribe_user
+  # Configuration store for Supabase credentials
+  - name: supabase-config
+    databaseName: config
+    user: config_user

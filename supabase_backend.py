@@ -10,9 +10,10 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field, UUID4
 from uuid import uuid4
 from auth_middleware import SupabaseAuthMiddleware
+from backend.api.auth import router as auth_router
 
 # Load environment variables
-load_dotenv()
+load_dotenv(dotenv_path='.env')
 
 # Configure logging
 logging.basicConfig(
@@ -24,10 +25,10 @@ logger = logging.getLogger(__name__)
 # Supabase configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    raise ValueError("Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    raise ValueError("Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY")
 
 # Create FastAPI app
 app = FastAPI(
@@ -64,6 +65,9 @@ app.add_middleware(
         "/api"  # All API endpoints are currently public for simplicity
     ]
 )
+
+# Insert (after CORS middleware and before health endpoint) the following line to include the auth router:
+app.include_router(auth_router, prefix="/api/auth")
 
 # Pydantic models for request validation
 class ProjectBase(BaseModel):
@@ -243,7 +247,7 @@ class SupabaseClient:
         return result[0]
 
 # Create Supabase client instance
-supabase = SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
+supabase = SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY)
 
 # Health check endpoint
 @app.get("/health")

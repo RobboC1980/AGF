@@ -2,22 +2,15 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-import jwt
-import bcrypt
 import os
 from datetime import datetime, timedelta
 import logging
 
-from ..database.connection import get_db_connection
+from ..database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 security = HTTPBearer()
-
-# JWT Configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -39,103 +32,78 @@ class TokenResponse(BaseModel):
     token_type: str
     user: UserResponse
 
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-
-def verify_password(password: str, hashed: str) -> bool:
-    """Verify a password against its hash"""
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-
-def create_access_token(user_id: str, email: str) -> str:
-    """Create a JWT access token"""
-    expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
-    payload = {
-        "user_id": user_id,
-        "email": email,
-        "exp": expire,
-        "iat": datetime.utcnow()
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-def verify_token(token: str) -> dict:
-    """Verify and decode a JWT token"""
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
-    except jwt.JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
-
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db = Depends(get_db_connection)
+    supabase = Depends(get_supabase)
 ):
     """Get the current authenticated user"""
-    payload = verify_token(credentials.credentials)
-    user_id = payload.get("user_id")
-    
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
-        )
-    
-    # Fetch user from database
-    user = await db.fetchrow(
-        "SELECT id, email, name, avatar_url FROM users WHERE id = $1",
-        user_id
-    )
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-    
-    return UserResponse(**dict(user))
-
-@router.post("/register", response_model=TokenResponse)
-async def register(user_data: UserCreate, db = Depends(get_db_connection)):
-    """Register a new user"""
     try:
-        # Check if user already exists
-        existing_user = await db.fetchrow(
-            "SELECT id FROM users WHERE email = $1",
-            user_data.email
-        )
+        # Verify the JWT token with Supabase
+        user = supabase.auth.get_user(credentials.credentials)
         
-        if existing_user:
+        if not user or not user.user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
             )
         
-        # Hash password
-        hashed_password = hash_password(user_data.password)
+        # Get user details from the database
+        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
         
-        # Create user
-        user = await db.fetchrow("""
-            INSERT INTO users (email, name, password_hash)
-            VALUES ($1, $2, $3)
-            RETURNING id, email, name, avatar_url
-        """, user_data.email, user_data.name, hashed_password)
+        if not user_data.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
         
-        # Create access token
-        access_token = create_access_token(str(user['id']), user['email'])
+        return UserResponse(**user_data.data)
+        
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+
+@router.post("/register", response_model=TokenResponse)
+async def register(user_data: UserCreate, supabase = Depends(get_supabase)):
+    """Register a new user"""
+    try:
+        # Register user with Supabase Auth
+        auth_response = supabase.auth.sign_up({
+            "email": user_data.email,
+            "password": user_data.password
+        })
+        
+        if not auth_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registration failed"
+            )
+        
+        # Create user profile in the database
+        user_profile = {
+            "id": auth_response.user.id,
+            "email": user_data.email,
+            "name": user_data.name,
+            "avatar_url": None
+        }
+        
+        profile_response = supabase.table("users").insert(user_profile).execute()
+        
+        if not profile_response.data:
+            # If profile creation fails, we should clean up the auth user
+            # This would require admin privileges, so we'll just log the error
+            logger.error("Failed to create user profile after auth registration")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user profile"
+            )
         
         return TokenResponse(
-            access_token=access_token,
+            access_token=auth_response.session.access_token,
             token_type="bearer",
-            user=UserResponse(**dict(user))
+            user=UserResponse(**user_profile)
         )
         
     except Exception as e:
@@ -146,31 +114,34 @@ async def register(user_data: UserCreate, db = Depends(get_db_connection)):
         )
 
 @router.post("/login", response_model=TokenResponse)
-async def login(login_data: UserLogin, db = Depends(get_db_connection)):
+async def login(login_data: UserLogin, supabase = Depends(get_supabase)):
     """Login user"""
     try:
-        # Fetch user with password
-        user = await db.fetchrow("""
-            SELECT id, email, name, avatar_url, password_hash
-            FROM users WHERE email = $1
-        """, login_data.email)
+        # Authenticate with Supabase
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": login_data.email,
+            "password": login_data.password
+        })
         
-        if not user or not verify_password(login_data.password, user['password_hash']):
+        if not auth_response.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
             )
         
-        # Create access token
-        access_token = create_access_token(str(user['id']), user['email'])
+        # Get user profile
+        user_data = supabase.table("users").select("*").eq("id", auth_response.user.id).single().execute()
         
-        # Remove password from response
-        user_data = {k: v for k, v in dict(user).items() if k != 'password_hash'}
+        if not user_data.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User profile not found"
+            )
         
         return TokenResponse(
-            access_token=access_token,
+            access_token=auth_response.session.access_token,
             token_type="bearer",
-            user=UserResponse(**user_data)
+            user=UserResponse(**user_data.data)
         )
         
     except HTTPException:
@@ -182,16 +153,20 @@ async def login(login_data: UserLogin, db = Depends(get_db_connection)):
             detail="Login failed"
         )
 
+@router.post("/logout")
+async def logout(supabase = Depends(get_supabase)):
+    """Logout user"""
+    try:
+        supabase.auth.sign_out()
+        return {"message": "Successfully logged out"}
+    except Exception as e:
+        logger.error(f"Logout failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Logout failed"
+        )
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: UserResponse = Depends(get_current_user)):
     """Get current user information"""
     return current_user
-
-@router.post("/refresh")
-async def refresh_token(current_user: UserResponse = Depends(get_current_user)):
-    """Refresh access token"""
-    access_token = create_access_token(current_user.id, current_user.email)
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }

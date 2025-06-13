@@ -13,7 +13,7 @@ from .api.auth import router as auth_router
 from .api.projects import router as projects_router
 from .api.epics import router as epics_router
 from .api.users import router as users_router
-from .database.connection import init_db, close_db
+from .database.supabase_client import init_supabase, close_supabase
 from .middleware.auth import AuthMiddleware
 from .middleware.logging import LoggingMiddleware
 
@@ -28,12 +28,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AgileScribe API...")
-    await init_db()
-    logger.info("Database initialized")
+    init_supabase()
+    logger.info("Supabase client initialized")
     yield
     # Shutdown
     logger.info("Shutting down AgileScribe API...")
-    await close_db()
+    close_supabase()
 
 # Create FastAPI app
 app = FastAPI(

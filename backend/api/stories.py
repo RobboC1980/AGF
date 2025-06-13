@@ -6,7 +6,7 @@ import logging
 import uuid
 
 from ..services.ai_service import ai_service
-from ..database.connection import get_db_session
+from ..database.supabase_client import get_supabase
 from ..auth.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,8 @@ class GeneratedStoryResponse(BaseModel):
 @router.post("/generate", response_model=GeneratedStoryResponse)
 async def generate_story(
     request: StoryGenerateRequest,
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    supabase = Depends(get_supabase)
 ):
     """Generate a user story using AI based on description"""
     try:
@@ -125,7 +126,7 @@ async def generate_story(
 async def create_story(
     request: StoryCreateRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Create a new user story"""
     try:
@@ -157,7 +158,7 @@ async def create_story(
 @router.get("/", response_model=List[StoryResponse])
 async def get_stories(
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Get all user stories"""
     try:
@@ -173,7 +174,7 @@ async def get_stories(
 async def get_story(
     story_id: str,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Get a specific user story"""
     try:
@@ -190,7 +191,7 @@ async def update_story(
     story_id: str,
     request: StoryCreateRequest,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Update a user story"""
     try:
@@ -206,7 +207,7 @@ async def update_story(
 async def delete_story(
     story_id: str,
     current_user = Depends(get_current_user),
-    db = Depends(get_db_session)
+    supabase = Depends(get_supabase)
 ):
     """Delete a user story"""
     try:
