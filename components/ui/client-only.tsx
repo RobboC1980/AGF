@@ -46,4 +46,25 @@ export function HydrationSafeDiv({ children, ...props }: HydrationSafeDivProps) 
       {children}
     </div>
   )
+}
+
+// Wrapper for forms that might be affected by browser extensions
+interface ClientOnlyFormProps extends React.FormHTMLAttributes<HTMLFormElement> {
+  children: React.ReactNode
+}
+
+export function ClientOnlyForm({ children, ...props }: ClientOnlyFormProps) {
+  return (
+    <ClientOnly fallback={<div className="space-y-4 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+      <div className="h-10 bg-gray-200 rounded"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+      <div className="h-10 bg-gray-200 rounded"></div>
+      <div className="h-10 bg-gray-200 rounded"></div>
+    </div>}>
+      <form {...props} suppressHydrationWarning>
+        {children}
+      </form>
+    </ClientOnly>
+  )
 } 

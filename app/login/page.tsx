@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2 } from 'lucide-react'
+import { ClientOnlyForm } from '@/components/ui/client-only'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('test@example.com')
@@ -51,7 +52,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <ClientOnlyForm onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -98,7 +99,7 @@ export default function LoginPage() {
                 'Sign in'
               )}
             </Button>
-          </form>
+          </ClientOnlyForm>
           
           <div className="mt-4 text-center text-sm text-gray-600">
             <p>Test credentials are pre-filled for convenience</p>
