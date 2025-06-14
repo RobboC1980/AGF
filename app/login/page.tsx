@@ -13,8 +13,8 @@ import { Loader2 } from 'lucide-react'
 import { ClientOnlyForm } from '@/components/ui/client-only'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('test@example.com')
-  const [password, setPassword] = useState('testpassword123')
+  const [email, setEmail] = useState('demo@agileforge.com')
+  const [password, setPassword] = useState('DemoUser123!')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   
@@ -74,7 +74,12 @@ export default function LoginPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"

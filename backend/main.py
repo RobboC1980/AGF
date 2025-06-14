@@ -46,22 +46,24 @@ app = FastAPI(
 )
 
 # CORS configuration for deployment
-allowed_origins = [
-    "http://localhost:3000",  # Local development
-    "http://localhost:3001",  # Alternative local port
-    "https://v0-agile-forge-40higfdur-clariq.vercel.app",  # Your Vercel deployment
-    "https://*.vercel.app",  # Vercel preview deployments
-]
+# In development, we'll allow all localhost origins
+if os.getenv("ENVIRONMENT") == "development":
+    allowed_origins = ["*"]  # Allow all origins in development
+else:
+    allowed_origins = [
+        "http://localhost:3000",  # Local development
+        "http://localhost:3001",  # Alternative local port
+        "http://localhost:3002",  # Alternative local port
+        "http://localhost:3003",  # Alternative local port
+        "http://localhost:3004",  # Alternative local port
+        "http://localhost:3005",  # Alternative local port
+        "https://v0-agile-forge-40higfdur-clariq.vercel.app",  # Your Vercel deployment
+        "https://*.vercel.app",  # Vercel preview deployments
+    ]
 
 # Add environment-specific origins
 if os.getenv("FRONTEND_URL"):
     allowed_origins.append(os.getenv("FRONTEND_URL"))
-
-if os.getenv("ENVIRONMENT") == "development":
-    allowed_origins.extend([
-        "http://localhost:*",
-        "http://127.0.0.1:*"
-    ])
 
 app.add_middleware(
     CORSMiddleware,

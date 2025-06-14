@@ -10,7 +10,7 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   AI_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
   FRONTEND_URL: z.string().url().optional(),
-  PORT: z.string().transform(Number).default('4000'),
+  PORT: z.string().transform(Number).default('8000'),
   HOST: z.string().default('0.0.0.0'),
 })
 
@@ -69,9 +69,9 @@ export function isProduction() {
 
 export function getApiUrl() {
   if (typeof window !== 'undefined') {
-    return clientEnv.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    return clientEnv.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   }
-  return env.FRONTEND_URL || 'http://localhost:4000'
+  return env.FRONTEND_URL || 'http://localhost:8000'
 }
 
 // Environment validation on module load (server-side only)

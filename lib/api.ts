@@ -1,6 +1,7 @@
 // API utility functions for connecting to the FastAPI backend
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+// IMPORTANT: Using hardcoded value temporarily to ensure correct port
+const API_BASE_URL = 'http://localhost:8000'
 
 // Types
 export interface ApiResponse<T> {

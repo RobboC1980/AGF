@@ -38,6 +38,13 @@ class RegistrationResponse(BaseModel):
     user: UserResponse
     message: Optional[str] = None
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     supabase = Depends(get_supabase)
@@ -196,3 +203,44 @@ async def logout(supabase = Depends(get_supabase)):
 async def get_current_user_info(current_user: UserResponse = Depends(get_current_user)):
     """Get current user information"""
     return current_user
+
+@router.post("/password-reset")
+async def request_password_reset(reset_data: PasswordResetRequest, supabase = Depends(get_supabase)):
+    """Request a password reset email"""
+    try:
+        # Send password reset email via Supabase Auth
+        response = supabase.auth.reset_password_email(reset_data.email)
+        
+        # Supabase always returns success for security (doesn't reveal if email exists)
+        return {"message": "If an account with that email exists, a password reset link has been sent."}
+        
+    except Exception as e:
+        logger.error(f"Password reset request failed: {e}")
+        # Don't reveal if the email exists or not for security
+        return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+@router.post("/password-reset/confirm")
+async def confirm_password_reset(reset_data: PasswordResetConfirm, supabase = Depends(get_supabase)):
+    """Confirm password reset with new password"""
+    try:
+        # Update password using the reset token
+        response = supabase.auth.update_user({
+            "password": reset_data.new_password
+        })
+        
+        if not response.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+        
+        return {"message": "Password has been successfully reset. You can now log in with your new password."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password reset confirmation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )

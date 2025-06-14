@@ -6,7 +6,7 @@ class AIApiClient {
   private baseUrl: string
   private token: string | null = null
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000") {
+  constructor(baseUrl: string = "http://localhost:8000") {
     this.baseUrl = baseUrl
   }
 

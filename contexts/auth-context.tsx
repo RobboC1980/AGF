@@ -4,8 +4,8 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { api, apiClient } from '@/services/api'
 import { User } from '@/services/api'
 
-// Get API base URL from environment or fallback to localhost:4000
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+// Get API base URL - hardcoded to ensure correct port
+const API_BASE_URL = 'http://localhost:8000'
 
 interface AuthContextType {
   user: User | null
@@ -16,6 +16,8 @@ interface AuthContextType {
   logout: () => void
   updateProfile: (data: Partial<User>) => Promise<{ success: boolean; error?: string }>
   refreshUser: () => Promise<void>
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>
+  resetPassword: (token: string, newPassword: string) => Promise<{ success: boolean; error?: string }>
 }
 
 interface RegisterData {
@@ -292,6 +294,62 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
   }
 
+  const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      if (response.ok) {
+        return { success: true }
+      } else {
+        const errorData = await response.json()
+        return { 
+          success: false, 
+          error: errorData.detail || 'Failed to send reset email' 
+        }
+      }
+    } catch (error) {
+      console.error('Password reset request failed:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Password reset request failed' 
+      }
+    }
+  }
+
+  const resetPassword = async (token: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, new_password: newPassword }),
+      })
+
+      if (response.ok) {
+        return { success: true }
+      } else {
+        const errorData = await response.json()
+        return { 
+          success: false, 
+          error: errorData.detail || 'Failed to reset password' 
+        }
+      }
+    } catch (error) {
+      console.error('Password reset failed:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Password reset failed' 
+      }
+    }
+  }
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -301,6 +359,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     logout,
     updateProfile,
     refreshUser,
+    requestPasswordReset,
+    resetPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
