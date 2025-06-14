@@ -16,8 +16,8 @@ router = APIRouter()
 class StoryCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
-    priority: str = Field(default="medium", regex="^(low|medium|high|critical)$")
-    status: str = Field(default="backlog", regex="^(backlog|ready|in-progress|review|done)$")
+    priority: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
+    status: str = Field(default="backlog", pattern="^(backlog|ready|in-progress|review|done)$")
     storyPoints: Optional[int] = Field(None, ge=1, le=100)
     epicId: Optional[str] = None
     assigneeId: Optional[str] = None
@@ -29,7 +29,7 @@ class StoryGenerateRequest(BaseModel):
     description: str = Field(..., min_length=10, max_length=1000)
     epicId: Optional[str] = None
     projectId: Optional[str] = None
-    priority: Optional[str] = Field(default="medium", regex="^(low|medium|high|critical)$")
+    priority: Optional[str] = Field(default="medium", pattern="^(low|medium|high|critical)$")
     includeAcceptanceCriteria: bool = True
     includeTags: bool = True
 

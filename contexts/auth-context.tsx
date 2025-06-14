@@ -52,7 +52,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           
           // Verify token by fetching current user
           try {
-            const response = await fetch('http://localhost:4000/auth/me', {
+            const response = await fetch('http://localhost:8000/auth/me', {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       setIsLoading(true)
       
       // Call real login API
-      const response = await fetch('http://localhost:4000/auth/login', {
+      const response = await fetch('http://localhost:8000/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       apiClient.setAuthToken(token)
       
       // Get user data
-      const userResponse = await fetch('http://localhost:4000/auth/me', {
+      const userResponse = await fetch('http://localhost:8000/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       setIsLoading(true)
       
       // Call real register API
-      const response = await fetch('http://localhost:4000/auth/register', {
+      const response = await fetch('http://localhost:8000/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -216,7 +216,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       }
       
       // Call update profile API
-      const response = await fetch('http://localhost:4000/auth/me', {
+      const response = await fetch('http://localhost:8000/auth/me', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -264,7 +264,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       const token = localStorage.getItem('auth_token')
       if (!token) return
       
-      const response = await fetch('http://localhost:4000/auth/me', {
+      const response = await fetch('http://localhost:8000/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

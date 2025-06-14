@@ -199,12 +199,12 @@ class PasswordResetConfirm(BaseModel):
 
 class ProjectBase(BaseModel):
     name: str = Field(..., max_length=200)
-    key: str = Field(..., max_length=10, regex=r'^[A-Z0-9]+$')
+    key: str = Field(..., max_length=10, pattern=r'^[A-Z0-9]+$')
     description: Optional[str] = None
     vision: Optional[str] = None
     goals: Optional[List[Dict[str, Any]]] = None
     avatar_url: Optional[str] = Field(None, max_length=500)
-    color: Optional[str] = Field(None, regex=r'^#[0-9A-Fa-f]{6}$')
+    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
     start_date: Optional[date] = None
     target_end_date: Optional[date] = None
     status: StatusType = StatusType.BACKLOG
@@ -227,7 +227,7 @@ class ProjectUpdate(BaseModel):
     vision: Optional[str] = None
     goals: Optional[List[Dict[str, Any]]] = None
     avatar_url: Optional[str] = Field(None, max_length=500)
-    color: Optional[str] = Field(None, regex=r'^#[0-9A-Fa-f]{6}$')
+    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
     start_date: Optional[date] = None
     target_end_date: Optional[date] = None
     actual_end_date: Optional[date] = None
@@ -673,7 +673,7 @@ class EntityFilter(BaseModel):
 
 class SortParams(BaseModel):
     field: str
-    direction: str = Field("asc", regex=r"^(asc|desc)$")
+    direction: str = Field("asc", pattern=r"^(asc|desc)$")
 
 # =====================================
 # ERROR MODELS
