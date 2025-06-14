@@ -243,12 +243,26 @@ class EnhancedAuthManager:
     
     async def authenticate_user(self, email: str, password: str) -> Optional[UserInDB]:
         """Authenticate user with email and password"""
-        user = await self.get_user_by_email(email)
-        if not user:
+        # Get user data including hashed_password
+        try:
+            result = self.supabase.table("users").select("*").eq("email", email).execute()
+            if not result.data:
+                return None
+            
+            user_data = result.data[0]
+            hashed_password = user_data.get('hashed_password')
+            
+            if not hashed_password:
+                return None
+                
+            if not self.verify_password(password, hashed_password):
+                return None
+            
+            # Return UserInDB without hashed_password
+            return UserInDB(**user_data)
+        except Exception as e:
+            logger.error(f"Error authenticating user: {e}")
             return None
-        if not self.verify_password(password, user.hashed_password):
-            return None
-        return user
     
     async def create_user(self, user_data: RegisterRequest) -> UserInDB:
         """Create a new user"""
@@ -327,15 +341,19 @@ class EnhancedAuthManager:
     async def change_password(self, user_id: str, current_password: str, new_password: str) -> bool:
         """Change user password"""
         try:
-            user = await self.get_user_by_id(user_id)
-            if not user:
+            # Get user with hashed_password
+            result = self.supabase.table("users").select("*").eq("id", user_id).execute()
+            if not result.data:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
                 )
             
+            user_data = result.data[0]
+            current_hashed_password = user_data.get('hashed_password')
+            
             # Verify current password
-            if not self.verify_password(current_password, user.hashed_password):
+            if not current_hashed_password or not self.verify_password(current_password, current_hashed_password):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Current password is incorrect"

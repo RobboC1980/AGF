@@ -86,7 +86,20 @@ class ScheduledJobsManager:
     def _ensure_supabase(self):
         """Ensure Supabase client is initialized"""
         if self.supabase is None:
-            self.supabase = get_supabase()
+            try:
+                self.supabase = get_supabase()
+            except Exception as e:
+                logger.error(f"Failed to initialize Supabase client in cron: {e}")
+                # Import and initialize directly as fallback
+                import os
+                from supabase import create_client
+                supabase_url = os.getenv("SUPABASE_URL")
+                supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+                if supabase_url and supabase_key:
+                    self.supabase = create_client(supabase_url, supabase_key)
+                    logger.info("Supabase client initialized directly in cron manager")
+                else:
+                    raise ValueError("Supabase credentials not available")
     
     async def setup_cron_jobs(self):
         """Set up all cron jobs in Supabase"""
