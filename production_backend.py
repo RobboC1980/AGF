@@ -247,7 +247,7 @@ app = FastAPI(
 )
 
 # Include enhanced authentication and feature routers
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api")
 app.include_router(webhooks_router)
 app.include_router(cron_router)
 app.include_router(storage_router)
@@ -420,13 +420,11 @@ async def generate_ai_story(epic_id: str, description: str, requirements: Option
 
 # Error handlers
 @app.exception_handler(404)
-async def not_found_handler(request, exc):
-    return {"error": "Resource not found", "status_code": 404}
-
-@app.exception_handler(500)
-async def internal_error_handler(request, exc):
-    logger.error(f"Internal server error: {exc}")
-    return {"error": "Internal server error", "status_code": 500}
+async def not_found_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=404,
+        content={"error": "Resource not found", "detail": str(exc.detail) if hasattr(exc, 'detail') else "Not found"}
+    )
 
 # Health check endpoint with comprehensive monitoring
 @app.get("/health")
