@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 import uuid
 
-from ..services.ai_service import ai_service
+from ..services.ai_service import get_basic_ai_service, AIResponse
 from ..database.supabase_client import get_supabase
 from ..auth.dependencies import get_current_user
 
@@ -56,6 +56,82 @@ class GeneratedStoryResponse(BaseModel):
     confidence: Optional[float]
     suggestions: Optional[List[str]]
 
+# Fallback story generation when AI is not available
+def generate_story_fallback(description: str, priority: str, include_acceptance_criteria: bool, include_tags: bool) -> Dict[str, Any]:
+    """Generate a mock story when AI service is not available"""
+    description_lower = description.lower()
+    
+    # Extract key concepts for title generation
+    if "login" in description_lower or "sign in" in description_lower:
+        title = "As a user, I want to log in to access my account"
+    elif "register" in description_lower or "sign up" in description_lower:
+        title = "As a user, I want to register for a new account"
+    elif "search" in description_lower:
+        title = "As a user, I want to search for items efficiently"
+    elif "filter" in description_lower:
+        title = "As a user, I want to filter results to find what I need"
+    elif "dashboard" in description_lower:
+        title = "As a user, I want to view a dashboard with key information"
+    elif "profile" in description_lower:
+        title = "As a user, I want to manage my profile information"
+    else:
+        # Generic title based on first few words
+        words = description.split()[:10]
+        title = f"As a user, I want to {' '.join(words).lower()}"
+    
+    # Generate acceptance criteria
+    acceptance_criteria = []
+    if include_acceptance_criteria:
+        if "login" in description_lower:
+            acceptance_criteria = [
+                "Given valid credentials, when I submit the login form, then I should be authenticated",
+                "Given invalid credentials, when I submit the login form, then I should see an error message",
+                "Given I am logged in, when I click logout, then I should be signed out"
+            ]
+        elif "search" in description_lower:
+            acceptance_criteria = [
+                "Given search results exist, when I enter a query, then relevant results should be displayed",
+                "Given no results match, when I search, then a 'no results' message should appear",
+                "Given I clear the search, when I submit, then all items should be shown"
+            ]
+        else:
+            acceptance_criteria = [
+                "Given the feature is implemented, when I use it, then it should work as expected",
+                "Given an error occurs, when I see it, then a helpful message should be displayed"
+            ]
+    
+    # Generate tags
+    tags = []
+    if include_tags:
+        if "login" in description_lower or "auth" in description_lower:
+            tags = ["authentication", "security", "user-management"]
+        elif "search" in description_lower or "filter" in description_lower:
+            tags = ["search", "filtering", "user-experience"]
+        elif "dashboard" in description_lower:
+            tags = ["dashboard", "analytics", "reporting"]
+        else:
+            tags = ["feature", "user-story"]
+    
+    # Estimate story points
+    story_points = 3  # Default
+    if any(word in description_lower for word in ["complex", "integration", "multiple"]):
+        story_points = 8
+    elif any(word in description_lower for word in ["simple", "basic", "minor"]):
+        story_points = 2
+    
+    return {
+        "title": title,
+        "description": description,
+        "acceptance_criteria": acceptance_criteria,
+        "tags": tags,
+        "story_points": story_points,
+        "confidence": 0.7,
+        "improvement_suggestions": [
+            "Consider adding more specific acceptance criteria",
+            "Review story points based on team velocity"
+        ]
+    }
+
 # Endpoints
 @router.post("/generate", response_model=GeneratedStoryResponse)
 async def generate_story(
@@ -77,24 +153,55 @@ async def generate_story(
             # In a real implementation, fetch project details from database
             project_context = f"Project ID: {request.projectId}"
         
-        # Create AI prompt variables
-        variables = {
-            "user_description": request.description,
-            "priority_level": request.priority,
-            "epic_context": epic_context,
-            "project_context": project_context,
-            "include_acceptance_criteria": request.includeAcceptanceCriteria,
-            "include_tags": request.includeTags
-        }
+        # Try to use AI service
+        ai_response = None
+        generated_data = None
         
-        # Generate story using AI service
-        ai_response = await ai_service.generate_completion("story_generator", variables)
+        try:
+            # Get AI service instance
+            ai_service = get_basic_ai_service()
+            
+            # Create AI prompt variables
+            variables = {
+                "user_description": request.description,
+                "priority_level": request.priority,
+                "epic_context": epic_context,
+                "project_context": project_context,
+                "include_acceptance_criteria": request.includeAcceptanceCriteria,
+                "include_tags": request.includeTags
+            }
+            
+            # Generate story using AI service
+            ai_response = await ai_service.generate_completion("story_generator", variables)
+            
+            if ai_response.success:
+                generated_data = ai_response.data
+                # Try to parse if it's a string
+                if isinstance(generated_data, str):
+                    import json
+                    try:
+                        generated_data = json.loads(generated_data)
+                    except:
+                        logger.warning("Failed to parse AI response as JSON")
+                        generated_data = None
+        except Exception as e:
+            logger.warning(f"AI service not available or failed: {str(e)}")
+            # Fall back to mock generation
         
-        if not ai_response.success:
-            raise HTTPException(status_code=500, detail=f"AI generation failed: {ai_response.error}")
-        
-        # Parse AI response
-        generated_data = ai_response.data
+        # Use fallback if AI didn't work
+        if not generated_data:
+            logger.info("Using fallback story generation")
+            generated_data = generate_story_fallback(
+                request.description,
+                request.priority,
+                request.includeAcceptanceCriteria,
+                request.includeTags
+            )
+            provider = "Fallback Generator"
+            model = "rule-based-v1"
+        else:
+            provider = "OpenAI/Anthropic"
+            model = ai_response.model_used if ai_response else "unknown"
         
         # Format the response
         story_data = {
@@ -112,8 +219,8 @@ async def generate_story(
         return GeneratedStoryResponse(
             success=True,
             story=story_data,
-            provider="OpenAI/Anthropic",
-            model=ai_response.model_used or "unknown",
+            provider=provider,
+            model=model,
             confidence=generated_data.get("confidence"),
             suggestions=generated_data.get("improvement_suggestions", [])
         )

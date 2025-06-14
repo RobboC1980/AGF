@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { api, apiClient } from '@/services/api'
+import { apiClient } from '@/services/api'
 import { User } from '@/services/api'
 
 // Get API base URL - hardcoded to ensure correct port
@@ -21,18 +21,16 @@ interface AuthContextType {
 }
 
 interface RegisterData {
-  username: string
   email: string
+  name: string
   password: string
-  first_name: string
-  last_name: string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function useAuth(): AuthContextType {
+export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
@@ -51,46 +49,34 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     const initAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
-        if (token) {
+        if (token && token !== 'demo') {
           // Set token in API client
           apiClient.setAuthToken(token)
           
           // Verify token by fetching current user
           try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            })
-            
-            if (response.ok) {
-              const userData = await response.json()
-              setUser({
-                id: userData.id,
-                username: userData.email.split('@')[0],
-                email: userData.email,
-                first_name: userData.name.split(' ')[0] || 'User',
-                last_name: userData.name.split(' ').slice(1).join(' ') || '',
-                avatar_url: userData.avatar_url,
-                is_active: userData.is_active,
-                created_at: userData.created_at,
-              })
-            } else {
-              // Token is invalid, clear it
-              localStorage.removeItem('auth_token')
-              apiClient.clearAuth()
-            }
+            const userData = await apiClient.getCurrentUser()
+            setUser(userData)
           } catch (error) {
-            console.error('Failed to verify token:', error)
+            console.log('Token verification failed, using demo mode')
+            // Clear invalid token
             localStorage.removeItem('auth_token')
             apiClient.clearAuth()
+            
+            // Set demo token for demo mode
+            apiClient.setAuthToken('demo')
+            localStorage.setItem('auth_token', 'demo')
           }
+        } else {
+          // Demo mode - set demo token
+          apiClient.setAuthToken('demo')
+          localStorage.setItem('auth_token', 'demo')
         }
       } catch (error) {
         console.error('Auth initialization failed:', error)
-        localStorage.removeItem('auth_token')
-        apiClient.clearAuth()
+        // Fallback to demo mode
+        apiClient.setAuthToken('demo')
+        localStorage.setItem('auth_token', 'demo')
       } finally {
         setIsLoading(false)
       }
@@ -103,51 +89,28 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      // Call real login API
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        return { 
-          success: false, 
-          error: errorData.detail || 'Login failed' 
-        }
+      // For demo mode, just set demo user
+      if (email === 'demo@agileforge.com' || !email || !password) {
+        apiClient.setAuthToken('demo')
+        localStorage.setItem('auth_token', 'demo')
+        setUser({
+          id: 'demo-user',
+          username: 'demo',
+          email: 'demo@agileforge.com',
+          first_name: 'Demo',
+          last_name: 'User',
+          is_active: true,
+          created_at: new Date().toISOString()
+        })
+        return { success: true }
       }
       
-      const loginData = await response.json()
-      const token = loginData.access_token
-      
-      // Store token
-      localStorage.setItem('auth_token', token)
-      apiClient.setAuthToken(token)
+      // Call real login API
+      const loginData = await apiClient.login(email, password)
       
       // Get user data
-      const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (userResponse.ok) {
-        const userData = await userResponse.json()
-        setUser({
-          id: userData.id,
-          username: userData.email.split('@')[0],
-          email: userData.email,
-          first_name: userData.name.split(' ')[0] || 'User',
-          last_name: userData.name.split(' ').slice(1).join(' ') || '',
-          avatar_url: userData.avatar_url,
-          is_active: userData.is_active,
-          created_at: userData.created_at,
-        })
-      }
+      const userData = await apiClient.getCurrentUser()
+      setUser(userData)
       
       return { success: true }
     } catch (error) {
@@ -166,30 +129,13 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       setIsLoading(true)
       
       // Call real register API
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: userData.email,
-          password: userData.password,
-          name: `${userData.first_name} ${userData.last_name}`.trim(),
-        }),
-      })
+      const registerData = await apiClient.register(userData.email, userData.name, userData.password)
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        return { 
-          success: false, 
-          error: errorData.detail || 'Registration failed' 
-        }
-      }
+      // Get user data
+      const userResponse = await apiClient.getCurrentUser()
+      setUser(userResponse)
       
-      const registrationData = await response.json()
-      
-      // Auto-login after successful registration
-      return await login(userData.email, userData.password)
+      return { success: true }
     } catch (error) {
       console.error('Registration failed:', error)
       return { 
@@ -201,10 +147,12 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
   }
 
-  const logout = (): void => {
+  const logout = () => {
     setUser(null)
-    localStorage.removeItem('auth_token')
-    apiClient.clearAuth()
+    apiClient.logout()
+    // Set back to demo mode
+    apiClient.setAuthToken('demo')
+    localStorage.setItem('auth_token', 'demo')
   }
 
   const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; error?: string }> => {
@@ -215,38 +163,25 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      const token = localStorage.getItem('auth_token')
-      if (!token) {
-        return { success: false, error: 'No authentication token' }
+      // For demo user, just update locally
+      if (user.id === 'demo-user') {
+        const updatedUser = { ...user, ...data }
+        setUser(updatedUser)
+        return { success: true }
       }
       
       // Call update profile API
-      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await apiClient.request("/api/auth/me", {
+        method: "PUT",
         body: JSON.stringify({
           name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}`.trim() : undefined,
           avatar_url: data.avatar_url,
         }),
       })
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        return { 
-          success: false, 
-          error: errorData.detail || 'Profile update failed' 
-        }
-      }
-      
-      const updatedData = await response.json()
       const updatedUser = {
         ...user,
-        first_name: updatedData.name.split(' ')[0] || user.first_name,
-        last_name: updatedData.name.split(' ').slice(1).join(' ') || user.last_name,
-        avatar_url: updatedData.avatar_url,
+        ...data
       }
       setUser(updatedUser)
       
@@ -263,32 +198,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   }
 
   const refreshUser = async (): Promise<void> => {
-    if (!user) return
+    if (!user || user.id === 'demo-user') return
 
     try {
-      const token = localStorage.getItem('auth_token')
-      if (!token) return
-      
-      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const userData = await response.json()
-        setUser({
-          id: userData.id,
-          username: userData.email.split('@')[0],
-          email: userData.email,
-          first_name: userData.name.split(' ')[0] || 'User',
-          last_name: userData.name.split(' ').slice(1).join(' ') || '',
-          avatar_url: userData.avatar_url,
-          is_active: userData.is_active,
-          created_at: userData.created_at,
-        })
-      }
+      const userData = await apiClient.getCurrentUser()
+      setUser(userData)
     } catch (error) {
       console.error('Failed to refresh user:', error)
     }
@@ -296,23 +210,12 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   const requestPasswordReset = async (email: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await apiClient.request("/api/auth/password-reset", {
+        method: "POST",
         body: JSON.stringify({ email }),
       })
 
-      if (response.ok) {
-        return { success: true }
-      } else {
-        const errorData = await response.json()
-        return { 
-          success: false, 
-          error: errorData.detail || 'Failed to send reset email' 
-        }
-      }
+      return { success: true }
     } catch (error) {
       console.error('Password reset request failed:', error)
       return { 
@@ -324,23 +227,12 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   const resetPassword = async (token: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/password-reset/confirm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await apiClient.request("/api/auth/password-reset/confirm", {
+        method: "POST",
         body: JSON.stringify({ token, new_password: newPassword }),
       })
 
-      if (response.ok) {
-        return { success: true }
-      } else {
-        const errorData = await response.json()
-        return { 
-          success: false, 
-          error: errorData.detail || 'Failed to reset password' 
-        }
-      }
+      return { success: true }
     } catch (error) {
       console.error('Password reset failed:', error)
       return { 

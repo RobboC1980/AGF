@@ -13,7 +13,8 @@ from .api.auth import router as auth_router
 from .api.projects import router as projects_router
 from .api.epics import router as epics_router
 from .api.users import router as users_router
-from .database.supabase_client import init_supabase, close_supabase
+from .database.supabase_client import init_supabase, close_supabase, get_supabase
+from .services.ai_service import init_ai_service
 from .middleware.auth import AuthMiddleware
 from .middleware.logging import LoggingMiddleware
 
@@ -30,6 +31,15 @@ async def lifespan(app: FastAPI):
     logger.info("Starting AgileScribe API...")
     init_supabase()
     logger.info("Supabase client initialized")
+    
+    # Initialize AI service
+    try:
+        supabase = get_supabase()
+        init_ai_service(supabase)
+        logger.info("AI service initialized successfully")
+    except Exception as e:
+        logger.warning(f"AI service initialization failed (will use fallback): {e}")
+    
     yield
     # Shutdown
     logger.info("Shutting down AgileScribe API...")

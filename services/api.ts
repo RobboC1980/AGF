@@ -96,7 +96,7 @@ class ApiClient {
   }
 
   // Make authenticated request
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
@@ -138,8 +138,10 @@ class ApiClient {
       }
       
       if (error instanceof Error && error.message.includes('HTTP 401')) {
-        // Clear invalid token and redirect to login
-        this.clearAuth()
+        // Don't clear auth for demo token
+        if (this.authToken !== 'demo') {
+          this.clearAuth()
+        }
         throw new Error('Authentication failed. Please log in again.')
       }
       
