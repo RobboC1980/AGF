@@ -705,6 +705,58 @@ async def get_story(story_id: str, current_user: dict = Depends(get_current_user
         raise HTTPException(status_code=500, detail="Failed to fetch story")
 
 # AI endpoints
+@app.get("/api/ai/status")
+async def ai_status_check():
+    """Get detailed AI service status"""
+    try:
+        from backend.services.ai_service import get_basic_ai_service, get_ai_service
+        
+        status = {
+            "basic_service": False,
+            "enhanced_service": False,
+            "supabase_connection": False,
+            "openai_client": False,
+            "anthropic_client": False,
+            "production_supabase": False,
+            "errors": []
+        }
+        
+        # Test basic service
+        try:
+            basic_service = get_basic_ai_service()
+            status["basic_service"] = True
+            status["openai_client"] = basic_service.openai_client is not None
+            status["anthropic_client"] = basic_service.anthropic_client is not None
+        except Exception as e:
+            status["errors"].append(f"Basic service: {str(e)}")
+        
+        # Test enhanced service (this may fail due to different Supabase client)
+        try:
+            enhanced_service = get_ai_service()
+            status["enhanced_service"] = True
+        except Exception as e:
+            status["errors"].append(f"Enhanced service: {str(e)}")
+        
+        # Test Supabase connection using production backend's global supabase instance
+        try:
+            if supabase:
+                # Test with a simple query
+                result = supabase.table("epics").select("id").limit(1).execute()
+                status["production_supabase"] = True
+                status["supabase_connection"] = True
+                logger.info(f"Supabase test query returned {len(result.data)} records")
+            else:
+                status["errors"].append("Production Supabase: Client not initialized")
+        except Exception as e:
+            status["errors"].append(f"Production Supabase: {str(e)}")
+            logger.error(f"Supabase connection test failed: {e}")
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f"AI status check failed: {e}")
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/ai/generate-story")
 async def generate_story(request: AIStoryRequest, current_user: dict = Depends(get_current_user)):
     """Generate AI-powered user story"""

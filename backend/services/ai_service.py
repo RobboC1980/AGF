@@ -1133,27 +1133,45 @@ def init_ai_service(supabase: Client) -> EnhancedAIService:
     global ai_service, enhanced_ai_service
     
     try:
-        # Initialize basic AI service
+        # Initialize basic AI service first
         ai_service = AIService()
-        logger.info("Basic AI service initialized")
+        logger.info("Basic AI service initialized successfully")
         
         # Initialize enhanced AI service with vector capabilities
         enhanced_ai_service = EnhancedAIService(supabase)
-        logger.info("Enhanced AI service initialized")
+        logger.info("Enhanced AI service initialized successfully")
         
         return enhanced_ai_service
     except Exception as e:
         logger.error(f"Failed to initialize AI service: {e}")
-        raise
+        # Don't raise - allow the app to continue with fallback
+        logger.warning("AI service will operate with limited functionality")
+        
+        # At least initialize the basic service if possible
+        try:
+            if ai_service is None:
+                ai_service = AIService()
+                logger.info("Basic AI service initialized as fallback")
+        except Exception as fallback_error:
+            logger.error(f"Even basic AI service initialization failed: {fallback_error}")
+        
+        return None
 
 def get_ai_service() -> EnhancedAIService:
     """Get the global enhanced AI service instance"""
     if enhanced_ai_service is None:
-        raise RuntimeError("AI service not initialized. Call init_ai_service() first.")
+        raise RuntimeError("Enhanced AI service not initialized. Call init_ai_service() first or use get_basic_ai_service() for fallback.")
     return enhanced_ai_service
 
 def get_basic_ai_service() -> AIService:
     """Get the basic AI service instance"""
+    global ai_service
     if ai_service is None:
-        raise RuntimeError("Basic AI service not initialized. Call init_ai_service() first.")
+        # Try to initialize basic service as fallback
+        try:
+            ai_service = AIService()
+            logger.info("Basic AI service auto-initialized as fallback")
+        except Exception as e:
+            logger.error(f"Failed to auto-initialize basic AI service: {e}")
+            raise RuntimeError("Basic AI service not initialized and auto-initialization failed")
     return ai_service

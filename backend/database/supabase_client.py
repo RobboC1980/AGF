@@ -25,9 +25,14 @@ class SupabaseManager:
             self.client = create_client(self.supabase_url, self.supabase_key)
             logger.info("Supabase client initialized")
             
-            # Test the connection
-            self.client.table("users").select("count").limit(1).execute()
-            logger.info("Supabase connection test successful")
+            # Test the connection with a simple query
+            try:
+                # Try to query a table that should exist
+                result = self.client.table("epics").select("id").limit(1).execute()
+                logger.info(f"Supabase connection test successful - found {len(result.data)} records")
+            except Exception as conn_error:
+                logger.warning(f"Supabase connection test failed but client initialized: {conn_error}")
+                # Don't raise here - client is initialized even if test query fails
             
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}")

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..database.supabase_client import get_supabase
+from ..auth.dependencies import get_current_user as get_authenticated_user, User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,11 +46,11 @@ class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
 
-async def get_current_user(
+async def get_current_user_supabase(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     supabase = Depends(get_supabase)
 ):
-    """Get the current authenticated user"""
+    """Get the current authenticated user from Supabase"""
     try:
         # Verify the JWT token with Supabase
         user = supabase.auth.get_user(credentials.credentials)
@@ -200,9 +201,15 @@ async def logout(supabase = Depends(get_supabase)):
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: UserResponse = Depends(get_current_user)):
+async def get_current_user_info(current_user: User = Depends(get_authenticated_user)):
     """Get current user information"""
-    return current_user
+    # Convert User model to UserResponse
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        avatar_url=None
+    )
 
 @router.post("/password-reset")
 async def request_password_reset(reset_data: PasswordResetRequest, supabase = Depends(get_supabase)):

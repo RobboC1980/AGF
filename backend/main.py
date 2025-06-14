@@ -29,21 +29,40 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AgileScribe API...")
-    init_supabase()
-    logger.info("Supabase client initialized")
     
-    # Initialize AI service
+    # Initialize Supabase
     try:
-        supabase = get_supabase()
-        init_ai_service(supabase)
-        logger.info("AI service initialized successfully")
-    except Exception as e:
-        logger.warning(f"AI service initialization failed (will use fallback): {e}")
+        init_supabase()
+        logger.info("Supabase client initialized successfully")
+        
+        # Initialize AI service with Supabase
+        try:
+            supabase = get_supabase()
+            enhanced_service = init_ai_service(supabase)
+            if enhanced_service:
+                logger.info("Enhanced AI service initialized successfully")
+            else:
+                logger.warning("Enhanced AI service failed to initialize, basic service available")
+        except Exception as ai_error:
+            logger.warning(f"AI service initialization encountered issues: {ai_error}")
+            logger.info("Basic AI service should still be available for fallback")
+            
+    except Exception as supabase_error:
+        logger.error(f"Supabase initialization failed: {supabase_error}")
+        logger.warning("Application will continue with limited database functionality")
+    
+    # Application is ready
+    logger.info("AgileScribe API startup completed")
     
     yield
+    
     # Shutdown
     logger.info("Shutting down AgileScribe API...")
-    close_supabase()
+    try:
+        close_supabase()
+        logger.info("Supabase client closed")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
 # Create FastAPI app
 app = FastAPI(
