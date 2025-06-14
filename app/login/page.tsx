@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -101,8 +102,14 @@ export default function LoginPage() {
             </Button>
           </ClientOnlyForm>
           
-          <div className="mt-4 text-center text-sm text-gray-600">
-            <p>Test credentials are pre-filled for convenience</p>
+          <div className="mt-4 text-center text-sm">
+            <p className="text-gray-600 mb-2">Test credentials are pre-filled for convenience</p>
+            <p>
+              Don't have an account?{' '}
+              <Link href="/register" className="text-blue-600 hover:text-blue-500">
+                Create one here
+              </Link>
+            </p>
           </div>
         </CardContent>
       </Card>

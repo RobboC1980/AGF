@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, Depends, HTTPException, Body, status
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
@@ -39,16 +39,14 @@ app = FastAPI(
 
 # CORS configuration
 allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
+    "*"  # Allow all origins for development; restrict in production
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
@@ -245,6 +243,10 @@ class SupabaseClient:
         if not result:
             raise HTTPException(status_code=404, detail="User not found")
         return result[0]
+
+# Initialize Supabase client for the auth router
+from backend.database.supabase_client import init_supabase
+init_supabase()
 
 # Create Supabase client instance
 supabase = SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY)

@@ -32,6 +32,12 @@ class TokenResponse(BaseModel):
     token_type: str
     user: UserResponse
 
+class RegistrationResponse(BaseModel):
+    access_token: Optional[str] = None
+    token_type: Optional[str] = None
+    user: UserResponse
+    message: Optional[str] = None
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     supabase = Depends(get_supabase)
@@ -65,7 +71,7 @@ async def get_current_user(
             detail="Could not validate credentials"
         )
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register", response_model=RegistrationResponse)
 async def register(user_data: UserCreate, supabase = Depends(get_supabase)):
     """Register a new user"""
     try:
@@ -78,7 +84,7 @@ async def register(user_data: UserCreate, supabase = Depends(get_supabase)):
         if not auth_response.user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed"
+                detail="Registration failed - user already exists or invalid data"
             )
         
         # Create user profile in the database
@@ -89,28 +95,42 @@ async def register(user_data: UserCreate, supabase = Depends(get_supabase)):
             "avatar_url": None
         }
         
-        profile_response = supabase.table("users").insert(user_profile).execute()
+        # Use upsert to handle potential conflicts
+        profile_response = supabase.table("users").upsert(user_profile).execute()
         
         if not profile_response.data:
-            # If profile creation fails, we should clean up the auth user
-            # This would require admin privileges, so we'll just log the error
             logger.error("Failed to create user profile after auth registration")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create user profile"
             )
         
-        return TokenResponse(
+        # If no session was created (email confirmation required), return success without token
+        if not auth_response.session:
+            return RegistrationResponse(
+                message="Registration successful. Please check your email to confirm your account.",
+                user=UserResponse(**user_profile)
+            )
+        
+        return RegistrationResponse(
             access_token=auth_response.session.access_token,
             token_type="bearer",
             user=UserResponse(**user_profile)
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Registration failed: {e}")
+        # Check if it's a user already exists error
+        if "already registered" in str(e) or "duplicate" in str(e) or "already been registered" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User with this email already exists"
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed"
+            detail=f"Registration failed: {str(e)}"
         )
 
 @router.post("/login", response_model=TokenResponse)
@@ -123,7 +143,7 @@ async def login(login_data: UserLogin, supabase = Depends(get_supabase)):
             "password": login_data.password
         })
         
-        if not auth_response.user:
+        if not auth_response.user or not auth_response.session:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
@@ -148,6 +168,12 @@ async def login(login_data: UserLogin, supabase = Depends(get_supabase)):
         raise
     except Exception as e:
         logger.error(f"Login failed: {e}")
+        # Check if it's an authentication error from Supabase
+        if "Invalid login credentials" in str(e) or "invalid_grant" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed"
