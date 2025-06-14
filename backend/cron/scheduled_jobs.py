@@ -39,7 +39,7 @@ class ScheduledJobsManager:
     """Manager for all scheduled jobs"""
     
     def __init__(self):
-        self.supabase = get_supabase()
+        self.supabase = None
         self.jobs = {
             "ai_sprint_analysis": {
                 "function": self.ai_sprint_analysis,
@@ -83,9 +83,15 @@ class ScheduledJobsManager:
             }
         }
     
+    def _ensure_supabase(self):
+        """Ensure Supabase client is initialized"""
+        if self.supabase is None:
+            self.supabase = get_supabase()
+    
     async def setup_cron_jobs(self):
         """Set up all cron jobs in Supabase"""
         try:
+            self._ensure_supabase()
             for job_name, job_config in self.jobs.items():
                 # Create cron job in Supabase
                 sql = f"""
@@ -112,6 +118,7 @@ class ScheduledJobsManager:
     async def ai_sprint_analysis(self) -> Dict[str, Any]:
         """Generate AI-powered sprint analysis reports"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get active sprints
@@ -163,6 +170,7 @@ class ScheduledJobsManager:
     async def ai_story_suggestions(self) -> Dict[str, Any]:
         """Generate AI story suggestions for active epics"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get active epics with few stories
@@ -203,6 +211,7 @@ class ScheduledJobsManager:
     async def update_burndown_charts(self) -> Dict[str, Any]:
         """Update burndown chart data for active sprints"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get active sprints
@@ -250,6 +259,7 @@ class ScheduledJobsManager:
     async def team_productivity_analysis(self) -> Dict[str, Any]:
         """Analyze team productivity and generate insights"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get team productivity data for the last week
@@ -305,6 +315,7 @@ class ScheduledJobsManager:
     async def overdue_tasks_notification(self) -> Dict[str, Any]:
         """Send notifications for overdue tasks"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get overdue stories
@@ -348,6 +359,7 @@ class ScheduledJobsManager:
     async def data_cleanup(self) -> Dict[str, Any]:
         """Clean up old data and optimize database"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Clean up old notifications (older than 30 days)
@@ -378,6 +390,7 @@ class ScheduledJobsManager:
     async def ai_epic_completion_prediction(self) -> Dict[str, Any]:
         """Predict epic completion dates using AI"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get active epics
@@ -419,6 +432,7 @@ class ScheduledJobsManager:
     async def team_workload_balancing(self) -> Dict[str, Any]:
         """Analyze and suggest workload balancing"""
         try:
+            self._ensure_supabase()
             start_time = datetime.utcnow()
             
             # Get current workload for all active users
@@ -581,8 +595,15 @@ class ScheduledJobsManager:
         
         return suggestions
 
-# Global instance
-jobs_manager = ScheduledJobsManager()
+# Global instance (lazy initialization)
+jobs_manager = None
+
+def get_jobs_manager():
+    """Get or create the global jobs manager"""
+    global jobs_manager
+    if jobs_manager is None:
+        jobs_manager = ScheduledJobsManager()
+    return jobs_manager
 
 # API Endpoints
 @cron_router.post("/execute/{job_name}")
@@ -591,7 +612,8 @@ async def execute_job(
     background_tasks: BackgroundTasks
 ):
     """Execute a specific cron job"""
-    if job_name not in jobs_manager.jobs:
+    manager = get_jobs_manager()
+    if job_name not in manager.jobs:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job '{job_name}' not found"
@@ -607,11 +629,13 @@ async def list_jobs(
     current_user: UserInDB = Depends(require_admin)
 ) -> List[Dict[str, Any]]:
     """List all available cron jobs"""
+    manager = get_jobs_manager()
     jobs_list = []
     
-    for job_name, job_config in jobs_manager.jobs.items():
+    for job_name, job_config in manager.jobs.items():
         # Get last execution
-        last_execution = jobs_manager.supabase.table("job_executions").select("*").eq("job_name", job_name).order("execution_time", desc=True).limit(1).execute()
+        manager._ensure_supabase()
+        last_execution = manager.supabase.table("job_executions").select("*").eq("job_name", job_name).order("execution_time", desc=True).limit(1).execute()
         
         job_info = {
             "name": job_name,
@@ -631,13 +655,15 @@ async def get_job_history(
     current_user: UserInDB = Depends(require_admin)
 ):
     """Get execution history for a specific job"""
-    if job_name not in jobs_manager.jobs:
+    manager = get_jobs_manager()
+    if job_name not in manager.jobs:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job '{job_name}' not found"
         )
     
-    history = jobs_manager.supabase.table("job_executions").select("*").eq("job_name", job_name).order("execution_time", desc=True).limit(limit).execute()
+    manager._ensure_supabase()
+    history = manager.supabase.table("job_executions").select("*").eq("job_name", job_name).order("execution_time", desc=True).limit(limit).execute()
     
     return {
         "job_name": job_name,
@@ -651,7 +677,8 @@ async def manual_run_job(
     current_user: UserInDB = Depends(require_admin)
 ):
     """Manually trigger a job execution"""
-    if job_name not in jobs_manager.jobs:
+    manager = get_jobs_manager()
+    if job_name not in manager.jobs:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job '{job_name}' not found"
@@ -664,11 +691,12 @@ async def manual_run_job(
 
 async def run_job(job_name: str, manual: bool = False):
     """Run a specific job and log the execution"""
+    manager = get_jobs_manager()
     start_time = datetime.utcnow()
     
     try:
         # Get job function
-        job_function = jobs_manager.jobs[job_name]["function"]
+        job_function = manager.jobs[job_name]["function"]
         
         # Execute job
         result = await job_function()
@@ -698,9 +726,10 @@ async def run_job(job_name: str, manual: bool = False):
     
     # Store execution log
     try:
+        manager._ensure_supabase()
         log_data = execution_log.dict()
         log_data["manual_trigger"] = manual
-        jobs_manager.supabase.table("job_executions").insert(log_data).execute()
+        manager.supabase.table("job_executions").insert(log_data).execute()
     except Exception as e:
         logger.error(f"Failed to log job execution: {e}")
 
@@ -708,9 +737,10 @@ async def run_job(job_name: str, manual: bool = False):
 @cron_router.get("/health")
 async def cron_health_check():
     """Check cron system health"""
+    manager = get_jobs_manager()
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "total_jobs": len(jobs_manager.jobs),
-        "jobs": list(jobs_manager.jobs.keys())
+        "total_jobs": len(manager.jobs),
+        "jobs": list(manager.jobs.keys())
     } 

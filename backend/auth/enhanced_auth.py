@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Enhanced Authentication System for AgileForge
 Production-ready role-based access control with permissions and team management
@@ -518,16 +520,14 @@ def create_role_dependency(role: Union[UserRole, List[UserRole]]):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Role '{role.value}' required"
                 )
-        
         return current_user
     return role_dependency
 
-# Common dependencies
+# Specific permission dependencies
 require_admin = create_role_dependency(UserRole.ADMIN)
 require_manager = create_role_dependency([UserRole.ADMIN, UserRole.PROJECT_MANAGER])
 require_team_lead = create_role_dependency([UserRole.ADMIN, UserRole.PROJECT_MANAGER, UserRole.TEAM_LEAD])
 
-# Permission dependencies
 require_create_project = create_permission_dependency(Permission.CREATE_PROJECT)
 require_manage_team = create_permission_dependency(Permission.MANAGE_TEAM)
 require_view_analytics = create_permission_dependency(Permission.VIEW_ANALYTICS)

@@ -1,13 +1,24 @@
+#!/usr/bin/env python3
+"""
+Enhanced AI Service with Vector Embeddings
+Provides intelligent project insights, semantic search, and AI-powered recommendations
+"""
+
+from __future__ import annotations
+
 import os
 import json
 import asyncio
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from typing import Dict, List, Any, Optional, Union, Tuple
+from datetime import datetime, timedelta
 from openai import AsyncOpenAI
 import anthropic
 from pydantic import BaseModel, Field
 import logging
 from dotenv import load_dotenv
+import numpy as np
+from supabase import Client
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
@@ -47,12 +58,37 @@ class PromptTemplate(BaseModel):
 
 class AIResponse(BaseModel):
     """Standardized AI response format"""
+    model_config = {"protected_namespaces": ()}
+    
     success: bool
     data: Any
     tokens_used: int
     processing_time: float
     model_used: str
     error: Optional[str] = None
+
+class VectorSearchResult(BaseModel):
+    id: str
+    content: str
+    similarity: float
+    metadata: Dict[str, Any]
+
+class AIInsight(BaseModel):
+    type: str
+    title: str
+    description: str
+    confidence: float
+    actionable_items: List[str]
+    priority: str
+
+class StoryRecommendation(BaseModel):
+    title: str
+    description: str
+    acceptance_criteria: str
+    story_points: int
+    priority: str
+    reasoning: str
+    confidence: float
 
 class AIService:
     """Core AI service for all AgileScribe AI features"""
@@ -393,6 +429,29 @@ class AIService:
                 }}
                 """,
                 variables=["current_sprint_data", "historical_blockers", "estimate_accuracy", "capacity_trends"]
+            ),
+            
+            "velocity_insights": PromptTemplate(
+                name="velocity_insights",
+                version="1.0",
+                system_prompt="""You are a velocity analysis expert who provides insights on team performance trends.
+                Analyze velocity data and provide actionable recommendations for improvement.""",
+                user_prompt_template="""
+                Analyze velocity trends for team: {team_name}
+                
+                Velocity History: {velocity_history}
+                Current Capacity: {current_capacity}
+                Upcoming Work: {upcoming_work} story points
+                
+                Provide insights on:
+                1. Velocity trends and patterns
+                2. Capacity vs demand analysis
+                3. Forecasting for upcoming work
+                4. Recommendations for improvement
+                
+                Return concise analysis focusing on actionable insights.
+                """,
+                variables=["team_name", "velocity_history", "current_capacity", "upcoming_work"]
             )
         }
     
@@ -535,5 +594,566 @@ class AIService:
         
         return await asyncio.gather(*tasks)
 
+class EnhancedAIService:
+    def __init__(self, supabase: Client):
+        self.supabase = supabase
+        self.openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+    async def initialize_vector_tables(self):
+        """Initialize vector tables for semantic search"""
+        try:
+            # Create vector extension if not exists
+            self.supabase.rpc('create_vector_extension').execute()
+            
+            # Create embeddings table for stories
+            create_embeddings_sql = """
+            CREATE TABLE IF NOT EXISTS story_embeddings (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                story_id UUID REFERENCES stories(id) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                embedding vector(1536),
+                metadata JSONB,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+            
+            CREATE INDEX IF NOT EXISTS story_embeddings_vector_idx 
+            ON story_embeddings USING ivfflat (embedding vector_cosine_ops);
+            
+            CREATE TABLE IF NOT EXISTS project_insights (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+                insight_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                confidence FLOAT NOT NULL,
+                actionable_items JSONB,
+                priority TEXT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                is_active BOOLEAN DEFAULT TRUE
+            );
+            """
+            
+            self.supabase.rpc('execute_sql', {'sql': create_embeddings_sql}).execute()
+            logger.info("Vector tables initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize vector tables: {e}")
+            
+    async def generate_embedding(self, text: str) -> List[float]:
+        """Generate embedding for text using OpenAI"""
+        try:
+            response = self.openai_client.embeddings.create(
+                model="text-embedding-ada-002",
+                input=text
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            logger.error(f"Failed to generate embedding: {e}")
+            return []
+    
+    async def store_story_embedding(self, story_id: str, story_data: Dict[str, Any]):
+        """Store story embedding for semantic search"""
+        try:
+            # Combine story content for embedding
+            content_parts = [
+                story_data.get('name', ''),
+                story_data.get('description', ''),
+                story_data.get('acceptance_criteria', ''),
+                ' '.join(story_data.get('tags', []))
+            ]
+            content = ' '.join(filter(None, content_parts))
+            
+            if not content.strip():
+                return
+                
+            embedding = await self.generate_embedding(content)
+            if not embedding:
+                return
+                
+            # Store embedding
+            self.supabase.table('story_embeddings').upsert({
+                'story_id': story_id,
+                'content': content,
+                'embedding': embedding,
+                'metadata': {
+                    'priority': story_data.get('priority'),
+                    'status': story_data.get('status'),
+                    'story_points': story_data.get('story_points'),
+                    'epic_id': story_data.get('epic_id')
+                }
+            }, on_conflict='story_id').execute()
+            
+            logger.info(f"Stored embedding for story {story_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to store story embedding: {e}")
+    
+    async def semantic_search_stories(self, query: str, project_id: str, limit: int = 10) -> List[VectorSearchResult]:
+        """
+        Perform semantic search on stories using vector embeddings
+        """
+        try:
+            # Generate embedding for the search query
+            query_embedding = await self.generate_embedding(query)
+            
+            # Perform vector similarity search
+            # Note: This requires pgvector extension in PostgreSQL
+            search_query = f"""
+            SELECT 
+                s.id,
+                s.name as content,
+                s.description,
+                1 - (s.embedding <=> '{query_embedding}') as similarity,
+                json_build_object(
+                    'epic_name', e.name,
+                    'project_id', e.project_id,
+                    'story_points', s.story_points,
+                    'status', s.status
+                ) as metadata
+            FROM stories s
+            JOIN epics e ON s.epic_id = e.id
+            WHERE e.project_id = '{project_id}'
+            AND s.embedding IS NOT NULL
+            ORDER BY s.embedding <=> '{query_embedding}'
+            LIMIT {limit};
+            """
+            
+            result = self.supabase.rpc('execute_sql', {'query': search_query}).execute()
+            
+            search_results = []
+            for row in result.data:
+                search_results.append(VectorSearchResult(
+                    id=row['id'],
+                    content=row['content'],
+                    similarity=row['similarity'],
+                    metadata=row['metadata']
+                ))
+            
+            return search_results
+            
+        except Exception as e:
+            logger.error(f"Semantic search failed: {e}")
+            # Fallback to text search
+            return await self._fallback_text_search(query, project_id, limit)
+    
+    async def _fallback_text_search(self, query: str, project_id: str, limit: int) -> List[VectorSearchResult]:
+        """Fallback text search when vector search fails"""
+        try:
+            result = self.supabase.table('stories').select(
+                '*, epics!inner(project_id, name)'
+            ).eq('epics.project_id', project_id).or_(
+                f'name.ilike.%{query}%,description.ilike.%{query}%'
+            ).limit(limit).execute()
+            
+            search_results = []
+            for story in result.data:
+                search_results.append(VectorSearchResult(
+                    id=story['id'],
+                    content=story['name'],
+                    similarity=0.5,  # Default similarity for text search
+                    metadata={
+                        'epic_name': story['epics']['name'],
+                        'project_id': story['epics']['project_id'],
+                        'story_points': story.get('story_points', 0),
+                        'status': story.get('status', 'backlog')
+                    }
+                ))
+            
+            return search_results
+            
+        except Exception as e:
+            logger.error(f"Fallback text search failed: {e}")
+            return []
+
+    async def generate_intelligent_story_recommendations(self, epic_id: str, project_context: str) -> List[StoryRecommendation]:
+        """
+        Generate intelligent story recommendations based on epic context and similar projects
+        """
+        try:
+            # Get epic information
+            epic_result = self.supabase.table('epics').select('*, projects(*)').eq('id', epic_id).execute()
+            if not epic_result.data:
+                raise ValueError(f"Epic {epic_id} not found")
+            
+            epic = epic_result.data[0]
+            
+            # Get existing stories in the epic for context
+            existing_stories = self.supabase.table('stories').select('name, description').eq('epic_id', epic_id).execute()
+            
+            # Prepare context for AI
+            context = {
+                "epic_name": epic['name'],
+                "epic_description": epic.get('description', ''),
+                "project_name": epic['projects']['name'],
+                "project_context": project_context,
+                "existing_stories": [
+                    {"name": s['name'], "description": s.get('description', '')}
+                    for s in existing_stories.data
+                ]
+            }
+            
+            # Generate recommendations using AI
+            basic_ai = get_basic_ai_service()
+            
+            variables = {
+                "epic_name": context["epic_name"],
+                "epic_description": context["epic_description"],
+                "project_context": context["project_context"],
+                "existing_stories": json.dumps(context["existing_stories"], indent=2)
+            }
+            
+            ai_response = await basic_ai.generate_completion("story_generator", variables)
+            
+            if not ai_response.success:
+                logger.error(f"AI story generation failed: {ai_response.error}")
+                return []
+            
+            # Parse AI response and create recommendations
+            recommendations = []
+            try:
+                ai_data = json.loads(ai_response.data) if isinstance(ai_response.data, str) else ai_response.data
+                
+                if isinstance(ai_data, list):
+                    for item in ai_data:
+                        recommendations.append(StoryRecommendation(
+                            title=item.get('title', 'Generated Story'),
+                            description=item.get('description', ''),
+                            acceptance_criteria=item.get('acceptance_criteria', ''),
+                            story_points=item.get('story_points', 3),
+                            priority=item.get('priority', 'medium'),
+                            reasoning=item.get('reasoning', 'AI generated recommendation'),
+                            confidence=item.get('confidence', 0.7)
+                        ))
+                else:
+                    # Single recommendation
+                    recommendations.append(StoryRecommendation(
+                        title=ai_data.get('title', 'Generated Story'),
+                        description=ai_data.get('description', ''),
+                        acceptance_criteria=ai_data.get('acceptance_criteria', ''),
+                        story_points=ai_data.get('story_points', 3),
+                        priority=ai_data.get('priority', 'medium'),
+                        reasoning=ai_data.get('reasoning', 'AI generated recommendation'),
+                        confidence=ai_data.get('confidence', 0.7)
+                    ))
+                    
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Failed to parse AI recommendations: {e}")
+                # Create a fallback recommendation
+                recommendations.append(StoryRecommendation(
+                    title=f"Story for {epic['name']}",
+                    description=f"Generated story based on {project_context}",
+                    acceptance_criteria="To be defined",
+                    story_points=3,
+                    priority="medium",
+                    reasoning="Fallback recommendation due to AI parsing error",
+                    confidence=0.3
+                ))
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Story recommendation generation failed: {e}")
+            return []
+
+    async def analyze_project_health(self, project_id: str) -> List[AIInsight]:
+        """
+        Analyze project health and provide AI-powered insights
+        """
+        try:
+            # Get project analytics data
+            project_data = await self._get_project_analytics_data(project_id)
+            
+            insights = []
+            
+            # Analyze different aspects of project health
+            velocity_insight = await self._analyze_velocity_trends(project_data)
+            if velocity_insight:
+                insights.append(velocity_insight)
+            
+            quality_insight = await self._analyze_quality_metrics(project_data)
+            if quality_insight:
+                insights.append(quality_insight)
+            
+            resource_insight = await self._analyze_resource_allocation(project_data)
+            if resource_insight:
+                insights.append(resource_insight)
+            
+            risk_insight = await self._analyze_project_risks(project_data)
+            if risk_insight:
+                insights.append(risk_insight)
+            
+            # Store insights in database for future reference
+            for insight in insights:
+                await self._store_project_insight(project_id, insight)
+            
+            return insights
+            
+        except Exception as e:
+            logger.error(f"Project health analysis failed: {e}")
+            return []
+
+    async def _get_project_analytics_data(self, project_id: str) -> Dict[str, Any]:
+        """Get comprehensive project data for analysis"""
+        try:
+            # Get project details
+            project_result = self.supabase.table('projects').select('*').eq('id', project_id).execute()
+            project = project_result.data[0] if project_result.data else {}
+            
+            # Get epics and stories
+            epics_result = self.supabase.table('epics').select('*').eq('project_id', project_id).execute()
+            epics = epics_result.data
+            
+            stories_result = self.supabase.table('stories').select('*, epics!inner(project_id)').eq('epics.project_id', project_id).execute()
+            stories = stories_result.data
+            
+            # Get team members (simplified - would need proper team association)
+            team_members_result = self.supabase.table('users').select('*').limit(10).execute()
+            team_members = team_members_result.data
+            
+            # Get recent activity (last 30 days)
+            thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
+            recent_stories = [s for s in stories if s.get('updated_at', '') >= thirty_days_ago]
+            
+            return {
+                'project': project,
+                'epics': epics,
+                'stories': stories,
+                'recent_stories': recent_stories,
+                'team_members': team_members,
+                'total_story_points': sum(s.get('story_points', 0) for s in stories if s.get('story_points')),
+                'completed_story_points': sum(s.get('story_points', 0) for s in stories if s.get('status') == 'done' and s.get('story_points'))
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get project analytics data: {e}")
+            return {}
+    
+    async def _analyze_velocity_trends(self, project_data: Dict[str, Any]) -> Optional[AIInsight]:
+        """Analyze velocity trends and provide insights"""
+        try:
+            stories = project_data.get('stories', [])
+            recent_stories = project_data.get('recent_stories', [])
+            
+            if len(stories) < 5:
+                return None
+            
+            # Calculate velocity metrics
+            completed_stories = [s for s in stories if s.get('status') == 'done']
+            recent_completed = [s for s in recent_stories if s.get('status') == 'done']
+            
+            total_points = sum(s.get('story_points', 0) for s in completed_stories if s.get('story_points'))
+            recent_points = sum(s.get('story_points', 0) for s in recent_completed if s.get('story_points'))
+            
+            # Analyze trends
+            if len(completed_stories) > 0:
+                avg_velocity = total_points / max(len(completed_stories), 1)
+                recent_velocity = recent_points / max(len(recent_completed), 1) if recent_completed else 0
+                
+                if recent_velocity < avg_velocity * 0.8:
+                    return AIInsight(
+                        type="velocity",
+                        title="Velocity Decline Detected",
+                        description=f"Team velocity has decreased by {((avg_velocity - recent_velocity) / avg_velocity * 100):.1f}% in recent sprints.",
+                        confidence=0.85,
+                        actionable_items=[
+                            "Review team capacity and workload distribution",
+                            "Identify and address blockers in current sprint",
+                            "Consider story point estimation accuracy",
+                            "Schedule team retrospective to identify improvement areas"
+                        ],
+                        priority="high"
+                    )
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze velocity trends: {e}")
+            return None
+    
+    async def _analyze_quality_metrics(self, project_data: Dict[str, Any]) -> Optional[AIInsight]:
+        """Analyze quality metrics and provide insights"""
+        try:
+            stories = project_data.get('stories', [])
+            
+            if not stories:
+                return None
+            
+            # Analyze story quality indicators
+            stories_without_acceptance_criteria = [s for s in stories if not s.get('acceptance_criteria')]
+            stories_without_points = [s for s in stories if not s.get('story_points')]
+            high_point_stories = [s for s in stories if s.get('story_points', 0) > 13]
+            
+            quality_issues = []
+            if len(stories_without_acceptance_criteria) > len(stories) * 0.3:
+                quality_issues.append(f"{len(stories_without_acceptance_criteria)} stories lack acceptance criteria")
+            
+            if len(stories_without_points) > len(stories) * 0.2:
+                quality_issues.append(f"{len(stories_without_points)} stories are not estimated")
+            
+            if len(high_point_stories) > len(stories) * 0.1:
+                quality_issues.append(f"{len(high_point_stories)} stories are too large (>13 points)")
+            
+            if quality_issues:
+                return AIInsight(
+                    type="quality",
+                    title="Story Quality Issues Detected",
+                    description=f"Quality analysis found several areas for improvement: {', '.join(quality_issues)}",
+                    confidence=0.9,
+                    actionable_items=[
+                        "Add acceptance criteria to stories without them",
+                        "Estimate unestimated stories in next planning session",
+                        "Break down large stories into smaller, manageable pieces",
+                        "Establish story definition of ready checklist"
+                    ],
+                    priority="medium"
+                )
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze quality metrics: {e}")
+            return None
+    
+    async def _analyze_resource_allocation(self, project_data: Dict[str, Any]) -> Optional[AIInsight]:
+        """Analyze resource allocation and provide insights"""
+        try:
+            stories = project_data.get('stories', [])
+            team_members = project_data.get('team_members', [])
+            
+            # Analyze workload distribution
+            assignee_workload = {}
+            unassigned_stories = []
+            
+            for story in stories:
+                if story.get('status') not in ['done', 'cancelled']:
+                    assignee_id = story.get('assignee_id')
+                    if assignee_id:
+                        if assignee_id not in assignee_workload:
+                            assignee_workload[assignee_id] = 0
+                        assignee_workload[assignee_id] += story.get('story_points', 0)
+                    else:
+                        unassigned_stories.append(story)
+            
+            # Check for workload imbalance
+            if len(assignee_workload) > 1:
+                workloads = list(assignee_workload.values())
+                max_workload = max(workloads)
+                min_workload = min(workloads)
+                
+                if max_workload > min_workload * 2:
+                    return AIInsight(
+                        type="resource_allocation",
+                        title="Workload Imbalance Detected",
+                        description=f"Significant workload imbalance detected. Highest assigned: {max_workload} points, lowest: {min_workload} points. {len(unassigned_stories)} stories remain unassigned.",
+                        confidence=0.8,
+                        actionable_items=[
+                            "Redistribute work to balance team workload",
+                            "Assign unassigned stories to available team members",
+                            "Consider team capacity in future sprint planning",
+                            "Review team member availability and skills"
+                        ],
+                        priority="medium"
+                    )
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze resource allocation: {e}")
+            return None
+    
+    async def _analyze_project_risks(self, project_data: Dict[str, Any]) -> Optional[AIInsight]:
+        """Analyze project risks and provide insights"""
+        try:
+            stories = project_data.get('stories', [])
+            epics = project_data.get('epics', [])
+            
+            # Identify potential risks
+            risks = []
+            
+            # Check for blocked stories
+            blocked_stories = [s for s in stories if s.get('status') == 'blocked']
+            if len(blocked_stories) > 0:
+                risks.append(f"{len(blocked_stories)} stories are currently blocked")
+            
+            # Check for overdue stories
+            overdue_stories = [s for s in stories if s.get('status') in ['in_progress', 'review'] and s.get('updated_at')]
+            if len(overdue_stories) > len(stories) * 0.2:
+                risks.append(f"{len(overdue_stories)} stories may be overdue")
+            
+            # Check for incomplete epics near deadline
+            incomplete_epics = [e for e in epics if e.get('status') != 'completed']
+            if len(incomplete_epics) > len(epics) * 0.8:
+                risks.append(f"{len(incomplete_epics)} epics are still incomplete")
+            
+            if risks:
+                return AIInsight(
+                    type="risk",
+                    title="Project Risks Identified",
+                    description=f"Risk analysis identified potential issues: {', '.join(risks)}",
+                    confidence=0.75,
+                    actionable_items=[
+                        "Address blocked stories immediately",
+                        "Review and update story statuses",
+                        "Reassess epic timelines and scope",
+                        "Implement daily standups to track progress"
+                    ],
+                    priority="high"
+                )
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze project risks: {e}")
+            return None
+    
+    async def _store_project_insight(self, project_id: str, insight: AIInsight):
+        """Store project insight in database"""
+        try:
+            self.supabase.table('project_insights').insert({
+                'project_id': project_id,
+                'insight_type': insight.type,
+                'title': insight.title,
+                'description': insight.description,
+                'confidence': insight.confidence,
+                'actionable_items': insight.actionable_items,
+                'priority': insight.priority,
+                'is_active': True,
+                'created_at': datetime.now().isoformat()
+            }).execute()
+        except Exception as e:
+            logger.error(f"Failed to store project insight: {e}")
+
 # Global AI service instance
-ai_service = AIService()
+ai_service: Optional[AIService] = None
+enhanced_ai_service: Optional[EnhancedAIService] = None
+
+def init_ai_service(supabase: Client) -> EnhancedAIService:
+    """Initialize the global AI service instance"""
+    global ai_service, enhanced_ai_service
+    
+    try:
+        # Initialize basic AI service
+        ai_service = AIService()
+        logger.info("Basic AI service initialized")
+        
+        # Initialize enhanced AI service with vector capabilities
+        enhanced_ai_service = EnhancedAIService(supabase)
+        logger.info("Enhanced AI service initialized")
+        
+        return enhanced_ai_service
+    except Exception as e:
+        logger.error(f"Failed to initialize AI service: {e}")
+        raise
+
+def get_ai_service() -> EnhancedAIService:
+    """Get the global enhanced AI service instance"""
+    if enhanced_ai_service is None:
+        raise RuntimeError("AI service not initialized. Call init_ai_service() first.")
+    return enhanced_ai_service
+
+def get_basic_ai_service() -> AIService:
+    """Get the basic AI service instance"""
+    if ai_service is None:
+        raise RuntimeError("Basic AI service not initialized. Call init_ai_service() first.")
+    return ai_service

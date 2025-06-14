@@ -3,7 +3,9 @@ AgileForge API Models (Pydantic Schemas)
 Complete set of Pydantic models for request/response validation
 """
 
-from pydantic import BaseModel, Field, validator, root_validator
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 from enum import Enum
@@ -101,14 +103,14 @@ class UserBase(BaseModel):
     language: str = Field("en", max_length=10)
     avatar_url: Optional[str] = Field(None, max_length=500)
     
-    @validator('email')
+    @field_validator('email')
     def validate_email(cls, v):
         # Basic email validation
         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
             raise ValueError('Invalid email format')
         return v.lower()
     
-    @validator('username')
+    @field_validator('username')
     def validate_username(cls, v):
         if not re.match(r'^[a-zA-Z0-9_-]+$', v):
             raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
@@ -117,7 +119,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
     
-    @validator('password')
+    @field_validator('password')
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')

@@ -29,14 +29,26 @@ from contextlib import asynccontextmanager
 
 # Import enhanced authentication system
 from backend.auth.enhanced_auth import (
-    EnhancedAuthManager, auth_manager, get_current_user, get_current_active_user,
+    EnhancedAuthManager, get_auth_manager, get_current_user, get_current_active_user,
     require_admin, require_manager, require_team_lead,
     require_create_project, require_manage_team, require_view_analytics, require_use_ai,
     UserRole, Permission
 )
 from backend.auth.auth_endpoints import auth_router
 from backend.webhooks.database_webhooks import webhooks_router
-from backend.cron.scheduled_jobs import cron_router, jobs_manager
+from backend.cron.scheduled_jobs import cron_router, get_jobs_manager
+
+# Import new services and endpoints
+from backend.services.storage_service import StorageService, init_storage_service
+from backend.services.realtime_service import RealtimeService, init_realtime_service
+from backend.services.analytics_service import AnalyticsService, init_analytics_service
+from backend.services.ai_service import init_ai_service, get_ai_service
+from backend.services.notification_service import init_notification_service, get_notification_service
+from backend.api.storage_endpoints import storage_router
+from backend.api.realtime_endpoints import realtime_router
+from backend.api.analytics_endpoints import analytics_router
+from backend.api.ai_endpoints import router as ai_router
+from backend.api.notification_endpoints import notification_router
 
 # Load environment variables
 load_dotenv()
@@ -83,9 +95,17 @@ if supabase_url and supabase_key:
         logger.info("Supabase client initialized successfully")
         
         # Initialize enhanced authentication manager
-        from backend.auth.enhanced_auth import auth_manager as auth_mgr_module
-        auth_mgr_module = EnhancedAuthManager(supabase)
+        import backend.auth.enhanced_auth as auth_module
+        auth_module.auth_manager = EnhancedAuthManager(supabase)
         logger.info("Enhanced authentication manager initialized")
+        
+        # Initialize new services
+        storage_service = init_storage_service(supabase)
+        realtime_service = init_realtime_service(supabase)
+        analytics_service = init_analytics_service(supabase)
+        ai_service = init_ai_service(supabase)
+        notification_service = init_notification_service(supabase)
+        logger.info("All enhanced services initialized successfully")
         
     except Exception as e:
         logger.error(f"Failed to initialize Supabase client: {e}")
@@ -204,6 +224,8 @@ async def lifespan(app: FastAPI):
     
     # Setup cron jobs
     try:
+        from backend.cron.scheduled_jobs import get_jobs_manager
+        jobs_manager = get_jobs_manager()
         await jobs_manager.setup_cron_jobs()
         logger.info("Cron jobs setup completed")
     except Exception as e:
@@ -228,6 +250,11 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(webhooks_router)
 app.include_router(cron_router)
+app.include_router(storage_router)
+app.include_router(realtime_router)
+app.include_router(analytics_router)
+app.include_router(ai_router, prefix="/api/ai")
+app.include_router(notification_router)
 
 # Security middleware
 app.add_middleware(

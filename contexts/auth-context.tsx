@@ -48,31 +48,44 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         const token = localStorage.getItem('auth_token')
         if (token) {
           // Set token in API client
-          api.auth.setToken(token)
+          apiClient.setAuthToken(token)
           
           // Verify token by fetching current user
-          // Note: This would require a /api/me endpoint in the backend
-          // For now, we'll assume token is valid if it exists
-          // In a real app, you'd want to verify with the server
-          
-          // Mock user data - in real app, fetch from /api/me
-          const mockUser: User = {
-            id: 'current-user',
-            username: 'current.user',
-            email: 'user@company.com',
-            first_name: 'Current',
-            last_name: 'User',
-            avatar_url: '/placeholder.svg?height=32&width=32',
-            is_active: true,
-            created_at: new Date().toISOString(),
+          try {
+            const response = await fetch('http://localhost:4000/auth/me', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            
+            if (response.ok) {
+              const userData = await response.json()
+              setUser({
+                id: userData.id,
+                username: userData.email.split('@')[0],
+                email: userData.email,
+                first_name: userData.name.split(' ')[0] || 'User',
+                last_name: userData.name.split(' ').slice(1).join(' ') || '',
+                avatar_url: userData.avatar_url,
+                is_active: userData.is_active,
+                created_at: userData.created_at,
+              })
+            } else {
+              // Token is invalid, clear it
+              localStorage.removeItem('auth_token')
+              apiClient.clearAuth()
+            }
+          } catch (error) {
+            console.error('Failed to verify token:', error)
+            localStorage.removeItem('auth_token')
+            apiClient.clearAuth()
           }
-          setUser(mockUser)
         }
       } catch (error) {
         console.error('Auth initialization failed:', error)
-        // Clear invalid token
         localStorage.removeItem('auth_token')
-        api.auth.clearToken()
+        apiClient.clearAuth()
       } finally {
         setIsLoading(false)
       }
@@ -85,27 +98,51 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      // Call login API - this would be a real API call
-      // For now, we'll simulate successful login
-      const mockToken = 'mock-jwt-token-' + Date.now()
+      // Call real login API
+      const response = await fetch('http://localhost:4000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
       
-      // Store token
-      localStorage.setItem('auth_token', mockToken)
-      api.auth.setToken(mockToken)
-      
-      // Mock user data - in real app, this would come from the login response
-      const mockUser: User = {
-        id: 'user-' + Date.now(),
-        username: email.split('@')[0],
-        email: email,
-        first_name: 'Demo',
-        last_name: 'User',
-        avatar_url: '/placeholder.svg?height=32&width=32',
-        is_active: true,
-        created_at: new Date().toISOString(),
+      if (!response.ok) {
+        const errorData = await response.json()
+        return { 
+          success: false, 
+          error: errorData.detail || 'Login failed' 
+        }
       }
       
-      setUser(mockUser)
+      const loginData = await response.json()
+      const token = loginData.access_token
+      
+      // Store token
+      localStorage.setItem('auth_token', token)
+      apiClient.setAuthToken(token)
+      
+      // Get user data
+      const userResponse = await fetch('http://localhost:4000/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        setUser({
+          id: userData.id,
+          username: userData.email.split('@')[0],
+          email: userData.email,
+          first_name: userData.name.split(' ')[0] || 'User',
+          last_name: userData.name.split(' ').slice(1).join(' ') || '',
+          avatar_url: userData.avatar_url,
+          is_active: userData.is_active,
+          created_at: userData.created_at,
+        })
+      }
       
       return { success: true }
     } catch (error) {
@@ -123,28 +160,31 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      // Call register API - this would be a real API call
-      const mockToken = 'mock-jwt-token-' + Date.now()
+      // Call real register API
+      const response = await fetch('http://localhost:4000/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          password: userData.password,
+          name: `${userData.first_name} ${userData.last_name}`.trim(),
+        }),
+      })
       
-      // Store token
-      localStorage.setItem('auth_token', mockToken)
-      api.auth.setToken(mockToken)
-      
-      // Create user from registration data
-      const newUser: User = {
-        id: 'user-' + Date.now(),
-        username: userData.username,
-        email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        avatar_url: '/placeholder.svg?height=32&width=32',
-        is_active: true,
-        created_at: new Date().toISOString(),
+      if (!response.ok) {
+        const errorData = await response.json()
+        return { 
+          success: false, 
+          error: errorData.detail || 'Registration failed' 
+        }
       }
       
-      setUser(newUser)
+      const registrationData = await response.json()
       
-      return { success: true }
+      // Auto-login after successful registration
+      return await login(userData.email, userData.password)
     } catch (error) {
       console.error('Registration failed:', error)
       return { 
@@ -159,7 +199,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const logout = (): void => {
     setUser(null)
     localStorage.removeItem('auth_token')
-    api.auth.clearToken()
+    apiClient.clearAuth()
   }
 
   const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; error?: string }> => {
@@ -170,9 +210,39 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        return { success: false, error: 'No authentication token' }
+      }
+      
       // Call update profile API
-      // For now, we'll simulate successful update
-      const updatedUser = { ...user, ...data }
+      const response = await fetch('http://localhost:4000/auth/me', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}`.trim() : undefined,
+          avatar_url: data.avatar_url,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        return { 
+          success: false, 
+          error: errorData.detail || 'Profile update failed' 
+        }
+      }
+      
+      const updatedData = await response.json()
+      const updatedUser = {
+        ...user,
+        first_name: updatedData.name.split(' ')[0] || user.first_name,
+        last_name: updatedData.name.split(' ').slice(1).join(' ') || user.last_name,
+        avatar_url: updatedData.avatar_url,
+      }
       setUser(updatedUser)
       
       return { success: true }
@@ -191,9 +261,29 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     if (!user) return
 
     try {
-      // Refresh user data from API
-      // For now, we'll just keep the current user
-      console.log('Refreshing user data...')
+      const token = localStorage.getItem('auth_token')
+      if (!token) return
+      
+      const response = await fetch('http://localhost:4000/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const userData = await response.json()
+        setUser({
+          id: userData.id,
+          username: userData.email.split('@')[0],
+          email: userData.email,
+          first_name: userData.name.split(' ')[0] || 'User',
+          last_name: userData.name.split(' ').slice(1).join(' ') || '',
+          avatar_url: userData.avatar_url,
+          is_active: userData.is_active,
+          created_at: userData.created_at,
+        })
+      }
     } catch (error) {
       console.error('Failed to refresh user:', error)
     }
@@ -210,9 +300,5 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     refreshUser,
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 } 
