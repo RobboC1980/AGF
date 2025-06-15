@@ -49,13 +49,6 @@ interface Epic {
   }
 }
 
-interface User {
-  id: string
-  name: string
-  avatar?: string
-  email: string
-}
-
 // Base API configuration
 // IMPORTANT: Using hardcoded value temporarily to ensure correct port
 const API_BASE_URL = 'http://localhost:8000'
@@ -138,10 +131,7 @@ class ApiClient {
       }
       
       if (error instanceof Error && error.message.includes('HTTP 401')) {
-        // Don't clear auth for demo token
-        if (this.authToken !== 'demo') {
-          this.clearAuth()
-        }
+        this.clearAuth()
         throw new Error('Authentication failed. Please log in again.')
       }
       
@@ -166,20 +156,7 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' })
   }
 
-  // Development-safe GET request (fallback to dev endpoints if no auth)
-  async getWithDevFallback<T>(endpoint: string): Promise<T> {
-    try {
-      return await this.get<T>(endpoint)
-    } catch (error) {
-      // If authentication fails and we're in development, try dev endpoint
-      if (error instanceof Error && error.message.includes('Authentication failed')) {
-        const devEndpoint = endpoint.replace('/api/', '/api/dev/')
-        console.log(`Falling back to development endpoint: ${devEndpoint}`)
-        return await this.get<T>(devEndpoint)
-      }
-      throw error
-    }
-  }
+  // Removed development fallback - production authentication required
 
   // POST request
   async post<T>(endpoint: string, data?: any): Promise<T> {
@@ -213,7 +190,9 @@ class ApiClient {
   }> {
     const response = await this.request<{
       access_token: string
+      refresh_token: string
       token_type: string
+      expires_in: number
       user: User
     }>("/api/auth/login", {
       method: "POST",
@@ -223,7 +202,12 @@ class ApiClient {
     // Store token
     this.setAuthToken(response.access_token)
 
-    return response
+    // Return the expected format
+    return {
+      access_token: response.access_token,
+      token_type: response.token_type,
+      user: response.user
+    }
   }
 
   async register(
@@ -237,7 +221,9 @@ class ApiClient {
   }> {
     const response = await this.request<{
       access_token: string
+      refresh_token: string
       token_type: string
+      expires_in: number
       user: User
     }>("/api/auth/register", {
       method: "POST",
@@ -247,7 +233,12 @@ class ApiClient {
     // Store token
     this.setAuthToken(response.access_token)
 
-    return response
+    // Return the expected format
+    return {
+      access_token: response.access_token,
+      token_type: response.token_type,
+      user: response.user
+    }
   }
 
   async getCurrentUser(): Promise<User> {
@@ -260,20 +251,11 @@ class ApiClient {
 
   // Stories API
   async getStories(): Promise<ApiResponse<{ stories: Story[] }>> {
-    try {
-      return await this.getWithDevFallback("/api/stories")
-    } catch (error) {
-      // Fallback for development - return mock data structure
-      return {
-        data: { stories: [] },
-        success: true,
-        message: 'Development mode - no stories available'
-      }
-    }
+    return this.request("/api/stories")
   }
 
   async getStory(id: string): Promise<ApiResponse<Story>> {
-    return this.getWithDevFallback(`/api/stories/${id}`)
+    return this.request(`/api/stories/${id}`)
   }
 
   async createStory(story: Partial<Story>): Promise<ApiResponse<Story>> {
@@ -338,28 +320,12 @@ class ApiClient {
 
   // Epics API
   async getEpics(): Promise<ApiResponse<{ epics: Epic[] }>> {
-    try {
-      return await this.getWithDevFallback("/api/epics")
-    } catch (error) {
-      return {
-        data: { epics: [] },
-        success: true,
-        message: 'Development mode - no epics available'
-      }
-    }
+    return this.request("/api/epics")
   }
 
   // Users API
   async getUsers(): Promise<ApiResponse<{ users: User[] }>> {
-    try {
-      return await this.getWithDevFallback("/api/users")
-    } catch (error) {
-      return {
-        data: { users: [] },
-        success: true,
-        message: 'Development mode - no users available'
-      }
-    }
+    return this.request("/api/users")
   }
 
   // Analytics API
@@ -387,10 +353,11 @@ const apiClient = new ApiClient(API_BASE_URL)
 // Type definitions matching backend models
 export interface User {
   id: string
-  username: string
+  username?: string
   email: string
-  first_name: string
-  last_name: string
+  name: string  // Combined first_name + last_name from backend
+  first_name?: string
+  last_name?: string
   avatar_url?: string
   is_active: boolean
   created_at: string
@@ -414,19 +381,25 @@ export interface Project {
 export interface Epic {
   id: string
   project_id: string
-  title: string
+  name: string
   description?: string
-  epic_key: string
-  status: 'backlog' | 'todo' | 'ready' | 'in-progress' | 'review' | 'testing' | 'done' | 'closed' | 'cancelled'
+  epic_key?: string
+  status: string
   priority: 'low' | 'medium' | 'high' | 'critical'
   start_date?: string
   target_end_date?: string
   estimated_story_points?: number
-  actual_story_points: number
+  actual_story_points?: number
   progress: number
-  created_by: string
+  created_by?: string
   created_at: string
   updated_at?: string
+  assignee_id?: string
+  color?: string
+  project?: {
+    id: string
+    name: string
+  }
 }
 
 export interface Story {
@@ -504,7 +477,10 @@ export const api = {
 
   // Users
   users: {
-    getAll: () => apiClient.get<User[]>('/api/users'),
+    getAll: async () => {
+      const response = await apiClient.get<{data: {users: User[]}, success: boolean}>('/api/users');
+      return response.data.users;
+    },
     getById: (id: string) => apiClient.get<User>(`/api/users/${id}`),
     create: (data: Omit<User, 'id' | 'created_at'>) => apiClient.post<User>('/api/users', data),
     update: (id: string, data: Partial<User>) => apiClient.put<User>(`/api/users/${id}`, data),
@@ -523,10 +499,11 @@ export const api = {
 
   // Epics
   epics: {
-    getAll: (projectId?: string) => {
+    getAll: async (projectId?: string) => {
       // Ensure projectId is a string or null, not an object
       const validProjectId = projectId && typeof projectId === 'string' ? projectId : undefined;
-      return apiClient.get<Epic[]>(`/api/epics${validProjectId ? `?project_id=${validProjectId}` : ''}`);
+      const response = await apiClient.get<{data: {epics: Epic[]}, success: boolean}>(`/api/epics${validProjectId ? `?project_id=${validProjectId}` : ''}`);
+      return response.data.epics;
     },
     getById: (id: string) => apiClient.get<Epic>(`/api/epics/${id}`),
     create: (data: Omit<Epic, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'epic_key' | 'actual_story_points' | 'progress'>) => 
@@ -537,10 +514,11 @@ export const api = {
 
   // Stories
   stories: {
-    getAll: (epicId?: string) => {
+    getAll: async (epicId?: string) => {
       // Ensure epicId is a string or null, not an object
       const validEpicId = epicId && typeof epicId === 'string' ? epicId : undefined;
-      return apiClient.get<Story[]>(`/api/stories${validEpicId ? `?epic_id=${validEpicId}` : ''}`);
+      const response = await apiClient.get<{data: {stories: Story[]}, success: boolean}>(`/api/stories${validEpicId ? `?epic_id=${validEpicId}` : ''}`);
+      return response.data.stories;
     },
     getById: (id: string) => apiClient.get<Story>(`/api/stories/${id}`),
     create: (data: Omit<Story, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'story_key'>) => 

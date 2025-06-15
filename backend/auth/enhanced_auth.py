@@ -301,6 +301,9 @@ class EnhancedAuthManager:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to create user"
                 )
+        except HTTPException:
+            # Re-raise HTTPException as-is (don't wrap in 500 error)
+            raise
         except Exception as e:
             logger.error(f"Error creating user: {e}")
             raise HTTPException(

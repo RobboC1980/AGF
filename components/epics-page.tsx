@@ -141,7 +141,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
     let filtered = epics.filter((epic) => {
       const matchesSearch =
         !searchQuery ||
-        epic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        epic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         epic.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = statusFilter === "all" || epic.status === statusFilter
@@ -176,7 +176,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
 
       switch (sortBy) {
         case "name":
-          comparison = a.title.localeCompare(b.title)
+          comparison = a.name.localeCompare(b.name)
           break
         case "status":
           comparison = a.status.localeCompare(b.status)
@@ -570,7 +570,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         {/* Epic Title & Description */}
                         <div>
                           <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 leading-snug group-hover:text-purple-600 transition-colors">
-                            {epic.title}
+                            {epic.name}
                           </h3>
                           {epic.description && (
                             <p className="text-slate-600 text-sm line-clamp-3 leading-relaxed">{epic.description}</p>

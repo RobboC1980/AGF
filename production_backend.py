@@ -249,7 +249,7 @@ app = FastAPI(
 )
 
 # Include enhanced authentication and feature routers
-app.include_router(auth_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(webhooks_router)
 app.include_router(cron_router)
 app.include_router(storage_router)
@@ -322,17 +322,6 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Authentication dependency with proper JWT validation"""
-    # In development mode, be more permissive
-    if os.getenv("ENVIRONMENT") == "development":
-        # If no credentials provided in development, return a mock user
-        if not credentials:
-            logger.warning("No authentication credentials provided in development mode - using mock user")
-            return {"id": "dev-user", "email": "dev@example.com", "name": "Development User"}
-        
-        # In development without Supabase, return a mock user
-        if not supabase:
-            return {"id": "dev-user", "email": "dev@example.com", "name": "Development User"}
-    
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -362,10 +351,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Authentication error: {str(e)[:100]}...")  # Truncate long error messages
+        logger.error(f"Authentication error: {str(e)[:100]}...")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -551,57 +540,10 @@ async def root():
         "metrics": "/metrics"
     }
 
-# Development mode endpoints (no authentication required)
-@app.get("/api/dev/users")
-async def get_users_dev():
-    """Get all users (development mode)"""
-    if os.getenv("ENVIRONMENT") != "development":
-        raise HTTPException(status_code=404, detail="Development endpoint not available")
-    
-    try:
-        if not supabase:
-            return [{"id": "dev-user", "email": "dev@example.com", "name": "Development User"}]
-        
-        result = supabase.table("users").select("*").execute()
-        return result.data
-    except Exception as e:
-        logger.error(f"Error fetching users: {e}")
-        return [{"id": "dev-user", "email": "dev@example.com", "name": "Development User"}]
-
-@app.get("/api/dev/epics")
-async def get_epics_dev():
-    """Get all epics (development mode)"""
-    if os.getenv("ENVIRONMENT") != "development":
-        raise HTTPException(status_code=404, detail="Development endpoint not available")
-    
-    try:
-        if not supabase:
-            return []
-        
-        result = supabase.table("epics").select("*").execute()
-        return result.data
-    except Exception as e:
-        logger.error(f"Error fetching epics: {e}")
-        return []
-
-@app.get("/api/dev/stories")
-async def get_stories_dev():
-    """Get all stories (development mode)"""
-    if os.getenv("ENVIRONMENT") != "development":
-        raise HTTPException(status_code=404, detail="Development endpoint not available")
-    
-    try:
-        if not supabase:
-            return []
-        
-        result = supabase.table("stories").select("*").execute()
-        return result.data
-    except Exception as e:
-        logger.error(f"Error fetching stories: {e}")
-        return []
+# Development endpoints removed - production authentication required
 
 # Users endpoints
-@app.get("/api/users", response_model=List[Dict[str, Any]])
+@app.get("/api/users")
 async def get_users(current_user: dict = Depends(get_current_user)):
     """Get all users"""
     try:
@@ -613,7 +555,8 @@ async def get_users(current_user: dict = Depends(get_current_user)):
             try:
                 cached_data = redis_client.get(cache_key)
                 if cached_data:
-                    return json.loads(cached_data)
+                    users_data = json.loads(cached_data)
+                    return {"data": {"users": users_data}, "success": True}
             except Exception as e:
                 logger.warning(f"Cache read failed: {e}")
         
@@ -626,7 +569,7 @@ async def get_users(current_user: dict = Depends(get_current_user)):
             except Exception as e:
                 logger.warning(f"Cache write failed: {e}")
         
-        return result.data
+        return {"data": {"users": result.data}, "success": True}
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch users")
@@ -725,7 +668,7 @@ async def get_epics(current_user: dict = Depends(get_current_user)):
     """Get all epics"""
     try:
         result = supabase.table("epics").select("*").execute()
-        return result.data
+        return {"data": {"epics": result.data}, "success": True}
     except Exception as e:
         logger.error(f"Error fetching epics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch epics")
@@ -764,7 +707,7 @@ async def get_stories(current_user: dict = Depends(get_current_user)):
     """Get all stories"""
     try:
         result = supabase.table("stories").select("*").execute()
-        return result.data
+        return {"data": {"stories": result.data}, "success": True}
     except Exception as e:
         logger.error(f"Error fetching stories: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch stories")

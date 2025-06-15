@@ -49,7 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     const initAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token')
-        if (token && token !== 'demo') {
+        if (token) {
           // Set token in API client
           apiClient.setAuthToken(token)
           
@@ -58,25 +58,18 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
             const userData = await apiClient.getCurrentUser()
             setUser(userData)
           } catch (error) {
-            console.log('Token verification failed, using demo mode')
+            console.log('Token verification failed')
             // Clear invalid token
             localStorage.removeItem('auth_token')
             apiClient.clearAuth()
-            
-            // Set demo token for demo mode
-            apiClient.setAuthToken('demo')
-            localStorage.setItem('auth_token', 'demo')
+            setUser(null)
           }
-        } else {
-          // Demo mode - set demo token
-          apiClient.setAuthToken('demo')
-          localStorage.setItem('auth_token', 'demo')
         }
       } catch (error) {
         console.error('Auth initialization failed:', error)
-        // Fallback to demo mode
-        apiClient.setAuthToken('demo')
-        localStorage.setItem('auth_token', 'demo')
+        localStorage.removeItem('auth_token')
+        apiClient.clearAuth()
+        setUser(null)
       } finally {
         setIsLoading(false)
       }
@@ -88,22 +81,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true)
-      
-      // For demo mode, just set demo user
-      if (email === 'demo@agileforge.com' || !email || !password) {
-        apiClient.setAuthToken('demo')
-        localStorage.setItem('auth_token', 'demo')
-        setUser({
-          id: 'demo-user',
-          username: 'demo',
-          email: 'demo@agileforge.com',
-          first_name: 'Demo',
-          last_name: 'User',
-          is_active: true,
-          created_at: new Date().toISOString()
-        })
-        return { success: true }
-      }
       
       // Call real login API
       const loginData = await apiClient.login(email, password)
@@ -117,7 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       console.error('Login failed:', error)
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Login failed' 
+        error: error instanceof Error ? error.message : 'Authentication failed. Please log in again.' 
       }
     } finally {
       setIsLoading(false)
@@ -128,7 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     try {
       setIsLoading(true)
       
-      // Call real register API
+      // Call real register API - only pass expected fields
       const registerData = await apiClient.register(userData.email, userData.name, userData.password)
       
       // Get user data
@@ -150,9 +127,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const logout = () => {
     setUser(null)
     apiClient.logout()
-    // Set back to demo mode
-    apiClient.setAuthToken('demo')
-    localStorage.setItem('auth_token', 'demo')
   }
 
   const updateProfile = async (data: Partial<User>): Promise<{ success: boolean; error?: string }> => {
@@ -162,13 +136,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
     try {
       setIsLoading(true)
-      
-      // For demo user, just update locally
-      if (user.id === 'demo-user') {
-        const updatedUser = { ...user, ...data }
-        setUser(updatedUser)
-        return { success: true }
-      }
       
       // Call update profile API
       const response = await apiClient.request("/api/auth/me", {

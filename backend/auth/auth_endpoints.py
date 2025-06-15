@@ -27,6 +27,9 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
     avatar_url: Optional[str] = None
     roles: List[str]
     permissions: List[str]
@@ -35,6 +38,25 @@ class UserResponse(BaseModel):
     created_at: datetime
     last_login: Optional[datetime] = None
     team_id: Optional[str] = None
+    
+    @classmethod
+    def from_user_in_db(cls, user: UserInDB) -> 'UserResponse':
+        """Create UserResponse from UserInDB, ensuring name field is populated"""
+        # Get the name from the user object
+        # UserInDB has a 'name' field that should be used
+        return cls(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            roles=user.roles,
+            permissions=user.permissions,
+            is_active=user.is_active,
+            is_verified=user.is_verified,
+            created_at=user.created_at,
+            last_login=user.last_login,
+            team_id=user.team_id,
+            avatar_url=user.avatar_url
+        )
 
 class UserListResponse(BaseModel):
     users: List[UserResponse]
@@ -46,25 +68,55 @@ class MessageResponse(BaseModel):
     message: str
     success: bool = True
 
-# Create router
-auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
+class RegisterResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserResponse
 
-@auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserResponse
+
+# Create router (prefix will be added when including in main app)
+auth_router = APIRouter(tags=["Authentication"])
+
+@auth_router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_data: RegisterRequest,
     background_tasks: BackgroundTasks
-) -> UserResponse:
-    """Register a new user"""
+) -> RegisterResponse:
+    """Register a new user and return authentication tokens"""
     auth_mgr = get_auth_manager()
     
     try:
         # Create user
         new_user = await auth_mgr.create_user(user_data)
         
+        # Create tokens for the new user
+        token_data = {
+            "sub": new_user.id,
+            "email": new_user.email,
+            "roles": new_user.roles,
+            "permissions": new_user.permissions
+        }
+        
+        access_token = auth_mgr.create_access_token(token_data)
+        refresh_token = auth_mgr.create_refresh_token({"sub": new_user.id})
+        
         # Add background task for welcome email (if email service is configured)
         background_tasks.add_task(send_welcome_email, new_user.email, new_user.name)
         
-        return UserResponse(**new_user.dict())
+        return RegisterResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_in=30 * 60,  # 30 minutes
+            user=UserResponse.from_user_in_db(new_user)
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -73,9 +125,9 @@ async def register_user(
             detail="Failed to register user"
         )
 
-@auth_router.post("/login", response_model=TokenResponse)
-async def login_user(login_data: LoginRequest) -> TokenResponse:
-    """Login user and return access token"""
+@auth_router.post("/login", response_model=LoginResponse)
+async def login_user(login_data: LoginRequest) -> LoginResponse:
+    """Login user and return access token with user data"""
     auth_mgr = get_auth_manager()
     
     # Authenticate user
@@ -113,10 +165,11 @@ async def login_user(login_data: LoginRequest) -> TokenResponse:
         # Log but don't fail login for this
         pass
     
-    return TokenResponse(
+    return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=30 * 60  # 30 minutes
+        expires_in=30 * 60,  # 30 minutes
+        user=UserResponse.from_user_in_db(user)
     )
 
 @auth_router.post("/login/form", response_model=TokenResponse)
@@ -168,7 +221,7 @@ async def get_current_user_profile(
     current_user: UserInDB = Depends(get_current_active_user)
 ) -> UserResponse:
     """Get current user profile"""
-    return UserResponse(**current_user.dict())
+    return UserResponse.from_user_in_db(current_user)
 
 @auth_router.put("/me", response_model=UserResponse)
 async def update_current_user_profile(
@@ -192,7 +245,7 @@ async def update_current_user_profile(
         result = auth_mgr.supabase.table("users").update(filtered_data).eq("id", current_user.id).execute()
         if result.data:
             updated_user = UserInDB(**result.data[0])
-            return UserResponse(**updated_user.dict())
+            return UserResponse.from_user_in_db(updated_user)
         else:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -259,7 +312,7 @@ async def list_users(
         count_result = auth_mgr.supabase.table("users").select("count").execute()
         total = len(count_result.data) if count_result.data else 0
         
-        users = [UserResponse(**user) for user in result.data]
+        users = [UserResponse.from_user_in_db(UserInDB(**user)) for user in result.data]
         
         return UserListResponse(
             users=users,
@@ -288,7 +341,7 @@ async def get_user_by_id(
             detail="User not found"
         )
     
-    return UserResponse(**user.dict())
+    return UserResponse.from_user_in_db(user)
 
 @auth_router.put("/users/{user_id}", response_model=UserResponse)
 async def update_user(
@@ -313,7 +366,7 @@ async def update_user(
         result = auth_mgr.supabase.table("users").update(filtered_data).eq("id", user_id).execute()
         if result.data:
             updated_user = UserInDB(**result.data[0])
-            return UserResponse(**updated_user.dict())
+            return UserResponse.from_user_in_db(updated_user)
         else:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -335,7 +388,7 @@ async def assign_user_roles(
     auth_mgr = get_auth_manager()
     
     updated_user = await auth_mgr.update_user_roles(user_id, role_data.roles)
-    return UserResponse(**updated_user.dict())
+    return UserResponse.from_user_in_db(updated_user)
 
 @auth_router.post("/users/{user_id}/activate", response_model=MessageResponse)
 async def activate_user(
@@ -469,7 +522,7 @@ async def get_team_members(
     
     try:
         result = auth_mgr.supabase.table("users").select("*").eq("team_id", team_id).execute()
-        members = [UserResponse(**user) for user in result.data]
+        members = [UserResponse.from_user_in_db(UserInDB(**user)) for user in result.data]
         return members
     except Exception as e:
         raise HTTPException(
