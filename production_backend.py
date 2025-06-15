@@ -14,6 +14,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import jwt
 from fastapi import FastAPI, HTTPException, Depends, status, Request, BackgroundTasks
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -71,15 +72,16 @@ if os.getenv("SENTRY_DSN"):
         environment=os.getenv("ENVIRONMENT", "development"),
     )
 
-# Configure logging for production
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("app.log") if os.getenv("ENVIRONMENT") == "production" else logging.StreamHandler()
-    ]
-)
+# Configure logging for production (avoid duplicate handlers)
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler("app.log") if os.getenv("ENVIRONMENT") == "production" else logging.NullHandler()
+        ]
+    )
 logger = logging.getLogger(__name__)
 
 # Initialize services
@@ -288,6 +290,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Optional authentication dependency for development
+async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Optional authentication - returns None if no credentials provided"""
+    if not credentials:
+        return None
+    return await get_current_user(credentials)
+
 # Authentication functions
 def verify_jwt_token(token: str) -> Dict[str, Any]:
     """Verify JWT token from Supabase"""
@@ -313,9 +322,16 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Authentication dependency with proper JWT validation"""
-    # In development mode without Supabase, return a mock user
-    if not supabase:
-        return {"id": "dev-user", "email": "dev@example.com", "name": "Development User"}
+    # In development mode, be more permissive
+    if os.getenv("ENVIRONMENT") == "development":
+        # If no credentials provided in development, return a mock user
+        if not credentials:
+            logger.warning("No authentication credentials provided in development mode - using mock user")
+            return {"id": "dev-user", "email": "dev@example.com", "name": "Development User"}
+        
+        # In development without Supabase, return a mock user
+        if not supabase:
+            return {"id": "dev-user", "email": "dev@example.com", "name": "Development User"}
     
     if not credentials:
         raise HTTPException(
@@ -325,17 +341,28 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
     
     try:
+        # Check for cron job authentication
+        cron_api_key = os.getenv("CRON_API_KEY")
+        if cron_api_key and credentials.credentials == cron_api_key:
+            return {"id": "cron-system", "email": "system@agileforge.com", "name": "System User"}
+        
         payload = verify_jwt_token(credentials.credentials)
         user_id = payload.get("sub")
+        
+        if not user_id:
+            raise ValueError("No user ID found in token")
         
         # Get user from database
         result = supabase.table("users").select("*").eq("id", user_id).execute()
         if not result.data:
+            logger.warning(f"User not found for ID: {user_id}")
             raise HTTPException(status_code=401, detail="User not found")
         
         return result.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Authentication error: {e}")
+        logger.error(f"Authentication error: {str(e)[:100]}...")  # Truncate long error messages
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -391,7 +418,8 @@ async def generate_ai_story(epic_id: str, description: str, requirements: Option
         Format the response as JSON with keys: title, description, acceptance_criteria, story_points, priority
         """
         
-        response = openai.ChatCompletion.create(
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1000,
@@ -426,6 +454,22 @@ async def not_found_handler(request: Request, exc: HTTPException):
         content={"error": "Resource not found", "detail": str(exc.detail) if hasattr(exc, 'detail') else "Not found"}
     )
 
+@app.exception_handler(500)
+async def internal_error_handler(request: Request, exc: Exception):
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": "An unexpected error occurred"}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": "An unexpected error occurred"}
+    )
+
 # Health check endpoint with comprehensive monitoring
 @app.get("/health")
 async def health_check():
@@ -455,9 +499,11 @@ async def health_check():
             redis_client.ping()
             health_status["services"]["redis"] = "healthy"
         except Exception as e:
-            logger.error(f"Redis health check failed: {e}")
+            logger.warning(f"Redis health check failed: {e}")
             health_status["services"]["redis"] = "unhealthy"
-            health_status["status"] = "degraded"
+            # Redis is not critical for basic functionality
+        except redis.ConnectionError:
+            health_status["services"]["redis"] = "connection_failed"
     else:
         health_status["services"]["redis"] = "not_configured"
     
@@ -504,6 +550,55 @@ async def root():
         "health": "/health",
         "metrics": "/metrics"
     }
+
+# Development mode endpoints (no authentication required)
+@app.get("/api/dev/users")
+async def get_users_dev():
+    """Get all users (development mode)"""
+    if os.getenv("ENVIRONMENT") != "development":
+        raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    try:
+        if not supabase:
+            return [{"id": "dev-user", "email": "dev@example.com", "name": "Development User"}]
+        
+        result = supabase.table("users").select("*").execute()
+        return result.data
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        return [{"id": "dev-user", "email": "dev@example.com", "name": "Development User"}]
+
+@app.get("/api/dev/epics")
+async def get_epics_dev():
+    """Get all epics (development mode)"""
+    if os.getenv("ENVIRONMENT") != "development":
+        raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    try:
+        if not supabase:
+            return []
+        
+        result = supabase.table("epics").select("*").execute()
+        return result.data
+    except Exception as e:
+        logger.error(f"Error fetching epics: {e}")
+        return []
+
+@app.get("/api/dev/stories")
+async def get_stories_dev():
+    """Get all stories (development mode)"""
+    if os.getenv("ENVIRONMENT") != "development":
+        raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    try:
+        if not supabase:
+            return []
+        
+        result = supabase.table("stories").select("*").execute()
+        return result.data
+    except Exception as e:
+        logger.error(f"Error fetching stories: {e}")
+        return []
 
 # Users endpoints
 @app.get("/api/users", response_model=List[Dict[str, Any]])

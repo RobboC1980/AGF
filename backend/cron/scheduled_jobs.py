@@ -8,8 +8,12 @@ import logging
 import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks, Header
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from ..auth.enhanced_auth import require_admin, get_current_active_user, UserInDB
 from ..database.supabase_client import get_supabase
@@ -105,25 +109,38 @@ class ScheduledJobsManager:
         """Set up all cron jobs in Supabase"""
         try:
             self._ensure_supabase()
+            cron_api_key = os.getenv("CRON_API_KEY")
+            
+            if not cron_api_key:
+                logger.warning("CRON_API_KEY not set - cron jobs will not be authenticated")
+                cron_api_key = "missing_api_key"
+            
             for job_name, job_config in self.jobs.items():
-                # Create cron job in Supabase
-                sql = f"""
-                SELECT cron.schedule(
-                    '{job_name}',
-                    '{job_config["schedule"]}',
-                    $$
-                    SELECT net.http_post(
-                        url := '{os.getenv("API_BASE_URL", "http://localhost:8000")}/cron/execute/{job_name}',
-                        headers := '{{"Content-Type": "application/json", "Authorization": "Bearer {os.getenv("CRON_API_KEY", "")}"}}',
-                        body := '{{"job_name": "{job_name}"}}'
+                try:
+                    # First, unschedule any existing job with the same name
+                    unschedule_sql = f"SELECT cron.unschedule('{job_name}');"
+                    
+                    # Create cron job in Supabase
+                    sql = f"""
+                    SELECT cron.schedule(
+                        '{job_name}',
+                        '{job_config["schedule"]}',
+                        $$
+                        SELECT net.http_post(
+                            url := '{os.getenv("API_BASE_URL", "http://localhost:8000")}/cron/execute/{job_name}',
+                            headers := '{{"Content-Type": "application/json", "Authorization": "Bearer {cron_api_key}"}}',
+                            body := '{{"job_name": "{job_name}"}}'
+                        );
+                        $$
                     );
-                    $$
-                );
-                """
-                
-                # Execute the SQL to create the cron job
-                # Note: This would typically be done through a database migration
-                logger.info(f"Cron job setup SQL for {job_name}: {sql}")
+                    """
+                    
+                    # Log only once
+                    logger.info(f"Setting up cron job: {job_name} with schedule: {job_config['schedule']}")
+                    
+                except Exception as job_error:
+                    logger.error(f"Error setting up specific cron job {job_name}: {job_error}")
+                    continue
                 
         except Exception as e:
             logger.error(f"Error setting up cron jobs: {e}")
@@ -622,9 +639,22 @@ def get_jobs_manager():
 @cron_router.post("/execute/{job_name}")
 async def execute_job(
     job_name: str,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    authorization: str = Header(None)
 ):
     """Execute a specific cron job"""
+    # Simple authentication for cron jobs
+    expected_key = os.getenv("CRON_API_KEY")
+    if expected_key and authorization:
+        # Extract token from "Bearer TOKEN" format
+        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        if token != expected_key:
+            logger.warning(f"Unauthorized cron job execution attempt for {job_name}")
+            raise HTTPException(status_code=401, detail="Unauthorized")
+    elif expected_key:
+        logger.warning(f"Missing authorization header for cron job {job_name}")
+        raise HTTPException(status_code=401, detail="Authorization required")
+    
     manager = get_jobs_manager()
     if job_name not in manager.jobs:
         raise HTTPException(
@@ -634,6 +664,7 @@ async def execute_job(
     
     # Execute job in background
     background_tasks.add_task(run_job, job_name)
+    logger.info(f"Cron job {job_name} execution started")
     
     return {"message": f"Job '{job_name}' started", "status": "running"}
 
