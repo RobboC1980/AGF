@@ -90,7 +90,7 @@ async def get_projects():
     try:
         supabase = get_supabase()
         result = supabase.table("projects").select("*").execute()
-        return {"projects": result.data}
+        return {"success": True, "data": {"projects": result.data}}
     except Exception as e:
         logger.error(f"Error fetching projects: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
@@ -101,7 +101,7 @@ async def get_users():
     try:
         supabase = get_supabase()
         result = supabase.table("users").select("*").execute()
-        return {"users": result.data}
+        return {"success": True, "data": {"users": result.data}}
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch users")
@@ -112,7 +112,7 @@ async def get_stories():
     try:
         supabase = get_supabase()
         result = supabase.table("stories").select("*").execute()
-        return {"stories": result.data}
+        return {"success": True, "data": {"stories": result.data}}
     except Exception as e:
         logger.error(f"Error fetching stories: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch stories")
@@ -123,7 +123,7 @@ async def get_epics():
     try:
         supabase = get_supabase()
         result = supabase.table("epics").select("*").execute()
-        return {"epics": result.data}
+        return {"success": True, "data": {"epics": result.data}}
     except Exception as e:
         logger.error(f"Error fetching epics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch epics")

@@ -12,7 +12,7 @@ async def get_epics(supabase: Client = Depends(get_supabase)):
     """Get all epics"""
     try:
         result = supabase.table("epics").select("*").execute()
-        return result.data
+        return {"success": True, "data": {"epics": result.data}}
     except Exception as e:
         logger.error(f"Error fetching epics: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch epics")

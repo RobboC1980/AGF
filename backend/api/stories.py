@@ -262,20 +262,17 @@ async def create_story(
         logger.error(f"Story creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=List[StoryResponse])
+@router.get("/")
 async def get_stories(
-    current_user = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
     """Get all user stories"""
     try:
-        # In a real implementation, fetch from database
-        # For now, return mock data
-        return []
-        
+        result = supabase.table("stories").select("*").execute()
+        return {"success": True, "data": {"stories": result.data}}
     except Exception as e:
         logger.error(f"Failed to fetch stories: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch stories")
 
 @router.get("/{story_id}", response_model=StoryResponse)
 async def get_story(

@@ -12,7 +12,7 @@ async def get_users(supabase: Client = Depends(get_supabase)):
     """Get all users"""
     try:
         result = supabase.table("users").select("*").execute()
-        return result.data
+        return {"success": True, "data": {"users": result.data}}
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch users")
