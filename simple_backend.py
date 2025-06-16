@@ -8,6 +8,7 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, Any
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -21,30 +22,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="AgileForge API",
-    description="Simple Project Management API",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
-)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Initialize Supabase client
-from backend.database.supabase_client import init_supabase, get_supabase
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     try:
         logger.info("Starting AgileForge API...")
         
@@ -59,11 +39,39 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Startup error: {e}")
         raise
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
+    
+    yield
+    
+    # Shutdown
     logger.info("Shutting down AgileForge API...")
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="AgileForge API",
+    description="Simple Project Management API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize Supabase client
+from backend.database.supabase_client import init_supabase, get_supabase
+
+# Import auth router
+from backend.api.auth import router as auth_router
+
+# Include auth router
+app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 
 # Health check endpoint
 @app.get("/health")
