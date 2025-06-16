@@ -149,92 +149,45 @@ interface BaseEntity {
 }
 
 interface EntityListPageProps {
-  entityType: EntityType
-  data?: BaseEntity[]
-  isLoading?: boolean
-  error?: Error | null
-  onRefresh?: () => void
+  title: string
+  description: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  data: BaseEntity[]
   onCreateNew?: () => void
   onEdit?: (item: BaseEntity) => void
   onDelete?: (item: BaseEntity) => void
-  onBulkAction?: (action: string, items: BaseEntity[]) => void
+  onRefresh?: () => void
+  isLoading?: boolean
+  error?: string | null
 }
 
 const EntityListPage: React.FC<EntityListPageProps> = ({
-  entityType,
-  data = [],
-  isLoading = false,
-  error = null,
-  onRefresh,
+  title,
+  description,
+  icon: Icon,
+  data,
   onCreateNew,
   onEdit,
   onDelete,
-  onBulkAction,
+  onRefresh,
+  isLoading = false,
+  error = null,
 }) => {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [assigneeFilter, setAssigneeFilter] = useState("all")
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid")
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<"name" | "status" | "priority" | "updated" | "created">("updated")
+  const [sortBy, setSortBy] = useState<"name" | "status" | "priority" | "updated">("updated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
 
-  const config = ENTITY_CONFIGS[entityType]
-  const IconComponent = config.icon
+  const config = ENTITY_CONFIGS[title as EntityType]
 
-  // Mock data for demonstration
-  const mockData: BaseEntity[] = [
-    {
-      id: "1",
-      name: "User Authentication System",
-      description: "Implement secure user login and registration",
-      status: "in-progress",
-      priority: "high",
-      assignee: {
-        id: "1",
-        name: "Sarah Chen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      createdAt: "2024-01-15T10:00:00Z",
-      updatedAt: "2024-01-20T14:30:00Z",
-      dueDate: "2024-01-25T23:59:59Z",
-      progress: 75,
-      tags: ["authentication", "security"],
-    },
-    {
-      id: "2",
-      name: "Dashboard Analytics",
-      description: "Create comprehensive analytics dashboard",
-      status: "ready",
-      priority: "medium",
-      assignee: {
-        id: "2",
-        name: "Alex Rodriguez",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      createdAt: "2024-01-18T09:15:00Z",
-      updatedAt: "2024-01-19T16:45:00Z",
-      progress: 25,
-      tags: ["analytics", "dashboard"],
-    },
-    {
-      id: "3",
-      name: "Mobile App Notifications",
-      description: "Push notifications for mobile application",
-      status: "backlog",
-      priority: "critical",
-      createdAt: "2024-01-20T11:30:00Z",
-      updatedAt: "2024-01-20T11:30:00Z",
-      dueDate: "2024-01-22T23:59:59Z",
-      progress: 0,
-      tags: ["mobile", "notifications"],
-    },
-  ]
-
-  const entityData = data.length > 0 ? data : mockData
+  // Use only real data - no mock fallbacks
+  const entityData = data
 
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
@@ -363,7 +316,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
           <CardContent className="p-8 text-center">
             <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Error Loading Data</h3>
-            <p className="text-slate-600 mb-6">{error.message || "Something went wrong while loading your data."}</p>
+            <p className="text-slate-600 mb-6">{error || "Something went wrong while loading your data."}</p>
             <Button onClick={onRefresh} className="bg-blue-600 hover:bg-blue-700">
               <RefreshCw size={16} className="mr-2" />
               Try Again
@@ -386,7 +339,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                   <div
                     className={`w-10 h-10 ${config.bgColor} rounded-xl flex items-center justify-center shadow-lg border ${config.borderColor}`}
                   >
-                    <IconComponent size={20} className={config.color} />
+                    <Icon size={20} className={config.color} />
                   </div>
                   <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
                     <Sparkles size={10} className="text-white" />
@@ -431,7 +384,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <Plus size={16} className="mr-2" />
-                  Create {entityType.slice(0, -1)}
+                  Create {title.slice(0, -1)}
                 </Button>
               </div>
             </div>
@@ -443,8 +396,8 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
             <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
               <TabsTrigger value="all" className="flex items-center space-x-2">
-                <IconComponent size={16} />
-                <span>All {config.title}</span>
+                <Icon size={16} />
+                <span>All {title}</span>
               </TabsTrigger>
               <TabsTrigger value="my-items" className="flex items-center space-x-2">
                 <Users size={16} />
@@ -471,7 +424,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                     <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                     <Input
                       type="text"
-                      placeholder={`Search ${entityType}...`}
+                      placeholder={`Search ${title}...`}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10 h-11 border-slate-200 focus:border-blue-500 focus:ring-blue-500/20"
@@ -548,14 +501,6 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                     >
                       <List size={16} />
                     </Button>
-                    <Button
-                      variant={viewMode === "table" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("table")}
-                      className="h-9 px-3"
-                    >
-                      <Table2 size={16} />
-                    </Button>
                   </div>
 
                   {/* More Actions */}
@@ -623,13 +568,13 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
               <Card className="max-w-md mx-auto shadow-sm">
                 <CardContent className="p-12">
                   <div className="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <IconComponent size={32} className="text-slate-400" />
+                    <Icon size={32} className="text-slate-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No {config.title} Found</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No {title} Found</h3>
                   <p className="text-slate-600 mb-6">
                     {searchQuery || statusFilter !== "all" || priorityFilter !== "all"
                       ? "Try adjusting your filters or search terms"
-                      : `Start creating your first ${entityType.slice(0, -1)} to get organized`}
+                      : `Start creating your first ${title.slice(0, -1)} to get organized`}
                   </p>
                   {!searchQuery && statusFilter === "all" && priorityFilter === "all" && (
                     <Button
@@ -637,7 +582,7 @@ const EntityListPage: React.FC<EntityListPageProps> = ({
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
                       <Plus size={16} className="mr-2" />
-                      Create Your First {entityType.slice(0, -1)}
+                      Create Your First {title.slice(0, -1)}
                     </Button>
                   )}
                 </CardContent>

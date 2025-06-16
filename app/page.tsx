@@ -106,125 +106,114 @@ export default function Page() {
     return Promise.resolve()
   }
 
-  // Use real data for kanban columns
-  const mockKanbanColumns = [
+  // Create kanban columns from real data
+  const kanbanColumns = [
     {
       id: "backlog",
       title: "Backlog",
       color: "bg-slate-500",
-      items: [
-        {
-          id: "item-1",
-          title: "User Profile Management",
-          description: "Allow users to update their profile information",
-          type: "story" as const,
-          priority: "medium" as const,
-          assignee: {
-            id: "1",
-            name: "Sarah Chen",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["profile", "user-management"],
-          progress: 0,
-          storyPoints: 5,
-          createdAt: "2024-01-15T10:00:00Z",
-        },
-      ],
+      items: kanbanStories.filter(story => story.status === 'backlog').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 0,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
     },
     {
-      id: "todo",
-      title: "To Do",
+      id: "ready",
+      title: "Ready",
       color: "bg-blue-500",
       limit: 5,
-      items: [
-        {
-          id: "item-2",
-          title: "Authentication System",
-          description: "Implement secure user login and registration",
-          type: "epic" as const,
-          priority: "high" as const,
-          assignee: {
-            id: "2",
-            name: "Alex Rodriguez",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["auth", "security"],
-          progress: 25,
-          storyPoints: 13,
-          dueDate: "2024-01-25T23:59:59Z",
-          createdAt: "2024-01-10T08:00:00Z",
-        },
-      ],
+      items: kanbanStories.filter(story => story.status === 'ready').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 25,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
     },
     {
       id: "in-progress",
       title: "In Progress",
       color: "bg-purple-500",
       limit: 3,
-      items: [
-        {
-          id: "item-3",
-          title: "Dashboard Analytics",
-          description: "Create comprehensive analytics dashboard",
-          type: "project" as const,
-          priority: "critical" as const,
-          assignee: {
-            id: "3",
-            name: "Emily Johnson",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["analytics", "dashboard"],
-          progress: 60,
-          storyPoints: 21,
-          createdAt: "2024-01-05T12:00:00Z",
-        },
-      ],
+      items: kanbanStories.filter(story => story.status === 'in-progress').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 60,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
     },
     {
       id: "review",
       title: "Review",
       color: "bg-amber-500",
-      items: [
-        {
-          id: "item-4",
-          title: "Mobile Responsive Design",
-          description: "Ensure all pages work on mobile devices",
-          type: "task" as const,
-          priority: "medium" as const,
-          assignee: {
-            id: "4",
-            name: "Michael Brown",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["mobile", "responsive"],
-          progress: 90,
-          storyPoints: 8,
-          createdAt: "2024-01-12T14:00:00Z",
-        },
-      ],
+      items: kanbanStories.filter(story => story.status === 'review').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 90,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
     },
     {
       id: "done",
       title: "Done",
       color: "bg-emerald-500",
-      items: [
-        {
-          id: "item-5",
-          title: "Database Schema Design",
-          description: "Design and implement the database schema",
-          type: "task" as const,
-          priority: "high" as const,
-          assignee: {
-            id: "1",
-            name: "Sarah Chen",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          tags: ["database", "schema"],
-          progress: 100,
-          storyPoints: 8,
-          createdAt: "2024-01-01T09:00:00Z",
-        },
-      ],
+      items: kanbanStories.filter(story => story.status === 'done').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 100,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
     },
   ]
 
@@ -280,16 +269,16 @@ export default function Page() {
                     <SimpleCreateModal 
                       type="task" 
                       onSubmit={handleCreateSubmit}
-                      stories={[
-                        { id: "1", title: "User Registration", epic: "User Authentication Epic" },
-                        { id: "2", title: "User Login", epic: "User Authentication Epic" },
-                        { id: "3", title: "Analytics Dashboard", epic: "Dashboard Features Epic" }
-                      ]}
-                      users={[
-                        { id: "1", name: "Sarah Chen", avatar: "/placeholder.svg" },
-                        { id: "2", name: "Alex Rodriguez", avatar: "/placeholder.svg" },
-                        { id: "3", name: "Emily Johnson", avatar: "/placeholder.svg" }
-                      ]}
+                      stories={modalStories.map(story => ({ 
+                        id: story.id, 
+                        title: story.name, 
+                        epic: story.epic?.name || "No Epic" 
+                      }))}
+                      users={modalUsers.map(user => ({ 
+                        id: user.id, 
+                        name: user.name, 
+                        avatar: user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}` 
+                      }))}
                       trigger={
                         <Button variant="outline" size="sm">
                           <CheckSquare size={14} className="mr-1" />
@@ -361,7 +350,7 @@ export default function Page() {
           {currentPage === "kanban" && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <KanbanBoard
-                columns={mockKanbanColumns}
+                columns={kanbanColumns}
                 onItemMove={(itemId, fromColumn, toColumn, newIndex) => {
                   console.log(`Moved ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
                 }}

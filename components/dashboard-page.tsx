@@ -196,23 +196,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
     okrs: 24, // This would come from an OKRs API
   }
 
-  const mockRecentActivity: RecentActivity[] = stories.slice(0, 3).map((story, index) => ({
+  const recentActivity: RecentActivity[] = stories.slice(0, 3).map((story, index) => ({
     id: story.id,
     type: story.status === 'done' ? 'completed' as const : 'updated' as const,
     entity: 'story',
     title: story.name,
     user: { 
       name: story.assignee?.name || 'Unassigned', 
-      avatar: story.assignee?.avatar || "/placeholder.svg?height=32&width=32" 
+      avatar: story.assignee?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee?.name || 'Unassigned'}` 
     },
     timestamp: new Date(story.updatedAt).toLocaleDateString(),
   }))
 
-  const mockTeamMembers: TeamMember[] = users.map(user => ({
+  const teamMembers: TeamMember[] = users.map(user => ({
     id: user.id,
     name: user.name,
-    avatar: user.avatar || "/placeholder.svg?height=40&width=40",
-    role: "Team Member", // This would come from user roles API
+    avatar: user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`,
+    role: user.roles?.[0] || "Team Member",
     tasksCompleted: stories.filter(s => s.assignee?.id === user.id && s.status === 'done').length,
     activeProjects: [...new Set(stories.filter(s => s.assignee?.id === user.id).map(s => s.epic?.project?.id))].length,
   }))
@@ -625,11 +625,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockTeamMembers.map((member) => (
+                    {teamMembers.map((member) => (
                       <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <Avatar className="w-10 h-10">
-                            <AvatarImage src={member.avatar || "/placeholder.svg"} />
+                            <AvatarImage src={member.avatar} />
                             <AvatarFallback>
                               {member.name
                                 .split(" ")
@@ -665,10 +665,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockRecentActivity.map((activity) => (
+                    {recentActivity.map((activity) => (
                       <div key={activity.id} className="flex items-center space-x-3 p-3 hover:bg-slate-50 rounded-lg">
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={activity.user.avatar || "/placeholder.svg"} />
+                                                      <AvatarImage src={activity.user.avatar} />
                           <AvatarFallback className="text-xs">
                             {activity.user.name
                               .split(" ")
