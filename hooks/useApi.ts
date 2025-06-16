@@ -20,13 +20,13 @@ export const queryKeys = {
 
 // Stories hooks
 export const useStories = () => {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   
   return useQuery({
     queryKey: queryKeys.stories,
     queryFn: () => api.stories.getAll(),
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: isAuthenticated && !!user, // Only run when authenticated
+    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -84,13 +84,13 @@ export const useDeleteStory = () => {
 
 // Epics hooks
 export const useEpics = () => {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   
   return useQuery({
     queryKey: queryKeys.epics,
     queryFn: () => api.epics.getAll(),
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: isAuthenticated && !!user, // Only run when authenticated
+    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -143,13 +143,13 @@ export const useDeleteEpic = () => {
 
 // Users hooks
 export const useUsers = () => {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   
   return useQuery({
     queryKey: queryKeys.users,
     queryFn: () => api.users.getAll(),
     staleTime: 5 * 60 * 1000, // 5 minutes - users change less frequently
-    enabled: isAuthenticated && !!user, // Only run when authenticated
+    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -169,13 +169,13 @@ export const useCreateUser = () => {
 
 // Analytics hooks
 export const useAnalytics = () => {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   
   return useQuery({
     queryKey: queryKeys.analytics,
     queryFn: () => api.analytics.getOverview(),
     staleTime: 1 * 60 * 1000, // 1 minute - analytics should be fresh
-    enabled: isAuthenticated && !!user, // Only run when authenticated
+    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
   })
 }
 

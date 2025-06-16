@@ -15,7 +15,7 @@ load_dotenv()
 
 # Initialize Supabase client
 url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+key = os.getenv("SUPABASE_SERVICE_KEY")
 
 if not url or not key:
     print("Error: Missing Supabase credentials")

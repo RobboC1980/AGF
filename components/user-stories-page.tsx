@@ -71,6 +71,11 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
   const { data: epics = [] } = useEpics()
   const { data: users = [] } = useUsers()
 
+  // Debug logging (remove in production)
+  if (stories.length > 0) {
+    console.log("User Stories Page - Found", stories.length, "stories")
+  }
+
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -145,12 +150,21 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
     },
   }
 
+  // Transform stories to include nested objects
+  const transformedStories = useMemo(() => {
+    return (stories as any[]).map((story: any) => ({
+      ...story,
+      epic: story.epic_id ? epics.find(epic => epic.id === story.epic_id) : null,
+      assignee: story.assignee_id ? users.find(user => user.id === story.assignee_id) : null,
+    }))
+  }, [stories, epics, users])
+
   // Filter and sort stories
   const filteredAndSortedStories = useMemo(() => {
-    let filtered = (stories as any[]).filter((story: any) => {
+    let filtered = transformedStories.filter((story: any) => {
       const matchesSearch =
         !searchQuery ||
-        story.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        story.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         story.description?.toLowerCase().includes(searchQuery.toLowerCase())
 
       const matchesStatus = statusFilter === "all" || story.status === statusFilter
@@ -186,7 +200,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
 
       switch (sortBy) {
         case "name":
-          comparison = a.title.localeCompare(b.title)
+          comparison = a.name.localeCompare(b.name)
           break
         case "status":
           comparison = a.status.localeCompare(b.status)
@@ -208,7 +222,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
     })
 
     return filtered
-  }, [stories, searchQuery, statusFilter, priorityFilter, epicFilter, assigneeFilter, activeTab, sortBy, sortOrder])
+  }, [transformedStories, searchQuery, statusFilter, priorityFilter, epicFilter, assigneeFilter, activeTab, sortBy, sortOrder])
 
   // Selection handlers
   const handleStorySelect = (storyId: string) => {
@@ -225,7 +239,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
 
   // Get statistics
   const stats = useMemo(() => {
-    const storiesArray = stories as any[]
+    const storiesArray = transformedStories
     const total = storiesArray.length
     const done = storiesArray.filter((story: any) => story.status === "done").length
     const inProgress = storiesArray.filter((story: any) => story.status === "in-progress").length
@@ -234,7 +248,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
     const completedPoints = storiesArray.filter((story: any) => story.status === "done").reduce((sum: number, story: any) => sum + (story.story_points || 0), 0)
 
     return { total, done, inProgress, overdue, totalPoints, completedPoints }
-  }, [stories])
+  }, [transformedStories])
 
   if (isLoading) {
     return (
@@ -361,7 +375,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
           {/* Enhanced Filters & Controls */}
           <Card className="mb-6 shadow-sm border-slate-200/60">
             <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-6">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between space-y-4 xl:space-y-0 xl:space-x-6">
                 {/* Search */}
                 <div className="flex-1 max-w-md">
                   <div className="relative">
@@ -377,7 +391,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 lg:gap-3">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[130px] h-11">
                       <SelectValue placeholder="Status" />
@@ -407,30 +421,47 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                   </Select>
 
                   <Select value={epicFilter} onValueChange={setEpicFilter}>
-                    <SelectTrigger className="w-[120px] h-11">
+                    <SelectTrigger className="w-[140px] h-11">
                       <SelectValue placeholder="Epic" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[300px]">
                       <SelectItem value="all">All Epics</SelectItem>
                       <SelectItem value="no-epic">No Epic</SelectItem>
                       {epics.map((epic) => (
                         <SelectItem key={epic.id} value={epic.id}>
-                          {epic.name}
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <div 
+                              className="w-2 h-2 rounded-full flex-shrink-0" 
+                              style={{ backgroundColor: epic.color || '#6B7280' }}
+                            ></div>
+                            <span className="truncate">{epic.name}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
                   <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                    <SelectTrigger className="w-[120px] h-11">
+                    <SelectTrigger className="w-[140px] h-11">
                       <SelectValue placeholder="Assignee" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[300px]">
                       <SelectItem value="all">All Assignees</SelectItem>
                       <SelectItem value="unassigned">Unassigned</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
-                          {user.name}
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <Avatar className="w-4 h-4 flex-shrink-0">
+                              <AvatarImage 
+                                src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} 
+                                alt={user.name} 
+                              />
+                              <AvatarFallback className="text-xs">
+                                {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{user.name}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -449,23 +480,25 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     </SelectContent>
                   </Select>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                    className="h-11 px-3"
-                  >
-                    <ArrowUpDown size={16} />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      className="h-11 px-3"
+                    >
+                      <ArrowUpDown size={16} />
+                    </Button>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-                    className="h-11 px-3"
-                  >
-                    {viewMode === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
-                  </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                      className="h-11 px-3"
+                    >
+                      {viewMode === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -477,7 +510,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
               <BookOpen size={48} className="text-slate-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-slate-900 mb-2">No stories found</h3>
               <p className="text-slate-600 mb-4">
-                {stories.length === 0 ? "Get started by creating your first user story" : "Try adjusting your filters"}
+                {transformedStories.length === 0 ? "Get started by creating your first user story" : "Try adjusting your filters"}
               </p>
               {onCreateNew && (
                 <Button onClick={onCreateNew} className="bg-blue-600 hover:bg-blue-700">
@@ -489,7 +522,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
           ) : (
             <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
               {filteredAndSortedStories.map((story) => (
-                <Card key={story.id} className="group hover:shadow-lg transition-shadow duration-200 border-slate-200/60">
+                <Card key={story.id} className="group hover:shadow-lg transition-shadow duration-200 border-slate-200/60 overflow-hidden">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3 flex-1">
@@ -499,11 +532,11 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                           className="mt-1"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-slate-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                            {story.title}
+                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors break-words overflow-hidden text-ellipsis line-clamp-2">
+                            {story.name}
                           </h3>
                           {story.description && (
-                            <p className="text-sm text-slate-600 mt-1 line-clamp-2 text-wrap break-words">{story.description}</p>
+                            <p className="text-sm text-slate-600 mt-1 break-words overflow-hidden text-ellipsis line-clamp-3">{story.description}</p>
                           )}
                         </div>
                       </div>
@@ -535,26 +568,26 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                       </DropdownMenu>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 overflow-hidden">
                     {/* Status and Priority */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
                         <Badge
                           variant="outline"
-                          className={`${statusConfig[story.status]?.color || 'text-slate-700'} ${statusConfig[story.status]?.bg || 'bg-slate-50'} ${statusConfig[story.status]?.border || 'border-slate-200'}`}
+                          className={`${statusConfig[story.status]?.color || 'text-slate-700'} ${statusConfig[story.status]?.bg || 'bg-slate-50'} ${statusConfig[story.status]?.border || 'border-slate-200'} truncate max-w-[120px]`}
                         >
-                          {React.createElement(statusConfig[story.status]?.icon || Circle, { size: 12, className: "mr-1" })}
-                          {story.status?.charAt(0).toUpperCase() + story.status?.slice(1).replace('-', ' ') || 'Unknown'}
+                          {React.createElement(statusConfig[story.status]?.icon || Circle, { size: 12, className: "mr-1 flex-shrink-0" })}
+                          <span className="truncate">{story.status?.charAt(0).toUpperCase() + story.status?.slice(1).replace('-', ' ') || 'Unknown'}</span>
                         </Badge>
                         <Badge
                           variant="outline"
-                          className={`${priorityConfig[story.priority]?.color || 'text-slate-700'} ${priorityConfig[story.priority]?.bg || 'bg-slate-50'} ${priorityConfig[story.priority]?.border || 'border-slate-200'}`}
+                          className={`${priorityConfig[story.priority]?.color || 'text-slate-700'} ${priorityConfig[story.priority]?.bg || 'bg-slate-50'} ${priorityConfig[story.priority]?.border || 'border-slate-200'} truncate max-w-[100px]`}
                         >
-                          {story.priority?.charAt(0).toUpperCase() + story.priority?.slice(1) || 'Unknown'}
+                          <span className="truncate">{story.priority?.charAt(0).toUpperCase() + story.priority?.slice(1) || 'Unknown'}</span>
                         </Badge>
                       </div>
                       {story.story_points && (
-                        <div className="flex items-center text-sm text-slate-600">
+                        <div className="flex items-center text-sm text-slate-600 flex-shrink-0">
                           <Target size={14} className="mr-1" />
                           {story.story_points}
                         </div>
@@ -563,22 +596,28 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
 
                     {/* Epic */}
                     {story.epic_id && story.epic && (
-                      <div className="flex items-center text-sm text-slate-600">
-                        <div className={`w-3 h-3 rounded-full mr-2 ${story.epic.color || 'bg-gray-400'}`}></div>
-                        <span>{story.epic.name}</span>
+                      <div className="flex items-center text-sm text-slate-600 min-w-0">
+                        <div 
+                          className="w-3 h-3 rounded-full mr-2 flex-shrink-0" 
+                          style={{ backgroundColor: story.epic.color || '#6B7280' }}
+                        ></div>
+                        <span className="truncate break-words overflow-hidden text-ellipsis flex-1">{story.epic.name}</span>
                       </div>
                     )}
 
                     {/* Assignee */}
                     {story.assignee_id && story.assignee && (
-                      <div className="flex items-center space-x-2">
-                        <Avatar className="w-6 h-6">
-                          <AvatarImage src={story.assignee.avatar} alt={story.assignee.name} />
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Avatar className="w-6 h-6 flex-shrink-0">
+                          <AvatarImage 
+                            src={story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`} 
+                            alt={story.assignee.name} 
+                          />
                           <AvatarFallback className="text-xs">
                             {story.assignee.name.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-slate-600">{story.assignee.name}</span>
+                        <span className="text-sm text-slate-600 truncate break-words overflow-hidden text-ellipsis flex-1">{story.assignee.name}</span>
                       </div>
                     )}
 
@@ -586,7 +625,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     {story.tags && story.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {story.tags.slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
+                          <Badge key={tag} variant="secondary" className="text-xs truncate max-w-[80px] break-words">
                             {tag}
                           </Badge>
                         ))}

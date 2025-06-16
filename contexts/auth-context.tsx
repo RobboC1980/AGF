@@ -40,7 +40,7 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
-export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -50,20 +50,25 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       try {
         const token = localStorage.getItem('auth_token')
         if (token) {
-          // Set token in API client
+          // Set token in API client first
           apiClient.setAuthToken(token)
           
           // Verify token by fetching current user
           try {
             const userData = await apiClient.getCurrentUser()
             setUser(userData)
+            console.log('Auth initialization successful:', userData.email)
           } catch (error) {
-            console.log('Token verification failed')
-            // Clear invalid token
+            console.log('Token verification failed, clearing auth')
+            // Clear invalid token immediately
             localStorage.removeItem('auth_token')
             apiClient.clearAuth()
             setUser(null)
           }
+        } else {
+          // No token found, ensure API client is clean
+          apiClient.clearAuth()
+          setUser(null)
         }
       } catch (error) {
         console.error('Auth initialization failed:', error)

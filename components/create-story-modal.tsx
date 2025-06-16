@@ -281,10 +281,10 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl"
+          className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
                 <Plus size={20} className="text-white" />
@@ -309,7 +309,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "manual" | "ai")}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="manual" className="flex items-center space-x-2">
@@ -664,7 +664,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50 flex-shrink-0">
             <div className="text-sm text-slate-600">
               {generatedStory && (
                 <div className="flex items-center space-x-2">

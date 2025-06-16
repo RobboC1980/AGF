@@ -18,8 +18,18 @@ import SimpleCreateModal from "../components/simple-create-modal"
 import { CreateStoryModal } from "../components/create-story-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu"
+import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare, Columns, User, LogOut, Settings, ChevronDown } from "lucide-react"
 import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { api } from "@/services/api"
+import { useQueryClient } from "@tanstack/react-query"
 
 type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
 
@@ -31,10 +41,11 @@ export default function Page() {
   const [showStoryModal, setShowStoryModal] = useState(false)
   const [editingStory, setEditingStory] = useState<any>(null)
   
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
-  // Get data for the modals (hooks must be called before any conditional logic)
+  // Only call API hooks when authenticated - they have built-in enabled checks
   const { data: modalStories = [] } = useStories()
   const { data: modalEpics = [] } = useEpics()
   const { data: modalUsers = [] } = useUsers()
@@ -62,6 +73,11 @@ export default function Page() {
   // Don't render the page if not authenticated
   if (!isAuthenticated) {
     return null
+  }
+
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
   }
 
   const handleRefresh = () => {
@@ -99,11 +115,44 @@ export default function Page() {
   }
 
   const handleStoryModalSave = async (storyData: any) => {
-    console.log("Saving story:", storyData)
-    // Here you would call your API to save the story
-    setShowStoryModal(false)
-    setEditingStory(null)
-    return Promise.resolve()
+    try {
+      console.log("Saving story:", storyData)
+      
+      // Transform the story data to match the API format
+      const storyPayload = {
+        name: storyData.name,
+        description: storyData.description || '',
+        acceptance_criteria: Array.isArray(storyData.acceptanceCriteria) 
+          ? storyData.acceptanceCriteria.join('\n') 
+          : storyData.acceptanceCriteria || '',
+        story_points: storyData.storyPoints || null,
+        priority: storyData.priority || 'medium',
+        status: storyData.status || 'backlog',
+        epic_id: storyData.epicId || modalEpics[0]?.id || "36697bf7-0021-49fb-a3e9-91ac20748937", // Use first epic if none selected
+        assignee_id: storyData.assigneeId || null,
+        tags: storyData.tags || null,
+        due_date: storyData.dueDate || null,
+      }
+
+      if (editingStory) {
+        // Update existing story
+        await api.stories.update(editingStory.id, storyPayload)
+      } else {
+        // Create new story
+        await api.stories.create(storyPayload)
+      }
+
+      // Invalidate React Query cache to refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['stories'] })
+      
+      setShowStoryModal(false)
+      setEditingStory(null)
+      
+      console.log("Story saved successfully!")
+    } catch (error) {
+      console.error("Failed to save story:", error)
+      throw error // Re-throw so the modal can show the error
+    }
   }
 
   // Create kanban columns from real data
@@ -286,6 +335,37 @@ export default function Page() {
                         </Button>
                       }
                     />
+                    
+                    {/* User Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={user?.avatar} />
+                            <AvatarFallback className="text-xs">
+                              {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="hidden sm:block">{user?.name || 'User'}</span>
+                          <ChevronDown size={12} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem>
+                          <User size={16} className="mr-2" />
+                          Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Settings size={16} className="mr-2" />
+                          Settings
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleLogout}>
+                          <LogOut size={16} className="mr-2" />
+                          Logout
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardHeader>
@@ -296,13 +376,13 @@ export default function Page() {
                       key={page.value}
                       variant={currentPage === page.value ? "default" : "outline"}
                       onClick={() => setCurrentPage(page.value as PageType)}
-                      className="flex flex-col h-auto p-3 space-y-2 min-h-[80px] text-center"
+                      className="flex flex-col h-auto p-3 space-y-2 min-h-[80px] text-center break-words"
                     >
                       <div className="flex flex-col items-center space-y-1">
                         <page.icon size={18} />
-                        <span className="font-medium text-sm leading-tight">{page.label}</span>
+                        <span className="font-medium text-sm leading-tight text-wrap">{page.label}</span>
                       </div>
-                      <span className="text-xs opacity-75 leading-tight break-words">{page.description}</span>
+                      <span className="text-xs opacity-75 leading-tight break-words text-wrap overflow-hidden">{page.description}</span>
                     </Button>
                   ))}
                 </div>

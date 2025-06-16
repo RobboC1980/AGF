@@ -502,33 +502,34 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className={`group hover:shadow-lg transition-all duration-200 border-slate-200/60 ${
+                      className={`group hover:shadow-lg transition-all duration-200 border-slate-200/60 overflow-hidden ${
                         selectedEpics.includes(epic.id) ? "ring-2 ring-purple-500 border-purple-500" : ""
                       } ${viewMode === "list" ? "hover:bg-slate-50/50" : ""}`}
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
                             <Checkbox
                               checked={selectedEpics.includes(epic.id)}
                               onCheckedChange={() => handleEpicSelect(epic.id)}
+                              className="flex-shrink-0"
                             />
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
                               <Badge
                                 variant="secondary"
-                                className={`${priorityConfig[epic.priority]?.bg || 'bg-slate-50'} ${priorityConfig[epic.priority]?.color || 'text-slate-700'} ${priorityConfig[epic.priority]?.border || 'border-slate-200'} border`}
+                                className={`${priorityConfig[epic.priority]?.bg || 'bg-slate-50'} ${priorityConfig[epic.priority]?.color || 'text-slate-700'} ${priorityConfig[epic.priority]?.border || 'border-slate-200'} border truncate max-w-[100px] flex-shrink-0`}
                               >
-                                {epic.priority || 'Unknown'}
+                                <span className="truncate">{epic.priority || 'Unknown'}</span>
                               </Badge>
                               <Badge
                                 variant="outline"
-                                className={`${statusConfig[epic.status]?.bg || 'bg-slate-50'} ${statusConfig[epic.status]?.color || 'text-slate-700'} ${statusConfig[epic.status]?.border || 'border-slate-200'} border`}
+                                className={`${statusConfig[epic.status]?.bg || 'bg-slate-50'} ${statusConfig[epic.status]?.color || 'text-slate-700'} ${statusConfig[epic.status]?.border || 'border-slate-200'} border truncate max-w-[120px] flex-shrink-0`}
                               >
                                 {React.createElement(statusConfig[epic.status]?.icon || Circle, {
                                   size: 12,
-                                  className: "mr-1.5",
+                                  className: "mr-1.5 flex-shrink-0",
                                 })}
-                                {epic.status?.replace("-", " ") || 'Unknown'}
+                                <span className="truncate">{epic.status?.replace("-", " ") || 'Unknown'}</span>
                               </Badge>
                             </div>
                           </div>
@@ -538,7 +539,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                               >
                                 <MoreHorizontal size={16} />
                               </Button>
@@ -566,23 +567,23 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         </div>
                       </CardHeader>
 
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 overflow-hidden">
                         {/* Epic Title & Description */}
-                        <div>
-                          <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 leading-snug group-hover:text-purple-600 transition-colors">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-slate-900 mb-2 group-hover:text-purple-600 transition-colors break-words overflow-hidden text-ellipsis line-clamp-2 leading-snug">
                             {epic.name}
                           </h3>
                           {epic.description && (
-                            <p className="text-slate-600 text-sm line-clamp-3 leading-relaxed">{epic.description}</p>
+                            <p className="text-slate-600 text-sm break-words overflow-hidden text-ellipsis line-clamp-3 leading-relaxed">{epic.description}</p>
                           )}
                         </div>
 
                         {/* Project Info */}
                         <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/60 rounded-lg p-3">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <div className="w-3 h-3 rounded-full bg-purple-500 flex-shrink-0"></div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-purple-800 truncate">AgileForge Platform</p>
+                              <p className="text-sm font-medium text-purple-800 truncate break-words overflow-hidden text-ellipsis">AgileForge Platform</p>
                             </div>
                             <Target size={14} className="text-purple-600 flex-shrink-0" />
                           </div>
@@ -617,10 +618,10 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-xs text-slate-500">
-                            <div className="flex items-center space-x-1">
-                              <Target size={12} />
-                              <span>
+                          <div className="flex items-center justify-between text-xs text-slate-500 min-w-0">
+                            <div className="flex items-center space-x-1 flex-1 min-w-0">
+                              <Target size={12} className="flex-shrink-0" />
+                              <span className="truncate break-words overflow-hidden text-ellipsis">
                                 Key: {epic.epic_key}
                               </span>
                             </div>
@@ -631,32 +632,32 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         <div className="flex flex-wrap gap-1">
                           <Badge
                             variant="secondary"
-                            className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                            className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors truncate max-w-[80px] break-words"
                           >
-                            {epic.priority}
+                            <span className="truncate">{epic.priority}</span>
                           </Badge>
                           <Badge
                             variant="secondary"
-                            className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                            className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors truncate max-w-[80px] break-words"
                           >
-                            {epic.status}
+                            <span className="truncate">{epic.status}</span>
                           </Badge>
                         </div>
 
                         {/* Assignee & Dates */}
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                          <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 min-w-0">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
                             {epic.assignee_id ? (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex items-center space-x-2">
-                                    <Avatar className="w-6 h-6">
+                                  <div className="flex items-center space-x-2 min-w-0">
+                                    <Avatar className="w-6 h-6 flex-shrink-0">
                                       <AvatarImage src="/placeholder.svg" />
                                       <AvatarFallback className="text-xs">
                                         DA
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className="text-xs text-slate-600 font-medium">Demo Assignee</span>
+                                    <span className="text-xs text-slate-600 font-medium truncate break-words overflow-hidden text-ellipsis">Demo Assignee</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -668,9 +669,9 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                             )}
                           </div>
 
-                          <div className="flex items-center space-x-2 text-xs text-slate-500">
-                            <Calendar size={12} />
-                            <span>
+                          <div className="flex items-center space-x-2 text-xs text-slate-500 flex-shrink-0">
+                            <Calendar size={12} className="flex-shrink-0" />
+                            <span className="truncate">
                               {epic.target_end_date
                                 ? `Due ${new Date(epic.target_end_date).toLocaleDateString('en-GB')}`
                                 : `Updated ${new Date(epic.created_at).toLocaleDateString('en-GB')}`}

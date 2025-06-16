@@ -36,6 +36,21 @@ body {
     overflow-wrap: break-word;
     word-break: break-word;
   }
+  
+  /* Additional text wrapping helpers */
+  .text-ellipsis {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  
+  .word-break-all {
+    word-break: break-all;
+  }
+  
+  .hyphens-auto {
+    hyphens: auto;
+  }
 }
 
 @layer base {
