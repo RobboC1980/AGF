@@ -24,12 +24,21 @@ import { useStories, useEpics, useUsers } from "@/hooks/useApi"
 type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
 
 export default function Page() {
+  // All hooks must be called at the top level, before any early returns
   const [currentPage, setCurrentPage] = useState<PageType>("epics")
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
+  const [showStoryModal, setShowStoryModal] = useState(false)
+  const [editingStory, setEditingStory] = useState<any>(null)
   
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const router = useRouter()
+
+  // Get data for the modals (hooks must be called before any conditional logic)
+  const { data: modalStories = [] } = useStories()
+  const { data: modalEpics = [] } = useEpics()
+  const { data: modalUsers = [] } = useUsers()
+  const { data: kanbanStories = [] } = useStories()
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -54,15 +63,6 @@ export default function Page() {
   if (!isAuthenticated) {
     return null
   }
-  
-  // Add state for story modal
-  const [showStoryModal, setShowStoryModal] = useState(false)
-  const [editingStory, setEditingStory] = useState<any>(null)
-
-  // Get data for the modals
-  const { data: modalStories = [] } = useStories()
-  const { data: modalEpics = [] } = useEpics()
-  const { data: modalUsers = [] } = useUsers()
 
   const handleRefresh = () => {
     setIsLoading(true)
@@ -107,8 +107,6 @@ export default function Page() {
   }
 
   // Use real data for kanban columns
-  const { data: kanbanStories = [] } = useStories()
-  
   const mockKanbanColumns = [
     {
       id: "backlog",
@@ -268,21 +266,17 @@ export default function Page() {
                         </Button>
                       }
                     />
-                    <SimpleCreateModal 
-                      type="story" 
-                      onSubmit={handleCreateSubmit}
-                      epics={[
-                        { id: "1", title: "User Authentication Epic", project: "Demo Project" },
-                        { id: "2", title: "Dashboard Features Epic", project: "AgileForge Platform" },
-                        { id: "3", title: "Mobile App Epic", project: "Demo Project" }
-                      ]}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <BookOpen size={14} className="mr-1" />
-                          Story
-                        </Button>
-                      }
-                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setShowStoryModal(true)
+                        setEditingStory(null)
+                      }}
+                    >
+                      <BookOpen size={14} className="mr-1" />
+                      Story
+                    </Button>
                     <SimpleCreateModal 
                       type="task" 
                       onSubmit={handleCreateSubmit}
@@ -347,24 +341,11 @@ export default function Page() {
           )}
 
           {currentPage === "stories" && (
-            <>
-              <UserStoriesPage
-                onCreateNew={handleCreateNew}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-              <CreateStoryModal
-                isOpen={showStoryModal}
-                onClose={() => {
-                  setShowStoryModal(false)
-                  setEditingStory(null)
-                }}
-                onSave={handleStoryModalSave}
-                epics={modalEpics}
-                users={modalUsers}
-                editingStory={editingStory}
-              />
-            </>
+            <UserStoriesPage
+              onCreateNew={handleCreateNew}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           )}
 
           {currentPage === "tasks" && (
@@ -455,6 +436,19 @@ export default function Page() {
             />
           )}
         </div>
+
+        {/* AI-Enabled Story Creation Modal - Always Available */}
+        <CreateStoryModal
+          isOpen={showStoryModal}
+          onClose={() => {
+            setShowStoryModal(false)
+            setEditingStory(null)
+          }}
+          onSave={handleStoryModalSave}
+          epics={modalEpics}
+          users={modalUsers}
+          editingStory={editingStory}
+        />
       </div>
     </QueryProvider>
     </ErrorBoundary>

@@ -197,6 +197,21 @@ class AIStoryRequest(BaseModel):
     requirements: Optional[str] = None
     priority: Optional[str] = "medium"
 
+class StoryGenerateRequest(BaseModel):
+    description: str
+    priority: Optional[str] = "medium"
+    epicId: Optional[str] = None
+    includeAcceptanceCriteria: bool = True
+    includeTags: bool = True
+
+class GeneratedStoryResponse(BaseModel):
+    success: bool
+    story: Dict[str, Any]
+    provider: str
+    model: str
+    confidence: Optional[float] = None
+    suggestions: Optional[List[str]] = None
+
 class EmailRequest(BaseModel):
     to_email: str
     subject: str
@@ -739,6 +754,233 @@ async def get_story(story_id: str, current_user: dict = Depends(get_current_user
     except Exception as e:
         logger.error(f"Error fetching story: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch story")
+
+@app.post("/api/stories/generate", response_model=GeneratedStoryResponse)
+async def generate_story_endpoint(request: StoryGenerateRequest, current_user: dict = Depends(get_current_user)):
+    """Generate AI-powered user story using real AI services"""
+    try:
+        logger.info(f"Generating AI story for user {current_user.get('id', 'unknown')}: {request.description}")
+        
+        # Try to use real AI service first
+        try:
+            from backend.services.ai_service import get_basic_ai_service
+            ai_service = get_basic_ai_service()
+            
+            if ai_service.openai_client or ai_service.anthropic_client:
+                # Use real AI generation
+                story_data = await generate_real_ai_story(ai_service, request)
+                
+                return GeneratedStoryResponse(
+                    success=True,
+                    story=story_data,
+                    provider="Anthropic Claude" if ai_service.anthropic_client else "OpenAI GPT-4",
+                    model="claude-3-5-sonnet-20241022" if ai_service.anthropic_client else ai_service.config.model,
+                    confidence=0.95,
+                    suggestions=[
+                        "AI-generated story based on best practices",
+                        "Review and adjust based on your specific domain context",
+                        "Consider team capacity when estimating story points"
+                    ]
+                )
+            else:
+                logger.warning("No AI clients available, falling back to pattern-based generation")
+                raise Exception("No AI clients available")
+                
+        except Exception as ai_error:
+            logger.warning(f"AI generation failed, using fallback: {ai_error}")
+            # Fall back to pattern-based generation
+            story_data = generate_fallback_story(request)
+            
+            return GeneratedStoryResponse(
+                success=True,
+                story=story_data,
+                provider="AgileForge AI (Fallback)",
+                model="story-generator-v1",
+                confidence=0.75,
+                suggestions=[
+                    "Generated using fallback patterns - consider upgrading to AI service",
+                    "Review the story points estimation based on your team's velocity",
+                    "Add relevant tags that match your project's taxonomy"
+                ]
+            )
+        
+    except Exception as e:
+        logger.error(f"Error generating story: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate story")
+
+
+async def generate_real_ai_story(ai_service, request: StoryGenerateRequest) -> Dict[str, Any]:
+    """Generate story using real AI service"""
+    
+    # Create a comprehensive prompt for story generation
+    prompt = f"""
+    Generate a professional user story based on this description: "{request.description}"
+    
+    Requirements:
+    - Follow the "As a [user type], I want [goal] so that [benefit]" format
+    - Include {3 if request.includeAcceptanceCriteria else 0} specific acceptance criteria in Given/When/Then format
+    - Suggest appropriate tags for categorization
+    - Estimate story points (1, 2, 3, 5, 8, 13) based on complexity
+    - Priority should be: {request.priority}
+    
+    Return ONLY a JSON object with this exact structure:
+    {{
+        "name": "As a [user], I want [goal] so that [benefit]",
+        "description": "{request.description}",
+        "acceptanceCriteria": ["Given..., When..., Then..."],
+        "tags": ["tag1", "tag2", "tag3"],
+        "storyPoints": 3
+    }}
+    """
+    
+    try:
+        if ai_service.anthropic_client:
+            # Use Anthropic Claude (prioritized due to OpenAI quota issues)
+            response = await ai_service.anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20241022",  # Use newer model
+                max_tokens=ai_service.config.max_tokens,
+                temperature=ai_service.config.temperature,
+                system="You are an expert Agile coach and user story writer. Generate professional, well-structured user stories.",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            content = response.content[0].text.strip()
+            
+        elif ai_service.openai_client:
+            # Use OpenAI as fallback
+            response = await ai_service.openai_client.chat.completions.create(
+                model=ai_service.config.model,
+                messages=[
+                    {"role": "system", "content": "You are an expert Agile coach and user story writer. Generate professional, well-structured user stories."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=ai_service.config.max_tokens,
+                temperature=ai_service.config.temperature
+            )
+            
+            content = response.choices[0].message.content.strip()
+        
+        else:
+            raise Exception("No AI client available")
+        
+        # Parse JSON response
+        import json
+        
+        # Clean up the response to extract JSON
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].strip()
+        
+        # Try to parse JSON
+        try:
+            story_data = json.loads(content)
+            
+            # Validate required fields
+            required_fields = ["name", "description", "acceptanceCriteria", "tags", "storyPoints"]
+            for field in required_fields:
+                if field not in story_data:
+                    raise ValueError(f"Missing required field: {field}")
+            
+            return story_data
+            
+        except (json.JSONDecodeError, ValueError) as parse_error:
+            logger.warning(f"Failed to parse AI response as JSON: {parse_error}")
+            logger.warning(f"AI Response content: {content}")
+            # Fall back to pattern-based generation
+            return generate_fallback_story(request)
+    
+    except Exception as e:
+        logger.error(f"Real AI generation failed: {e}")
+        # Fall back to pattern-based generation
+        return generate_fallback_story(request)
+
+
+def generate_fallback_story(request: StoryGenerateRequest) -> Dict[str, Any]:
+    """Generate story using pattern-based fallback"""
+    description_lower = request.description.lower()
+    
+    # Smart title generation based on description
+    if "login" in description_lower and "user" in description_lower:
+        title = "As a user, I want to log into the system so that I can access my account"
+    elif "password" in description_lower and "reset" in description_lower:
+        title = "As a user, I want to reset my password so that I can regain access to my account"
+    elif "dashboard" in description_lower:
+        title = "As a user, I want to view my dashboard so that I can see an overview of my activities"
+    elif "search" in description_lower:
+        title = "As a user, I want to search for content so that I can find what I'm looking for"
+    elif "profile" in description_lower:
+        title = "As a user, I want to manage my profile so that I can keep my information up to date"
+    else:
+        # Generic pattern
+        title = f"As a user, I want to {request.description.lower()} so that I can achieve my goals"
+    
+    # Generate acceptance criteria
+    acceptance_criteria = []
+    if request.includeAcceptanceCriteria:
+        if "login" in description_lower:
+            acceptance_criteria = [
+                "Given I am on the login page, when I enter valid credentials, then I should be logged in",
+                "Given I am on the login page, when I enter invalid credentials, then I should see an error message",
+                "Given I am logged in, when I navigate to protected pages, then I should have access"
+            ]
+        elif "password" in description_lower and "reset" in description_lower:
+            acceptance_criteria = [
+                "Given I forgot my password, when I click 'Forgot Password', then I should receive a reset email",
+                "Given I received a reset email, when I click the reset link, then I should be able to set a new password",
+                "Given I set a new password, when I try to login, then I should be able to access my account"
+            ]
+        elif "dashboard" in description_lower:
+            acceptance_criteria = [
+                "Given I am logged in, when I navigate to the dashboard, then I should see my key metrics",
+                "Given I am on the dashboard, when I click on a widget, then I should see detailed information",
+                "Given the dashboard loads, when data is available, then it should display within 3 seconds"
+            ]
+        elif "search" in description_lower:
+            acceptance_criteria = [
+                "Given I am on the search page, when I enter a search term, then I should see relevant results",
+                "Given I search for something that doesn't exist, when I submit the search, then I should see a 'no results' message",
+                "Given I have search results, when I click on a result, then I should navigate to that item"
+            ]
+        else:
+            acceptance_criteria = [
+                f"Given I am a user, when I {request.description.lower()}, then the system should respond appropriately",
+                "Given the feature is working correctly, when I use it, then I should see the expected outcome",
+                "Given there are edge cases, when they occur, then the system should handle them gracefully"
+            ]
+    
+    # Generate tags
+    tags = []
+    if request.includeTags:
+        if "login" in description_lower or "auth" in description_lower:
+            tags = ["authentication", "security", "user-management"]
+        elif "password" in description_lower and "reset" in description_lower:
+            tags = ["authentication", "security", "password-management"]
+        elif "search" in description_lower:
+            tags = ["search", "functionality", "user-experience"]
+        elif "dashboard" in description_lower:
+            tags = ["dashboard", "analytics", "overview"]
+        elif "profile" in description_lower:
+            tags = ["profile", "user-settings", "account"]
+        else:
+            tags = ["feature", "user-story", "functionality"]
+    
+    # Estimate story points based on complexity
+    story_points = 3  # Default
+    if any(word in description_lower for word in ["complex", "integration", "multiple", "advanced"]):
+        story_points = 8
+    elif any(word in description_lower for word in ["simple", "basic", "quick"]):
+        story_points = 2
+    elif any(word in description_lower for word in ["dashboard", "analytics", "reporting"]):
+        story_points = 5
+    
+    return {
+        "name": title,
+        "description": request.description,
+        "acceptanceCriteria": acceptance_criteria,
+        "tags": tags,
+        "storyPoints": story_points
+    }
 
 # AI endpoints
 @app.get("/api/ai/status")

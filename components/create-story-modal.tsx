@@ -168,26 +168,16 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
     setAiError(null)
 
     try {
-      const response = await fetch("/api/stories/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer demo`,
-        },
-        body: JSON.stringify({
-          description: aiDescription,
-          priority: story.priority,
-          epicId: story.epicId,
-          includeAcceptanceCriteria: true,
-          includeTags: true,
-        }),
+      // Use the API client instead of direct fetch to get proper authentication
+      const { apiClient } = await import("@/services/api")
+      
+      const data: GeneratedStoryResponse = await apiClient.generateStory({
+        description: aiDescription,
+        priority: story.priority,
+        epicId: story.epicId,
+        includeAcceptanceCriteria: true,
+        includeTags: true,
       })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data: GeneratedStoryResponse = await response.json()
 
       if (data.success) {
         setGeneratedStory(data)
