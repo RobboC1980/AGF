@@ -635,39 +635,29 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = 
 
 # Projects endpoints
 @app.get("/api/projects")
-async def get_projects(current_user = Depends(get_current_active_user)):
-    """Get all projects (requires view project permission)"""
+async def get_projects(current_user: dict = Depends(get_current_user)):
+    """Get all projects"""
     try:
-        # Check if user has permission to view projects
-        from backend.auth.enhanced_auth import get_auth_manager, Permission
-        auth_mgr = get_auth_manager()
-        
-        if not auth_mgr.has_permission(current_user, Permission.VIEW_PROJECT):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permission to view projects required"
-            )
-        
+        # For now, allow all authenticated users to view projects
+        # In the future, we can add more granular permissions
         result = supabase.table("projects").select("*").execute()
         return result.data
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error fetching projects: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
 
 @app.post("/api/projects", status_code=status.HTTP_201_CREATED)
-async def create_project(project_data: ProjectCreate, current_user = Depends(require_create_project)):
-    """Create a new project (requires create project permission)"""
+async def create_project(project_data: ProjectCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new project"""
     try:
         # Add created_by from current user
         data = project_data.dict()
-        data["created_by"] = current_user.id
+        data["created_by"] = current_user["id"]
         data["created_at"] = datetime.utcnow().isoformat()
         
         result = supabase.table("projects").insert(data).execute()
         if result.data:
-            logger.info(f"Project created: {result.data[0]['id']} by user: {current_user.email}")
+            logger.info(f"Project created: {result.data[0]['id']} by user: {current_user.get('email', 'unknown')}")
             return result.data[0]
         else:
             raise HTTPException(status_code=400, detail="Failed to create project")

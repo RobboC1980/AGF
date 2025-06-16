@@ -132,6 +132,10 @@ class ApiClient {
       
       if (error instanceof Error && error.message.includes('HTTP 401')) {
         this.clearAuth()
+        // Check if it's a token expiration issue
+        if (error.message.includes('Could not validate credentials') || error.message.includes('Signature has expired')) {
+          throw new Error('Your session has expired. Please log in again.')
+        }
         throw new Error('Authentication failed. Please log in again.')
       }
       
@@ -313,6 +317,40 @@ class ApiClient {
     suggestions?: string[]
   }> {
     return this.request("/api/stories/generate", {
+      method: "POST",
+      body: JSON.stringify(request),
+    })
+  }
+
+  async generateEpic(request: {
+    description: string
+    priority?: string
+    projectId?: string
+    businessValue?: string
+    includeAcceptanceCriteria?: boolean
+    includeStoryBreakdown?: boolean
+  }): Promise<{
+    success: boolean
+    epic: {
+      name: string
+      description: string
+      acceptance_criteria: string[]
+      suggested_stories: Array<{
+        title: string
+        description: string
+        story_points: number
+      }>
+      total_story_points: number
+      business_value: string
+      impact_areas: string[]
+      confidence: number
+      implementation_suggestions: string[]
+    }
+    model_used: string
+    tokens_used: number
+    processing_time: number
+  }> {
+    return this.request("/api/ai/generate-epic", {
       method: "POST",
       body: JSON.stringify(request),
     })

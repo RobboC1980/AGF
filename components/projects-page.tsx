@@ -1,42 +1,44 @@
 "use client"
 
-import React from "react"
-import { useState, useMemo } from "react"
+import React, { useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Target,
   Plus,
   Search,
+  Filter,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Copy,
+  Archive,
+  Users,
+  Calendar,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Activity,
+  Circle,
+  RefreshCw,
   Grid3X3,
   List,
-  Calendar,
-  Users,
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  Circle,
-  Activity,
-  MoreHorizontal,
-  Edit2,
-  Trash2,
-  Archive,
-  Copy,
-  Star,
   ArrowUpDown,
   Sparkles,
+  BarChart3,
   BookOpen,
   CheckSquare,
-  AlertCircle,
-  RefreshCw,
-  Rocket,
-  BarChart3,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Progress } from "@/components/ui/progress"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,54 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useStories, useEpics, useUsers } from "@/hooks/useApi"
-
-interface Project {
-  id: string
-  name: string
-  description?: string
-  status: "planning" | "active" | "on-hold" | "completed" | "cancelled"
-  priority: "low" | "medium" | "high" | "critical"
-  startDate: string
-  endDate?: string
-  dueDate?: string
-  progress: number
-  budget?: {
-    allocated: number
-    spent: number
-    currency: string
-  }
-  team: {
-    lead: {
-      id: string
-      name: string
-      avatar?: string
-    }
-    members: Array<{
-      id: string
-      name: string
-      avatar?: string
-      role: string
-    }>
-  }
-  stats: {
-    totalEpics: number
-    completedEpics: number
-    totalStories: number
-    completedStories: number
-    totalTasks: number
-    completedTasks: number
-    storyPoints: number
-    completedPoints: number
-  }
-  tags?: string[]
-  createdAt: string
-  updatedAt: string
-}
+import { useProjects, useStories, useEpics, useUsers } from "@/hooks/useApi"
 
 interface ProjectsPageProps {
   onCreateNew?: () => void
@@ -104,70 +59,53 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Use API hooks to fetch real data
-  const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
-  const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics()
-  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
+  // Use the proper projects API hook
+  const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch: refetchProjects } = useProjects()
+  const { data: stories = [], isLoading: storiesLoading } = useStories()
+  const { data: epics = [], isLoading: epicsLoading } = useEpics()
+  const { data: users = [], isLoading: usersLoading } = useUsers()
 
   // Combine loading and error states
-  const isLoading = storiesLoading || epicsLoading || usersLoading
-  const error = storiesError || epicsError || usersError
+  const isLoading = projectsLoading || storiesLoading || epicsLoading || usersLoading
+  const error = projectsError
 
-  // Create projects from epics data (since projects contain epics)
-  const projects = epics.map(epic => ({
-    id: epic.id,
-    name: epic.name,
-    description: epic.description,
-    status: epic.status,
-    priority: epic.priority,
-    progress: Math.round((stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length / 
-                          Math.max(stories.filter(s => s.epic?.id === epic.id).length, 1)) * 100),
-    project: epic.project,
-    createdAt: epic.createdAt,
-    updatedAt: epic.updatedAt,
-    stories: stories.filter(s => s.epic?.id === epic.id),
-    stats: {
-      totalStories: stories.filter(s => s.epic?.id === epic.id).length,
-      completedStories: stories.filter(s => s.epic?.id === epic.id && s.status === 'done').length,
-    }
-  }))
-
-  const refetch = () => {
-    refetchStories()
-  }
+  // State for filters and UI
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
-  const [teamFilter, setTeamFilter] = useState("all")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [selectedProjects, setSelectedProjects] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"name" | "status" | "priority" | "progress" | "updated">("updated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [activeTab, setActiveTab] = useState("all")
 
-
-
   // Status and priority configurations
   const statusConfig = {
-    planning: {
+    backlog: {
       color: "text-slate-700",
       bg: "bg-slate-50",
       border: "border-slate-200",
       icon: Circle,
     },
-    active: {
+    todo: {
       color: "text-blue-700",
       bg: "bg-blue-50",
       border: "border-blue-200",
+      icon: Circle,
+    },
+    "in-progress": {
+      color: "text-purple-700",
+      bg: "bg-purple-50",
+      border: "border-purple-200",
       icon: Activity,
     },
-    "on-hold": {
+    review: {
       color: "text-amber-700",
       bg: "bg-amber-50",
       border: "border-amber-200",
       icon: Clock,
     },
-    completed: {
+    done: {
       color: "text-emerald-700",
       bg: "bg-emerald-50",
       border: "border-emerald-200",
@@ -204,9 +142,56 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
     },
   }
 
+  // Enhanced projects with calculated stats
+  const enhancedProjects = useMemo(() => {
+    return projects.map(project => {
+      // Get epics for this project
+      const projectEpics = epics.filter(epic => epic.project_id === project.id)
+      
+      // Get stories for this project (through epics)
+      const projectStories = stories.filter(story => 
+        projectEpics.some(epic => epic.id === story.epic_id)
+      )
+
+      // Calculate stats
+      const totalEpics = projectEpics.length
+      const completedEpics = projectEpics.filter(epic => epic.status === 'done').length
+      const totalStories = projectStories.length
+      const completedStories = projectStories.filter(story => story.status === 'done').length
+      const totalTasks = projectStories.reduce((sum, story) => sum + (story.stats?.totalTasks || 0), 0)
+      const completedTasks = projectStories.reduce((sum, story) => sum + (story.stats?.completedTasks || 0), 0)
+
+      // Calculate progress
+      const progress = totalStories > 0 ? Math.round((completedStories / totalStories) * 100) : 0
+
+      return {
+        ...project,
+        stats: {
+          totalEpics,
+          completedEpics,
+          totalStories,
+          completedStories,
+          totalTasks,
+          completedTasks,
+        },
+        progress,
+        // Add some mock data for display
+        team: {
+          lead: users[0] || { id: '1', name: 'Project Lead', avatar: '' },
+          members: users.slice(0, 3) || [],
+        },
+        tags: ['agile', 'development'],
+        startDate: project.created_at,
+        endDate: project.target_end_date,
+        dueDate: project.target_end_date,
+        updatedAt: project.updated_at || project.created_at,
+      }
+    })
+  }, [projects, epics, stories, users])
+
   // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
-    let filtered = projects.filter((project) => {
+    let filtered = enhancedProjects.filter((project) => {
       const matchesSearch =
         !searchQuery ||
         project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -215,12 +200,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
       const matchesStatus = statusFilter === "all" || project.status === statusFilter
       const matchesPriority = priorityFilter === "all" || project.priority === priorityFilter
-      const matchesTeam =
-        teamFilter === "all" ||
-        project.team.lead.id === teamFilter ||
-        project.team.members.some((member) => member.id === teamFilter)
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesTeam
+      return matchesSearch && matchesStatus && matchesPriority
     })
 
     // Apply tab filter
@@ -228,13 +209,11 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
       filtered = filtered.filter((project) => {
         switch (activeTab) {
           case "my-projects":
-            return (
-              project.team.lead.id === "current-user-id" || project.team.members.some((m) => m.id === "current-user-id")
-            )
-          case "overdue":
-            return project.dueDate && new Date(project.dueDate) < new Date()
-          case "high-priority":
-            return project.priority === "high" || project.priority === "critical"
+            return project.created_by === "current-user-id" // Replace with actual user ID
+          case "active":
+            return project.status === "in-progress"
+          case "completed":
+            return project.status === "done"
           default:
             return true
         }
@@ -269,7 +248,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
     })
 
     return filtered
-  }, [projects, searchQuery, statusFilter, priorityFilter, teamFilter, activeTab, sortBy, sortOrder])
+  }, [enhancedProjects, searchQuery, statusFilter, priorityFilter, activeTab, sortBy, sortOrder])
 
   // Selection handlers
   const handleProjectSelect = (projectId: string) => {
@@ -288,13 +267,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
   // Get statistics
   const stats = useMemo(() => {
-    const total = projects.length
-    const completed = projects.filter((project) => project.status === "completed").length
-    const active = projects.filter((project) => project.status === "active").length
-    const overdue = projects.filter((project) => project.dueDate && new Date(project.dueDate) < new Date()).length
+    const total = enhancedProjects.length
+    const completed = enhancedProjects.filter((project) => project.status === "done").length
+    const active = enhancedProjects.filter((project) => project.status === "in-progress").length
+    const overdue = enhancedProjects.filter((project) => 
+      project.dueDate && new Date(project.dueDate) < new Date()
+    ).length
 
     return { total, completed, active, overdue }
-  }, [projects])
+  }, [enhancedProjects])
 
   if (isLoading) {
     return (
@@ -319,7 +300,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
               {error.message || "Something went wrong while loading your projects."}
             </p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={refetch} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={refetchProjects} className="bg-blue-600 hover:bg-blue-700">
                 <RefreshCw size={16} className="mr-2" />
                 Try Again
               </Button>
@@ -404,13 +385,13 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 <Users size={16} />
                 <span>My Projects</span>
               </TabsTrigger>
-              <TabsTrigger value="overdue" className="flex items-center space-x-2">
-                <AlertCircle size={16} />
-                <span>Overdue</span>
+              <TabsTrigger value="active" className="flex items-center space-x-2">
+                <Activity size={16} />
+                <span>Active</span>
               </TabsTrigger>
-              <TabsTrigger value="high-priority" className="flex items-center space-x-2">
-                <TrendingUp size={16} />
-                <span>High Priority</span>
+              <TabsTrigger value="completed" className="flex items-center space-x-2">
+                <CheckCircle2 size={16} />
+                <span>Completed</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -441,10 +422,11 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="planning">Planning</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="on-hold">On Hold</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="backlog">Backlog</SelectItem>
+                      <SelectItem value="todo">To Do</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="review">Review</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
@@ -607,32 +589,30 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                               </Badge>
                             </div>
                           </div>
-
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                 <MoreHorizontal size={16} />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => onEdit?.(project)}>
-                                <Edit2 size={16} className="mr-2" />
-                                Edit
+                                <Edit size={16} className="mr-2" />
+                                Edit Project
                               </DropdownMenuItem>
                               <DropdownMenuItem>
                                 <Copy size={16} className="mr-2" />
                                 Duplicate
                               </DropdownMenuItem>
                               <DropdownMenuItem>
-                                <Star size={16} className="mr-2" />
-                                Add to Favorites
+                                <Archive size={16} className="mr-2" />
+                                Archive
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600" onClick={() => onDelete?.(project)}>
+                              <DropdownMenuItem 
+                                onClick={() => onDelete?.(project)}
+                                className="text-red-600"
+                              >
                                 <Trash2 size={16} className="mr-2" />
                                 Delete
                               </DropdownMenuItem>
@@ -691,42 +671,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                           </div>
                         </div>
 
-                        {/* Budget Info */}
-                        {project.budget && (
-                          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/60 rounded-lg p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-emerald-800">Budget</span>
-                              <span className="text-xs text-emerald-600">
-                                {Math.round((project.budget.spent / project.budget.allocated) * 100)}% used
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-emerald-700">
-                                ${project.budget.spent.toLocaleString()} / ${project.budget.allocated.toLocaleString()}
-                              </span>
-                              <BarChart3 size={14} className="text-emerald-600" />
-                            </div>
-                          </div>
-                        )}
-
                         {/* Team Info */}
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-slate-700">Team Lead</span>
-                            <div className="flex items-center space-x-2">
-                              <Avatar className="w-6 h-6">
-                                <AvatarImage src={project.team.lead.avatar || "/placeholder.svg"} />
-                                <AvatarFallback className="text-xs">
-                                  {project.team.lead.name
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm text-slate-600">{project.team.lead.name}</span>
-                            </div>
-                          </div>
-
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-slate-600">Team Members</span>
                             <div className="flex items-center space-x-1">
@@ -744,9 +690,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                                     </Avatar>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>
-                                      {member.name} - {member.role}
-                                    </p>
+                                    <p>{member.name}</p>
                                   </TooltipContent>
                                 </Tooltip>
                               ))}

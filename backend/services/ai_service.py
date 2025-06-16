@@ -227,6 +227,59 @@ class AIService:
                 variables=["sprint_name", "team_name", "feedback_text"]
             ),
             
+            "epic_generator": PromptTemplate(
+                name="epic_generator",
+                version="1.0",
+                system_prompt="""You are an expert product manager and epic writer.
+                Create detailed, well-structured epics that define large features or initiatives with 
+                clear business value and comprehensive acceptance criteria.""",
+                user_prompt_template="""
+                Generate a comprehensive epic based on this description:
+                
+                User Description: {user_description}
+                Priority Level: {priority_level}
+                Project Context: {project_context}
+                Business Value: {business_value}
+                Include Acceptance Criteria: {include_acceptance_criteria}
+                Include Story Breakdown: {include_story_breakdown}
+                
+                Create an epic that includes:
+                1. A clear, compelling title that describes the large feature or initiative
+                2. A detailed description that explains the business need and user value
+                3. Acceptance criteria (if requested) - high-level conditions for epic completion
+                4. Suggested story breakdown (if requested) - potential user stories within this epic
+                5. Estimated story points for the entire epic (13, 21, 34, 55, 89)
+                6. Business value and impact assessment
+                7. Confidence level and implementation suggestions
+                
+                Return JSON format:
+                {{
+                    "name": "Clear, compelling epic title",
+                    "description": "Detailed description explaining business need and user value",
+                    "acceptance_criteria": [
+                        "High-level condition 1 for epic completion",
+                        "High-level condition 2 for epic completion"
+                    ],
+                    "suggested_stories": [
+                        {{
+                            "title": "As a [user], I want [goal] so that [benefit]",
+                            "description": "Brief story description",
+                            "story_points": estimated_points
+                        }}
+                    ],
+                    "total_story_points": estimated_epic_size,
+                    "business_value": "High/Medium/Low",
+                    "impact_areas": ["area1", "area2"],
+                    "confidence": 0.8,
+                    "implementation_suggestions": [
+                        "suggestion1",
+                        "suggestion2"
+                    ]
+                }}
+                """,
+                variables=["user_description", "priority_level", "project_context", "business_value", "include_acceptance_criteria", "include_story_breakdown"]
+            ),
+            
             "story_generator": PromptTemplate(
                 name="story_generator",
                 version="1.0",

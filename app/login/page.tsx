@@ -13,8 +13,8 @@ import { Loader2 } from 'lucide-react'
 import { ClientOnlyForm } from '@/components/ui/client-only'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('demo@agileforge.com')
-  const [password, setPassword] = useState('DemoUser123!')
+  const [email, setEmail] = useState('testuser@example.com')
+  const [password, setPassword] = useState('password123')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   

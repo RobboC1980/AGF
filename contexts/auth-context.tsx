@@ -7,6 +7,17 @@ import { User } from '@/services/api'
 // Get API base URL - hardcoded to ensure correct port
 const API_BASE_URL = 'http://localhost:8000'
 
+// Utility function to check if a JWT token is expired
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const currentTime = Date.now() / 1000
+    return payload.exp < currentTime
+  } catch {
+    return true // If we can't parse the token, consider it expired
+  }
+}
+
 interface AuthContextType {
   user: User | null
   isLoading: boolean
@@ -50,6 +61,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const token = localStorage.getItem('auth_token')
         if (token) {
+          // Check if token is expired before making API calls
+          if (isTokenExpired(token)) {
+            console.log('Token is expired, clearing auth')
+            localStorage.removeItem('auth_token')
+            apiClient.clearAuth()
+            setUser(null)
+            setIsLoading(false)
+            return
+          }
+
           // Set token in API client first
           apiClient.setAuthToken(token)
           
@@ -59,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setUser(userData)
             console.log('Auth initialization successful:', userData.email)
           } catch (error) {
-            console.log('Token verification failed, clearing auth')
+            console.log('Token verification failed, clearing auth:', error instanceof Error ? error.message : 'Unknown error')
             // Clear invalid token immediately
             localStorage.removeItem('auth_token')
             apiClient.clearAuth()

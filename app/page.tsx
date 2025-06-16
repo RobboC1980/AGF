@@ -16,6 +16,7 @@ import AnalyticsDashboard from "../components/analytics-dashboard"
 import CollaborationPanel from "../components/collaboration-panel"
 import SimpleCreateModal from "../components/simple-create-modal"
 import { CreateStoryModal } from "../components/create-story-modal"
+import { CreateEpicModal } from "../components/create-epic-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -40,6 +41,8 @@ export default function Page() {
   const [showCollaboration, setShowCollaboration] = useState(false)
   const [showStoryModal, setShowStoryModal] = useState(false)
   const [editingStory, setEditingStory] = useState<any>(null)
+  const [showEpicModal, setShowEpicModal] = useState(false)
+  const [editingEpic, setEditingEpic] = useState<any>(null)
   
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth()
   const router = useRouter()
@@ -92,6 +95,11 @@ export default function Page() {
       setShowStoryModal(true)
       setEditingStory(null)
     }
+    // If we're on the epics page, open the epic modal
+    if (currentPage === "epics") {
+      setShowEpicModal(true)
+      setEditingEpic(null)
+    }
   }
 
   const handleCreateSubmit = async (data: any) => {
@@ -107,6 +115,11 @@ export default function Page() {
     if (currentPage === "stories") {
       setEditingStory(item)
       setShowStoryModal(true)
+    }
+    // If we're on the epics page, open the epic modal for editing
+    if (currentPage === "epics") {
+      setEditingEpic(item)
+      setShowEpicModal(true)
     }
   }
 
@@ -151,6 +164,42 @@ export default function Page() {
       console.log("Story saved successfully!")
     } catch (error) {
       console.error("Failed to save story:", error)
+      throw error // Re-throw so the modal can show the error
+    }
+  }
+
+  const handleEpicModalSave = async (epicData: any) => {
+    try {
+      console.log("Saving epic:", epicData)
+      
+      // Transform the epic data to match the API format
+      const epicPayload = {
+        name: epicData.name,
+        description: epicData.description || '',
+        priority: epicData.priority || 'medium',
+        status: epicData.status || 'planning',
+        project_id: epicData.projectId || null,
+        estimated_story_points: epicData.estimatedStoryPoints || null,
+        target_end_date: epicData.dueDate || null,
+      }
+
+      if (editingEpic) {
+        // Update existing epic
+        await api.epics.update(editingEpic.id, epicPayload)
+      } else {
+        // Create new epic
+        await api.epics.create(epicPayload)
+      }
+
+      // Invalidate React Query cache to refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['epics'] })
+      
+      setShowEpicModal(false)
+      setEditingEpic(null)
+      
+      console.log("Epic saved successfully!")
+    } catch (error) {
+      console.error("Failed to save epic:", error)
       throw error // Re-throw so the modal can show the error
     }
   }
@@ -290,20 +339,17 @@ export default function Page() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
                   <div className="flex items-center space-x-2">
-                    <SimpleCreateModal 
-                      type="epic" 
-                      onSubmit={handleCreateSubmit}
-                      projects={[
-                        { id: "1", name: "Demo Project" },
-                        { id: "2", name: "AgileForge Platform" }
-                      ]}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <Rocket size={14} className="mr-1" />
-                          Epic
-                        </Button>
-                      }
-                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setShowEpicModal(true)
+                        setEditingEpic(null)
+                      }}
+                    >
+                      <Rocket size={14} className="mr-1" />
+                      Epic
+                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -517,6 +563,21 @@ export default function Page() {
           epics={modalEpics}
           users={modalUsers}
           editingStory={editingStory}
+        />
+
+        {/* AI-Enabled Epic Creation Modal - Always Available */}
+        <CreateEpicModal
+          isOpen={showEpicModal}
+          onClose={() => {
+            setShowEpicModal(false)
+            setEditingEpic(null)
+          }}
+          onSave={handleEpicModalSave}
+          projects={[
+            { id: "1", name: "Demo Project" },
+            { id: "2", name: "AgileForge Platform" }
+          ]}
+          editingEpic={editingEpic}
         />
       </div>
     </QueryProvider>

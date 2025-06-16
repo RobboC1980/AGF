@@ -181,10 +181,13 @@ export const useAnalytics = () => {
 
 // Projects hooks
 export const useProjects = () => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
   return useQuery({
     queryKey: queryKeys.projects,
     queryFn: () => api.projects.getAll(),
     staleTime: 3 * 60 * 1000, // 3 minutes
+    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
   })
 }
 

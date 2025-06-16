@@ -14,6 +14,12 @@ class StoryGenerateRequest(BaseModel):
     project_id: Optional[str] = None
     priority: Optional[str] = "medium"
 
+class EpicGenerateRequest(BaseModel):
+    description: str
+    project_id: Optional[str] = None
+    priority: Optional[str] = "medium"
+    business_value: Optional[str] = None
+
 # Simple test endpoint without complex models
 @router.get("/health")
 async def ai_health_check():
@@ -82,6 +88,46 @@ async def ai_status():
     except Exception as e:
         logger.error(f"AI status check failed: {e}")
         return {"status": "error", "message": str(e)}
+
+@router.post("/generate-epic")
+async def generate_epic_endpoint(request: EpicGenerateRequest):
+    """Generate an epic using AI"""
+    try:
+        from ..services.ai_service import get_basic_ai_service
+        
+        ai_service = get_basic_ai_service()
+        
+        # Prepare variables for AI completion
+        variables = {
+            "user_description": request.description,
+            "priority_level": request.priority,
+            "project_context": f"Project ID: {request.project_id}" if request.project_id else "",
+            "business_value": request.business_value or "",
+            "include_acceptance_criteria": True,
+            "include_story_breakdown": True
+        }
+        
+        # Generate epic using AI
+        result = await ai_service.generate_completion("epic_generator", variables)
+        
+        if result.success:
+            return {
+                "success": True,
+                "epic": result.data,
+                "model_used": result.model_used,
+                "tokens_used": result.tokens_used,
+                "processing_time": result.processing_time
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.error,
+                "fallback_available": True
+            }
+            
+    except Exception as e:
+        logger.error(f"Epic generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-story")
 async def generate_story_endpoint(request: StoryGenerateRequest):
