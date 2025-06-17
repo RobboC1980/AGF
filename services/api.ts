@@ -527,7 +527,10 @@ export const api = {
 
   // Projects
   projects: {
-    getAll: () => apiClient.get<Project[]>('/api/projects'),
+    getAll: async () => {
+      const response = await apiClient.get<{data: {projects: Project[]}, success: boolean}>('/api/projects');
+      return response.data.projects;
+    },
     getById: (id: string) => apiClient.get<Project>(`/api/projects/${id}`),
     create: (data: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => 
       apiClient.post<Project>('/api/projects', data),
