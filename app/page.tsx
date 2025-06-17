@@ -100,13 +100,36 @@ export default function Page() {
       setShowEpicModal(true)
       setEditingEpic(null)
     }
+    // If we're on the projects page, we handle it via the ProjectsPage component
+    // The project creation will be handled by the SimpleCreateModal in the header
   }
 
   const handleCreateSubmit = async (data: any) => {
     console.log("Creating item:", data)
-    // Here you would typically call your API to create the item
-    // For now, just log the data
-    return Promise.resolve()
+    
+    try {
+      if (data.type === "project" || (!data.type && currentPage === "projects")) {
+        // Handle project creation
+        const projectPayload = {
+          name: data.title,
+          description: data.description || '',
+          status: data.status || 'active',
+        }
+        
+        await api.projects.create(projectPayload)
+        await queryClient.invalidateQueries({ queryKey: ['projects'] })
+        console.log("Project created successfully!")
+        
+      } else if (data.type === "task") {
+        // Handle task creation - existing logic can be expanded here
+        console.log("Task creation not yet implemented")
+      }
+      
+      return Promise.resolve()
+    } catch (error) {
+      console.error("Failed to create item:", error)
+      throw error
+    }
   }
 
   const handleEdit = (item: any) => {
@@ -339,6 +362,16 @@ export default function Page() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
                   <div className="flex items-center space-x-2">
+                    <SimpleCreateModal 
+                      type="project" 
+                      onSubmit={handleCreateSubmit}
+                      trigger={
+                        <Button variant="outline" size="sm">
+                          <Target size={14} className="mr-1" />
+                          Project
+                        </Button>
+                      }
+                    />
                     <Button 
                       variant="outline" 
                       size="sm"

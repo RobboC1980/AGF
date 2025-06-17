@@ -23,10 +23,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarDays, Plus, Rocket, BookOpen, CheckSquare, X } from "lucide-react"
+import { CalendarDays, Plus, Rocket, BookOpen, CheckSquare, X, Target } from "lucide-react"
 import { format } from "date-fns"
 
 // Validation schemas
+const projectSchema = z.object({
+  title: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  status: z.enum(["active", "inactive", "completed", "on-hold"]),
+  tags: z.array(z.string()).default([]),
+})
+
 const epicSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title must be less than 100 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
@@ -63,7 +70,7 @@ const taskSchema = z.object({
   subtasks: z.array(z.string()).default([]),
 })
 
-type EntityType = "epic" | "story" | "task"
+type EntityType = "project" | "epic" | "story" | "task"
 
 interface SimpleCreateModalProps {
   type: EntityType
@@ -94,6 +101,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
   // Get the appropriate schema
   const getSchema = () => {
     switch (type) {
+      case "project":
+        return projectSchema
       case "epic":
         return epicSchema
       case "story":
@@ -101,7 +110,7 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
       case "task":
         return taskSchema
       default:
-        return epicSchema
+        return projectSchema
     }
   }
 
@@ -115,7 +124,8 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
   } = useForm({
     resolver: zodResolver(getSchema()),
     defaultValues: {
-      priority: "medium",
+      priority: type === "project" ? undefined : "medium",
+      status: type === "project" ? "active" : undefined,
       tags: [],
       storyPoints: type === "story" ? 3 : undefined,
       estimatedHours: type === "task" ? 4 : undefined,
@@ -164,6 +174,13 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
 
   const getEntityConfig = () => {
     switch (type) {
+      case "project":
+        return {
+          title: "Create Project",
+          icon: Target,
+          color: "from-blue-600 to-indigo-600",
+          description: "Create a new project to organize epics and features",
+        }
       case "epic":
         return {
           title: "Create Epic",
@@ -256,41 +273,84 @@ export const SimpleCreateModal: React.FC<SimpleCreateModalProps> = ({
                 )}
               </div>
 
-              {/* Priority */}
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority *</Label>
-                <Select onValueChange={(value) => setValue("priority", value)} defaultValue="medium">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                        <span>Low</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="medium">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-                        <span>Medium</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="high">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                        <span>High</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="critical">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                        <span>Critical</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Priority or Status */}
+              {type === "project" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status *</Label>
+                  <Select onValueChange={(value) => setValue("status", value)} defaultValue="active">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                          <span>Active</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="inactive">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-slate-500 rounded-full"></div>
+                          <span>Inactive</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="completed">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                          <span>Completed</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="on-hold">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                          <span>On Hold</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.status && (
+                    <p className="text-sm text-red-500">{errors.status.message as string}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority *</Label>
+                  <Select onValueChange={(value) => setValue("priority", value)} defaultValue="medium">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                          <span>Low</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="medium">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                          <span>Medium</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="high">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                          <span>High</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="critical">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span>Critical</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.priority && (
+                    <p className="text-sm text-red-500">{errors.priority.message as string}</p>
+                  )}
+                </div>
+              )}
 
               {/* Parent Relation */}
               {type === "epic" && (

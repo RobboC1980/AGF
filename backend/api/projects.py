@@ -1,36 +1,194 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 import logging
+from ..database.supabase_client import get_supabase_client
+from ..auth.dependencies import get_current_user
+from ..models.api_models import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    status: Optional[str] = "active"
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+
 @router.get("/")
-async def get_projects():
-    """Get all projects"""
-    # Placeholder implementation
-    return []
+async def get_projects(current_user: User = Depends(get_current_user)):
+    """Get all projects for the current user"""
+    try:
+        supabase = get_supabase_client()
+        result = supabase.table("projects").select("*").eq("created_by", current_user.id).execute()
+        
+        projects = []
+        for project in result.data:
+            projects.append({
+                "id": project["id"],
+                "name": project["name"],
+                "description": project.get("description"),
+                "status": project["status"],
+                "key": project["name"][:10].upper().replace(" ", "_"),  # Generate key from name
+                "priority": "medium",  # Default priority since not in DB
+                "progress": 0,  # TODO: Calculate from epics/stories
+                "created_by": project["created_by"],
+                "created_at": project["created_at"],
+                "updated_at": project.get("updated_at")
+            })
+        
+        return {"success": True, "data": {"projects": projects}}
+    except Exception as e:
+        logger.error(f"Error fetching projects: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch projects")
 
 @router.post("/")
-async def create_project():
+async def create_project(project_data: ProjectCreate, current_user: User = Depends(get_current_user)):
     """Create a new project"""
-    # Placeholder implementation
-    return {"success": True, "message": "Project created"}
+    try:
+        supabase = get_supabase_client()
+        
+        project = {
+            "name": project_data.name,
+            "description": project_data.description,
+            "status": project_data.status,
+            "created_by": current_user.id
+        }
+        
+        result = supabase.table("projects").insert(project).execute()
+        
+        if result.data:
+            created_project = result.data[0]
+            return {
+                "success": True, 
+                "data": {
+                    "id": created_project["id"],
+                    "name": created_project["name"],
+                    "description": created_project.get("description"),
+                    "status": created_project["status"],
+                    "key": created_project["name"][:10].upper().replace(" ", "_"),
+                    "priority": "medium",
+                    "progress": 0,
+                    "created_by": created_project["created_by"],
+                    "created_at": created_project["created_at"],
+                    "updated_at": created_project.get("updated_at")
+                }
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create project")
+            
+    except Exception as e:
+        logger.error(f"Error creating project: {e}")
+        if "duplicate key" in str(e).lower():
+            raise HTTPException(status_code=400, detail="Project with this name or key already exists")
+        raise HTTPException(status_code=500, detail="Failed to create project")
 
 @router.get("/{project_id}")
-async def get_project(project_id: str):
+async def get_project(project_id: str, current_user: User = Depends(get_current_user)):
     """Get a specific project"""
-    # Placeholder implementation
-    raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        supabase = get_supabase_client()
+        result = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        project = result.data[0]
+        return {
+            "success": True,
+            "data": {
+                "id": project["id"],
+                "name": project["name"],
+                "description": project.get("description"),
+                "status": project["status"],
+                "key": project["name"][:10].upper().replace(" ", "_"),
+                "priority": "medium",
+                "progress": 0,  # TODO: Calculate from epics/stories
+                "created_by": project["created_by"],
+                "created_at": project["created_at"],
+                "updated_at": project.get("updated_at")
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch project")
 
 @router.put("/{project_id}")
-async def update_project(project_id: str):
+async def update_project(project_id: str, project_data: ProjectUpdate, current_user: User = Depends(get_current_user)):
     """Update a project"""
-    # Placeholder implementation
-    raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        supabase = get_supabase_client()
+        
+        # First check if project exists and belongs to user
+        existing = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Prepare update data
+        update_data = {}
+        if project_data.name is not None:
+            update_data["name"] = project_data.name
+        if project_data.description is not None:
+            update_data["description"] = project_data.description
+        if project_data.status is not None:
+            update_data["status"] = project_data.status
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        result = supabase.table("projects").update(update_data).eq("id", project_id).execute()
+        
+        if result.data:
+            updated_project = result.data[0]
+            return {
+                "success": True,
+                "data": {
+                    "id": updated_project["id"],
+                    "name": updated_project["name"],
+                    "description": updated_project.get("description"),
+                    "status": updated_project["status"],
+                    "key": updated_project["name"][:10].upper().replace(" ", "_"),
+                    "priority": "medium",
+                    "progress": 0,
+                    "created_by": updated_project["created_by"],
+                    "created_at": updated_project["created_at"],
+                    "updated_at": updated_project.get("updated_at")
+                }
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update project")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update project")
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str):
+async def delete_project(project_id: str, current_user: User = Depends(get_current_user)):
     """Delete a project"""
-    # Placeholder implementation
-    return {"success": True, "message": "Project deleted"} 
+    try:
+        supabase = get_supabase_client()
+        
+        # First check if project exists and belongs to user
+        existing = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # TODO: Check if project has epics/stories and handle cascade delete or prevent deletion
+        
+        result = supabase.table("projects").delete().eq("id", project_id).execute()
+        
+        return {"success": True, "message": "Project deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete project") 

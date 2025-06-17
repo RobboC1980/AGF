@@ -361,6 +361,35 @@ class ApiClient {
     return this.request("/api/epics")
   }
 
+  // Projects API
+  async getProjects(): Promise<ApiResponse<{ projects: Project[] }>> {
+    return this.request("/api/projects")
+  }
+
+  async getProject(id: string): Promise<ApiResponse<Project>> {
+    return this.request(`/api/projects/${id}`)
+  }
+
+  async createProject(project: Partial<Project>): Promise<ApiResponse<Project>> {
+    return this.request("/api/projects", {
+      method: "POST",
+      body: JSON.stringify(project),
+    })
+  }
+
+  async updateProject(id: string, project: Partial<Project>): Promise<ApiResponse<Project>> {
+    return this.request(`/api/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(project),
+    })
+  }
+
+  async deleteProject(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/projects/${id}`, {
+      method: "DELETE",
+    })
+  }
+
   // Users API
   async getUsers(): Promise<ApiResponse<{ users: User[] }>> {
     return this.request("/api/users")
