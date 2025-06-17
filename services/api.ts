@@ -8,7 +8,7 @@ interface Story {
   id: string
   name: string
   description?: string
-  acceptanceCriteria?: string
+  acceptanceCriteria?: string[]
   storyPoints?: number
   priority: "low" | "medium" | "high" | "critical"
   status: "backlog" | "ready" | "in-progress" | "review" | "done"
@@ -368,6 +368,53 @@ class ApiClient {
     return this.request("/api/ai/generate-epic", {
       method: "POST",
       body: JSON.stringify(request),
+    })
+  }
+
+  async generateTasks(request: {
+    storyTitle: string
+    storyDescription: string
+    storyPoints?: number
+    acceptanceCriteria: string
+    technicalContext?: string
+    teamSkills?: string
+    includeSubtasks?: boolean
+  }): Promise<{
+    success: boolean
+    tasks: {
+      tasks: Array<{
+        title: string
+        description: string
+        category: string
+        estimated_hours: number
+        priority: string
+        skills_required: string[]
+        acceptance_criteria: string[]
+        dependencies: string[]
+        technical_notes: string
+        testing_requirements: string
+      }>
+      total_estimated_hours: number
+      critical_path: string[]
+      risks: string[]
+      implementation_notes: string[]
+      confidence: number
+    }
+    model_used: string
+    tokens_used: number
+    processing_time: number
+  }> {
+    return this.request("/api/ai/generate-tasks", {
+      method: "POST",
+      body: JSON.stringify({
+        story_title: request.storyTitle,
+        story_description: request.storyDescription,
+        story_points: request.storyPoints || 5,
+        acceptance_criteria: request.acceptanceCriteria,
+        technical_context: request.technicalContext || "",
+        team_skills: request.teamSkills || "",
+        include_subtasks: request.includeSubtasks !== false
+      }),
     })
   }
 

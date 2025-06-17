@@ -437,7 +437,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                           <Label htmlFor="story-name">Story Name *</Label>
                           <Input
                             id="story-name"
-                            placeholder="As a user, I want to..."
+                            placeholder="Short reference title (e.g., 'Password Reset Feature')"
                             value={story.name}
                             onChange={(e) => setStory(prev => ({ ...prev, name: e.target.value }))}
                             className="mt-2"
@@ -445,10 +445,10 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                         </div>
                         
                         <div>
-                          <Label htmlFor="story-description">Description</Label>
+                          <Label htmlFor="story-description">User Story & Description</Label>
                           <Textarea
                             id="story-description"
-                            placeholder="Detailed description of the user need and context..."
+                            placeholder="As a [user type], I want [goal] so that [benefit]. Include detailed description following INVEST principles..."
                             value={story.description || ""}
                             onChange={(e) => setStory(prev => ({ ...prev, description: e.target.value }))}
                             className="min-h-[100px] mt-2"
@@ -642,7 +642,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                                 className="flex items-start space-x-2 p-3 bg-slate-50 rounded-lg border"
                               >
                                 <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                                <span className="text-sm flex-1 text-wrap break-words">{criteria}</span>
+                                <span className="text-sm flex-1 text-wrap break-words text-slate-900 font-semibold leading-relaxed">{criteria}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"

@@ -36,7 +36,7 @@ import { toast } from "sonner"
 type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
 
 export default function Page() {
-  // All hooks must be called at the top level, before any early returns
+  // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL, BEFORE ANY EARLY RETURNS
   const [currentPage, setCurrentPage] = useState<PageType>("epics")
   const [isLoading, setIsLoading] = useState(false)
   const [showCollaboration, setShowCollaboration] = useState(false)
@@ -56,6 +56,118 @@ export default function Page() {
   const { data: modalUsers = [] } = useUsers()
   const { data: kanbanStories = [] } = useStories()
 
+  // Create kanban columns from real data - using useMemo for better performance
+  // MUST be called before any early returns
+  const kanbanColumns = useMemo(() => [
+    {
+      id: "backlog",
+      title: "Backlog",
+      color: "bg-slate-500",
+      items: kanbanStories.filter(story => story.status === 'backlog').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 0,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
+    },
+    {
+      id: "ready",
+      title: "Ready",
+      color: "bg-blue-500",
+      limit: 5,
+      items: kanbanStories.filter(story => story.status === 'ready').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 25,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
+    },
+    {
+      id: "in-progress",
+      title: "In Progress",
+      color: "bg-purple-500",
+      limit: 3,
+      items: kanbanStories.filter(story => story.status === 'in-progress').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 60,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
+    },
+    {
+      id: "review",
+      title: "Review",
+      color: "bg-amber-500",
+      items: kanbanStories.filter(story => story.status === 'review').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 90,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
+    },
+    {
+      id: "done",
+      title: "Done",
+      color: "bg-emerald-500",
+      items: kanbanStories.filter(story => story.status === 'done').map(story => ({
+        id: story.id,
+        title: story.name,
+        description: story.description || '',
+        type: "story" as const,
+        priority: story.priority as "low" | "medium" | "high" | "critical",
+        assignee: story.assignee ? {
+          id: story.assignee.id,
+          name: story.assignee.name,
+          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
+        } : undefined,
+        tags: story.tags || [],
+        progress: 100,
+        storyPoints: story.story_points || 0,
+        createdAt: story.createdAt,
+      })),
+    },
+  ], [kanbanStories])
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -63,6 +175,7 @@ export default function Page() {
     }
   }, [isAuthenticated, authLoading, router])
 
+  // NOW we can have early returns after all hooks have been called
   // Show loading while checking authentication
   if (authLoading) {
     return (
@@ -249,117 +362,6 @@ export default function Page() {
       throw error // Re-throw so the modal can show the error
     }
   }
-
-  // Create kanban columns from real data - using useMemo for better performance
-  const kanbanColumns = useMemo(() => [
-    {
-      id: "backlog",
-      title: "Backlog",
-      color: "bg-slate-500",
-      items: kanbanStories.filter(story => story.status === 'backlog').map(story => ({
-        id: story.id,
-        title: story.name,
-        description: story.description || '',
-        type: "story" as const,
-        priority: story.priority as "low" | "medium" | "high" | "critical",
-        assignee: story.assignee ? {
-          id: story.assignee.id,
-          name: story.assignee.name,
-          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
-        } : undefined,
-        tags: story.tags || [],
-        progress: 0,
-        storyPoints: story.story_points || 0,
-        createdAt: story.createdAt,
-      })),
-    },
-    {
-      id: "ready",
-      title: "Ready",
-      color: "bg-blue-500",
-      limit: 5,
-      items: kanbanStories.filter(story => story.status === 'ready').map(story => ({
-        id: story.id,
-        title: story.name,
-        description: story.description || '',
-        type: "story" as const,
-        priority: story.priority as "low" | "medium" | "high" | "critical",
-        assignee: story.assignee ? {
-          id: story.assignee.id,
-          name: story.assignee.name,
-          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
-        } : undefined,
-        tags: story.tags || [],
-        progress: 25,
-        storyPoints: story.story_points || 0,
-        createdAt: story.createdAt,
-      })),
-    },
-    {
-      id: "in-progress",
-      title: "In Progress",
-      color: "bg-purple-500",
-      limit: 3,
-      items: kanbanStories.filter(story => story.status === 'in-progress').map(story => ({
-        id: story.id,
-        title: story.name,
-        description: story.description || '',
-        type: "story" as const,
-        priority: story.priority as "low" | "medium" | "high" | "critical",
-        assignee: story.assignee ? {
-          id: story.assignee.id,
-          name: story.assignee.name,
-          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
-        } : undefined,
-        tags: story.tags || [],
-        progress: 60,
-        storyPoints: story.story_points || 0,
-        createdAt: story.createdAt,
-      })),
-    },
-    {
-      id: "review",
-      title: "Review",
-      color: "bg-amber-500",
-      items: kanbanStories.filter(story => story.status === 'review').map(story => ({
-        id: story.id,
-        title: story.name,
-        description: story.description || '',
-        type: "story" as const,
-        priority: story.priority as "low" | "medium" | "high" | "critical",
-        assignee: story.assignee ? {
-          id: story.assignee.id,
-          name: story.assignee.name,
-          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
-        } : undefined,
-        tags: story.tags || [],
-        progress: 90,
-        storyPoints: story.story_points || 0,
-        createdAt: story.createdAt,
-      })),
-    },
-    {
-      id: "done",
-      title: "Done",
-      color: "bg-emerald-500",
-      items: kanbanStories.filter(story => story.status === 'done').map(story => ({
-        id: story.id,
-        title: story.name,
-        description: story.description || '',
-        type: "story" as const,
-        priority: story.priority as "low" | "medium" | "high" | "critical",
-        assignee: story.assignee ? {
-          id: story.assignee.id,
-          name: story.assignee.name,
-          avatar: story.assignee.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${story.assignee.name}`,
-        } : undefined,
-        tags: story.tags || [],
-        progress: 100,
-        storyPoints: story.story_points || 0,
-        createdAt: story.createdAt,
-      })),
-    },
-  ], [kanbanStories])
 
   const pages = [
     { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },

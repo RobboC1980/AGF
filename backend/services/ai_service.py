@@ -229,12 +229,20 @@ class AIService:
             
             "epic_generator": PromptTemplate(
                 name="epic_generator",
-                version="1.0",
-                system_prompt="""You are an expert product manager and epic writer.
-                Create detailed, well-structured epics that define large features or initiatives with 
-                clear business value and comprehensive acceptance criteria.""",
+                version="2.0",
+                system_prompt="""You are an expert product manager and Agile coach specializing in epic creation.
+
+EPIC DEFINITION: An Epic is a large work item that contains multiple user stories and represents a significant business capability or outcome. Epics are too large to complete in a single sprint and should deliver measurable business value.
+
+EPIC BEST PRACTICES:
+- Focus on business outcomes, not technical features
+- Should be valuable to end users or the business
+- Contains 3-10 user stories typically
+- Takes 2-6 sprints to complete
+- Has clear success criteria and acceptance criteria
+- Aligns with strategic business objectives""",
                 user_prompt_template="""
-                Generate a comprehensive epic based on this description:
+                Generate a comprehensive epic based on this input:
                 
                 User Description: {user_description}
                 Priority Level: {priority_level}
@@ -243,51 +251,84 @@ class AIService:
                 Include Acceptance Criteria: {include_acceptance_criteria}
                 Include Story Breakdown: {include_story_breakdown}
                 
-                Create an epic that includes:
-                1. A clear, compelling title that describes the large feature or initiative
-                2. A detailed description that explains the business need and user value
-                3. Acceptance criteria (if requested) - high-level conditions for epic completion
-                4. Suggested story breakdown (if requested) - potential user stories within this epic
-                5. Estimated story points for the entire epic (13, 21, 34, 55, 89)
-                6. Business value and impact assessment
-                7. Confidence level and implementation suggestions
+                CREATE AN EPIC THAT INCLUDES:
                 
-                Return JSON format:
+                1. **Epic Title**: Clear, outcome-focused title (not feature-focused)
+                2. **Business Description**: Explains WHY this epic matters to the business/users
+                3. **Success Criteria**: Measurable outcomes that define epic completion
+                4. **Acceptance Criteria**: High-level conditions for epic acceptance
+                5. **Story Breakdown**: 3-8 potential user stories within this epic
+                6. **Epic Sizing**: Total story points (21, 34, 55, 89, 144)
+                7. **Business Impact**: Clear value proposition and impact areas
+                8. **Implementation Strategy**: Suggested approach and risks
+                
+                EPIC ACCEPTANCE CRITERIA GUIDELINES:
+                - Focus on business outcomes, not technical features
+                - Measurable and verifiable conditions
+                - Address key user journeys and business processes
+                - Include non-functional requirements (performance, security, etc.)
+                
+                Return ONLY this JSON structure:
                 {{
-                    "name": "Clear, compelling epic title",
-                    "description": "Detailed description explaining business need and user value",
+                    "name": "Outcome-focused epic title that describes business value",
+                    "description": "Comprehensive description explaining business need, user value, and strategic importance. Include context, current pain points, and desired future state.",
                     "acceptance_criteria": [
-                        "High-level condition 1 for epic completion",
-                        "High-level condition 2 for epic completion"
+                        "Users can successfully complete [key business process] with 95% success rate",
+                        "System handles [performance requirement] with [specific metric]",
+                        "Business achieves [measurable outcome] within [timeframe]"
                     ],
                     "suggested_stories": [
                         {{
-                            "title": "As a [user], I want [goal] so that [benefit]",
-                            "description": "Brief story description",
-                            "story_points": estimated_points
+                            "title": "As a [specific user type], I want [specific goal] so that [clear business benefit]",
+                            "description": "Brief story description focusing on user value",
+                            "story_points": 3,
+                            "priority": "high"
                         }}
                     ],
-                    "total_story_points": estimated_epic_size,
-                    "business_value": "High/Medium/Low",
-                    "impact_areas": ["area1", "area2"],
-                    "confidence": 0.8,
+                    "total_story_points": 55,
+                    "business_value": "High",
+                    "impact_areas": ["user_experience", "operational_efficiency", "revenue"],
+                    "success_metrics": [
+                        "Reduce [current pain point] by [percentage]",
+                        "Increase [business metric] by [target]"
+                    ],
+                    "confidence": 0.85,
                     "implementation_suggestions": [
-                        "suggestion1",
-                        "suggestion2"
+                        "Start with core user journey validation",
+                        "Consider phased rollout approach",
+                        "Identify key integration points early"
+                    ],
+                    "risks": [
+                        "Technical complexity in [area]",
+                        "User adoption challenges"
                     ]
-                }}
-                """,
+                }}""",
                 variables=["user_description", "priority_level", "project_context", "business_value", "include_acceptance_criteria", "include_story_breakdown"]
             ),
             
             "story_generator": PromptTemplate(
                 name="story_generator",
-                version="1.0",
-                system_prompt="""You are an expert product manager and user story writer.
-                Create detailed, well-structured user stories that follow INVEST principles and include 
-                comprehensive acceptance criteria and relevant tags.""",
+                version="2.0",
+                system_prompt="""You are an expert Agile coach and user story writer specializing in creating INVEST-quality user stories.
+
+USER STORY DEFINITION: A User Story is a brief description of a feature written from the perspective of the end user. It describes the type of user, what they want, and why they want it.
+
+INVEST PRINCIPLES FOR USER STORIES:
+- **Independent**: Can be developed and tested independently
+- **Negotiable**: Details can be discussed and refined
+- **Valuable**: Delivers clear value to users or business
+- **Estimable**: Can be estimated for effort and complexity
+- **Small**: Fits within a single sprint (1-2 weeks)
+- **Testable**: Has clear acceptance criteria
+
+DEFINITION OF READY (DoR):
+- Clear user story title and description
+- Acceptance criteria defined
+- Story points estimated
+- Dependencies identified
+- Testable and demonstrable""",
                 user_prompt_template="""
-                Generate a comprehensive user story based on this description:
+                Generate a comprehensive user story based on this input:
                 
                 User Description: {user_description}
                 Priority Level: {priority_level}
@@ -296,32 +337,152 @@ class AIService:
                 Include Acceptance Criteria: {include_acceptance_criteria}
                 Include Tags: {include_tags}
                 
-                Create a user story that includes:
-                1. A clear, concise title following the "As a [user], I want [goal] so that [benefit]" format
-                2. A detailed description that expands on the user's needs
-                3. Acceptance criteria (if requested) - specific, testable conditions
-                4. Relevant tags for categorization (if requested)
-                5. Estimated story points (1, 2, 3, 5, 8, 13, 21)
-                6. Confidence level and improvement suggestions
+                CREATE A USER STORY THAT INCLUDES:
                 
-                Return JSON format:
+                1. **Story Title**: Perfect "As a [user type], I want [goal] so that [benefit]" format
+                2. **Enhanced Description**: Expand input with context, user motivation, and business value
+                3. **Acceptance Criteria**: Given/When/Then format, specific and testable
+                4. **Story Points**: Fibonacci scale (1, 2, 3, 5, 8, 13) based on complexity
+                5. **Tags**: Relevant categorization and search tags
+                6. **Definition of Ready**: Ensure story meets DoR criteria
+                
+                ACCEPTANCE CRITERIA GUIDELINES:
+                - Use Given/When/Then format for clarity
+                - Make each criterion testable and verifiable
+                - Cover happy path, edge cases, and error scenarios
+                - Include non-functional requirements when relevant
+                - Ensure criteria support the story's goal
+                
+                STORY POINT ESTIMATION GUIDE:
+                - 1 point: Very simple, well-understood work (~2-4 hours)
+                - 2 points: Simple work with minimal complexity (~4-8 hours)
+                - 3 points: Moderate complexity, some unknowns (~1-2 days)
+                - 5 points: Complex work, multiple components (~2-3 days)
+                - 8 points: Very complex, high uncertainty (~3-5 days)
+                - 13 points: Should be split into smaller stories
+                
+                Return ONLY this JSON structure:
                 {{
-                    "title": "As a [user type], I want [functionality] so that [benefit]",
-                    "description": "Detailed description expanding on the user need and context",
+                    "title": "As a [specific user type], I want [specific, actionable goal] so that [clear business benefit]",
+                    "description": "Enhanced description that expands on the user need, provides context, explains the current pain point, and describes the desired outcome. Include user motivation and business value.",
                     "acceptance_criteria": [
-                        "Given [context], when [action], then [outcome]",
-                        "Additional criteria as needed"
+                        "Given [specific context/precondition], when [user action/trigger], then [expected outcome/system response]",
+                        "Given [error scenario], when [invalid action], then [appropriate error handling]",
+                        "Given [edge case], when [boundary condition], then [expected behavior]"
                     ],
-                    "tags": ["tag1", "tag2", "tag3"],
-                    "story_points": estimated_number,
-                    "confidence": 0.8,
+                    "tags": ["domain_area", "feature_type", "user_group", "technical_component"],
+                    "story_points": 5,
+                    "confidence": 0.9,
                     "improvement_suggestions": [
-                        "suggestion1",
-                        "suggestion2"
+                        "Consider user experience implications",
+                        "Validate with target users before implementation"
+                    ],
+                    "dependencies": [
+                        "List any technical or story dependencies"
+                    ],
+                    "definition_of_done": [
+                        "Feature implemented and tested",
+                        "Acceptance criteria verified",
+                        "Code reviewed and merged",
+                        "Documentation updated"
                     ]
-                }}
-                """,
+                }}""",
                 variables=["user_description", "priority_level", "epic_context", "project_context", "include_acceptance_criteria", "include_tags"]
+            ),
+            
+            "task_generator": PromptTemplate(
+                name="task_generator",
+                version="1.0",
+                system_prompt="""You are an expert Agile coach and technical lead specializing in task decomposition and sprint planning.
+
+TASK DEFINITION: A Task is a specific, actionable work item that represents the actual work needed to complete a user story. Tasks are the smallest unit of work in Agile and should be completable by one person in 4-16 hours.
+
+TASK BEST PRACTICES:
+- **Specific**: Clear, actionable work that can be executed
+- **Owned**: Assigned to a single person for accountability
+- **Timeboxed**: 0.5-2 days of work (4-16 hours)
+- **Testable**: Has clear completion criteria
+- **Technical**: Focuses on HOW to implement the story
+- **Sequential**: May have dependencies on other tasks
+
+TASK TYPES:
+- **Development**: Code implementation, API creation, database changes
+- **Testing**: Unit tests, integration tests, manual testing
+- **Design**: UI/UX design, technical design, architecture
+- **Research**: Technical spikes, feasibility studies, investigation
+- **DevOps**: Deployment, configuration, infrastructure
+- **Documentation**: Technical docs, user guides, API documentation""",
+                user_prompt_template="""
+                Generate comprehensive tasks to complete this user story:
+                
+                Story Title: {story_title}
+                Story Description: {story_description}
+                Story Points: {story_points}
+                Acceptance Criteria: {acceptance_criteria}
+                Technical Context: {technical_context}
+                Team Skills: {team_skills}
+                Include Subtasks: {include_subtasks}
+                
+                CREATE TASKS THAT INCLUDE:
+                
+                1. **Task Breakdown**: Decompose story into 3-8 specific tasks
+                2. **Technical Implementation**: Focus on HOW to build the feature
+                3. **Testing Strategy**: Include testing and validation tasks
+                4. **Task Dependencies**: Identify task order and dependencies
+                5. **Effort Estimation**: Hours-based estimates for each task
+                6. **Skill Requirements**: What expertise is needed
+                7. **Acceptance Criteria**: Task-specific completion criteria
+                
+                TASK ESTIMATION GUIDELINES:
+                - 0.5-1 hours: Very simple configuration or minor changes
+                - 1-2 hours: Simple implementation, basic testing
+                - 2-4 hours: Standard development task
+                - 4-8 hours: Complex development, integration work
+                - 8-16 hours: Major implementation, significant complexity
+                - >16 hours: Split into smaller tasks
+                
+                TASK CATEGORIES TO CONSIDER:
+                - Frontend development (UI components, state management)
+                - Backend development (APIs, business logic, data models)
+                - Database work (schema, migrations, queries)
+                - Testing (unit, integration, end-to-end)
+                - DevOps (deployment, monitoring, configuration)
+                - Documentation (technical, user, API)
+                - Research/Investigation (technical spikes, proof of concept)
+                
+                Return ONLY this JSON structure:
+                {{
+                    "tasks": [
+                        {{
+                            "title": "Specific, actionable task title focusing on implementation",
+                            "description": "Detailed description of what needs to be done, including technical approach and specific deliverables",
+                            "category": "development|testing|design|research|devops|documentation",
+                            "estimated_hours": 4.0,
+                            "priority": "high|medium|low",
+                            "skills_required": ["javascript", "react", "api_design"],
+                            "acceptance_criteria": [
+                                "Task-specific completion criteria",
+                                "Clear definition of done for this task"
+                            ],
+                            "dependencies": ["task_id_or_description"],
+                            "technical_notes": "Implementation hints, patterns to use, gotchas to avoid",
+                            "testing_requirements": "How this task should be tested and validated"
+                        }}
+                    ],
+                    "total_estimated_hours": 24.0,
+                    "critical_path": ["task1", "task2", "task3"],
+                    "risks": [
+                        "Technical risks or unknowns that could impact tasks",
+                        "Integration challenges or dependencies"
+                    ],
+                    "implementation_notes": [
+                        "Overall implementation strategy",
+                        "Key technical decisions or patterns",
+                        "Performance or security considerations"
+                    ],
+                    "confidence": 0.85
+                }}""",
+                variables=["story_title", "story_description", "story_points", "acceptance_criteria", "technical_context", "team_skills", "include_subtasks"]
             ),
             
             "story_validator": PromptTemplate(
@@ -602,7 +763,7 @@ class AIService:
             # Try to parse as JSON if template expects it
             try:
                 if template_name in ["sprint_planning", "standup_reporter", "retrospective_summarizer", 
-                                   "story_generator", "story_validator", "backlog_coach", "risk_radar"]:
+                                   "epic_generator", "story_generator", "task_generator", "story_validator", "backlog_coach", "risk_radar"]:
                     data = json.loads(content)
                 else:
                     data = content

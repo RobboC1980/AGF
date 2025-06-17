@@ -14,6 +14,15 @@ class StoryGenerateRequest(BaseModel):
     project_id: Optional[str] = None
     priority: Optional[str] = "medium"
 
+class TaskGenerateRequest(BaseModel):
+    story_title: str
+    story_description: str
+    story_points: Optional[int] = 5
+    acceptance_criteria: str
+    technical_context: Optional[str] = ""
+    team_skills: Optional[str] = ""
+    include_subtasks: bool = True
+
 class EpicGenerateRequest(BaseModel):
     description: str
     project_id: Optional[str] = None
@@ -167,4 +176,45 @@ async def generate_story_endpoint(request: StoryGenerateRequest):
             
     except Exception as e:
         logger.error(f"Story generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-tasks")
+async def generate_tasks_endpoint(request: TaskGenerateRequest):
+    """Generate tasks for a user story using AI"""
+    try:
+        from ..services.ai_service import get_basic_ai_service
+        
+        ai_service = get_basic_ai_service()
+        
+        # Prepare variables for AI completion
+        variables = {
+            "story_title": request.story_title,
+            "story_description": request.story_description,
+            "story_points": request.story_points,
+            "acceptance_criteria": request.acceptance_criteria,
+            "technical_context": request.technical_context,
+            "team_skills": request.team_skills,
+            "include_subtasks": request.include_subtasks
+        }
+        
+        # Generate tasks using AI
+        result = await ai_service.generate_completion("task_generator", variables)
+        
+        if result.success:
+            return {
+                "success": True,
+                "tasks": result.data,
+                "model_used": result.model_used,
+                "tokens_used": result.tokens_used,
+                "processing_time": result.processing_time
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.error,
+                "fallback_available": True
+            }
+            
+    except Exception as e:
+        logger.error(f"Task generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) 

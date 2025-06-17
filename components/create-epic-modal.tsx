@@ -18,6 +18,7 @@ import {
   User,
   Tag,
   CheckSquare,
+  CheckCircle2,
   Lightbulb,
   TrendingUp,
 } from "lucide-react"
@@ -478,13 +479,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                         {epic.acceptanceCriteria && epic.acceptanceCriteria.length > 0 && (
                           <div className="space-y-2">
                             {epic.acceptanceCriteria.map((criteria, index) => (
-                              <div key={index} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
-                                <span className="text-sm">{criteria}</span>
+                              <div key={index} className="flex items-start space-x-2 p-3 bg-slate-50 rounded-lg border">
+                                <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm flex-1 text-wrap break-words text-slate-800 font-medium">{criteria}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleRemoveCriteria(criteria)}
-                                  className="text-red-500 hover:text-red-700"
+                                  className="text-slate-400 hover:text-red-600 p-0 h-auto"
                                 >
                                   <X size={14} />
                                 </Button>

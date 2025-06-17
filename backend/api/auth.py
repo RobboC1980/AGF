@@ -201,15 +201,38 @@ async def logout(supabase = Depends(get_supabase)):
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_authenticated_user)):
+async def get_current_user_info(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    supabase = Depends(get_supabase)
+):
     """Get current user information"""
-    # Convert User model to UserResponse
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        name=current_user.name,
-        avatar_url=None
-    )
+    try:
+        # Verify the JWT token with Supabase
+        user = supabase.auth.get_user(credentials.credentials)
+        
+        if not user or not user.user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
+            )
+        
+        # Get user details from the database
+        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+        
+        if not user_data.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        return UserResponse(**user_data.data)
+        
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
 
 @router.post("/password-reset")
 async def request_password_reset(reset_data: PasswordResetRequest, supabase = Depends(get_supabase)):

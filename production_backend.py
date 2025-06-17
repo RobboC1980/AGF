@@ -35,7 +35,7 @@ from backend.auth.enhanced_auth import (
     require_create_project, require_manage_team, require_view_analytics, require_use_ai,
     UserRole, Permission
 )
-from backend.auth.auth_endpoints import auth_router
+from backend.api.auth import router as auth_router
 from backend.webhooks.database_webhooks import webhooks_router
 from backend.cron.scheduled_jobs import cron_router, get_jobs_manager
 
@@ -96,10 +96,10 @@ if supabase_url and supabase_key:
         supabase = create_client(supabase_url, supabase_key)
         logger.info("Supabase client initialized successfully")
         
-        # Initialize enhanced authentication manager
-        import backend.auth.enhanced_auth as auth_module
-        auth_module.auth_manager = EnhancedAuthManager(supabase)
-        logger.info("Enhanced authentication manager initialized")
+        # Initialize the Supabase manager for the auth router
+        from backend.database.supabase_client import supabase_manager
+        supabase_manager.client = supabase
+        logger.info("Supabase manager initialized for auth router")
         
         # Initialize new services
         storage_service = init_storage_service(supabase)
@@ -343,11 +343,11 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Authentication dependency with proper JWT validation"""
+    """Authentication dependency with Supabase JWT validation"""
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
+            detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -357,26 +357,52 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if cron_api_key and credentials.credentials == cron_api_key:
             return {"id": "cron-system", "email": "system@agileforge.com", "name": "System User"}
         
-        payload = verify_jwt_token(credentials.credentials)
-        user_id = payload.get("sub")
+        if not supabase:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database not available"
+            )
         
-        if not user_id:
-            raise ValueError("No user ID found in token")
+        # Verify JWT token with Supabase
+        try:
+            user_response = supabase.auth.get_user(credentials.credentials)
+            if not user_response or not user_response.user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token"
+                )
+            
+            user_id = user_response.user.id
+            
+        except Exception as e:
+            logger.warning(f"Token verification failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials"
+            )
         
         # Get user from database
-        result = supabase.table("users").select("*").eq("id", user_id).execute()
-        if not result.data:
-            logger.warning(f"User not found for ID: {user_id}")
-            raise HTTPException(status_code=401, detail="User not found")
-        
-        return result.data[0]
+        try:
+            result = supabase.table("users").select("*").eq("id", user_id).execute()
+            if not result.data:
+                logger.warning(f"User not found for ID: {user_id}")
+                raise HTTPException(status_code=401, detail="User not found")
+            
+            return result.data[0]
+        except Exception as e:
+            logger.error(f"Database error while fetching user: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error"
+            )
+            
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Authentication error: {str(e)[:100]}...")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -809,24 +835,44 @@ async def generate_story_endpoint(request: StoryGenerateRequest, current_user: d
 async def generate_real_ai_story(ai_service, request: StoryGenerateRequest) -> Dict[str, Any]:
     """Generate story using real AI service"""
     
-    # Create a comprehensive prompt for story generation
+    # Create a comprehensive prompt for story generation using INVEST principles
     prompt = f"""
-    Generate a professional user story based on this description: "{request.description}"
+    You are an expert Agile coach specializing in creating INVEST-quality user stories.
+
+    INVEST PRINCIPLES:
+    - Independent: Can be developed and tested independently
+    - Negotiable: Details can be discussed and refined
+    - Valuable: Delivers clear value to users or business
+    - Estimable: Can be estimated for effort and complexity
+    - Small: Fits within a single sprint (1-2 weeks)
+    - Testable: Has clear acceptance criteria
+
+    Generate a professional user story based on this input: "{request.description}"
+    Priority Level: {request.priority}
     
-    Requirements:
-    - Follow the "As a [user type], I want [goal] so that [benefit]" format
-    - Include {3 if request.includeAcceptanceCriteria else 0} specific acceptance criteria in Given/When/Then format
-    - Suggest appropriate tags for categorization
-    - Estimate story points (1, 2, 3, 5, 8, 13) based on complexity
-    - Priority should be: {request.priority}
+    CREATE A USER STORY THAT INCLUDES:
+    1. Perfect "As a [user type], I want [goal] so that [benefit]" format
+    2. Enhanced description with context, user motivation, and business value
+    3. {3 if request.includeAcceptanceCriteria else 0} acceptance criteria in Given/When/Then format
+    4. Relevant tags for categorization
+    5. Story points estimation (1, 2, 3, 5, 8, 13) based on complexity
+    
+    ACCEPTANCE CRITERIA GUIDELINES:
+    - Use Given/When/Then format for clarity
+    - Make each criterion testable and verifiable
+    - Cover happy path, edge cases, and error scenarios
     
     Return ONLY a JSON object with this exact structure:
     {{
-        "name": "As a [user], I want [goal] so that [benefit]",
-        "description": "{request.description}",
-        "acceptanceCriteria": ["Given..., When..., Then..."],
-        "tags": ["tag1", "tag2", "tag3"],
-        "storyPoints": 3
+        "name": "Short Reference Title (e.g., 'Password Reset Feature', 'User Dashboard Access')",
+        "description": "As a [specific user type], I want [specific goal] so that [clear business benefit]. Enhanced description following INVEST principles that expands on the user need, provides context, explains the current pain point, and describes the desired outcome. Include user motivation and business value.",
+        "acceptanceCriteria": [
+            "Given [specific context], when [user action], then [expected outcome]",
+            "Given [error scenario], when [invalid action], then [appropriate error handling]",
+            "Given [edge case], when [boundary condition], then [expected behavior]"
+        ],
+        "tags": ["domain_area", "feature_type", "user_group"],
+        "storyPoints": 5
     }}
     """
     
@@ -897,20 +943,26 @@ def generate_fallback_story(request: StoryGenerateRequest) -> Dict[str, Any]:
     """Generate story using pattern-based fallback"""
     description_lower = request.description.lower()
     
-    # Smart title generation based on description
+    # Smart title generation based on description (short reference titles)
     if "login" in description_lower and "user" in description_lower:
-        title = "As a user, I want to log into the system so that I can access my account"
+        title = "User Login Feature"
+        user_story = "As a user, I want to log into the system so that I can access my account"
     elif "password" in description_lower and "reset" in description_lower:
-        title = "As a user, I want to reset my password so that I can regain access to my account"
+        title = "Password Reset Feature"
+        user_story = "As a user, I want to reset my password so that I can regain access to my account"
     elif "dashboard" in description_lower:
-        title = "As a user, I want to view my dashboard so that I can see an overview of my activities"
+        title = "User Dashboard Access"
+        user_story = "As a user, I want to view my dashboard so that I can see an overview of my activities"
     elif "search" in description_lower:
-        title = "As a user, I want to search for content so that I can find what I'm looking for"
+        title = "Content Search Feature"
+        user_story = "As a user, I want to search for content so that I can find what I'm looking for"
     elif "profile" in description_lower:
-        title = "As a user, I want to manage my profile so that I can keep my information up to date"
+        title = "Profile Management"
+        user_story = "As a user, I want to manage my profile so that I can keep my information up to date"
     else:
         # Generic pattern
-        title = f"As a user, I want to {request.description.lower()} so that I can achieve my goals"
+        title = f"User Feature: {request.description.title()}"
+        user_story = f"As a user, I want to {request.description.lower()} so that I can achieve my goals"
     
     # Generate acceptance criteria
     acceptance_criteria = []
@@ -971,9 +1023,22 @@ def generate_fallback_story(request: StoryGenerateRequest) -> Dict[str, Any]:
     elif any(word in description_lower for word in ["dashboard", "analytics", "reporting"]):
         story_points = 5
     
+    # Generate enhanced description (combine user story with context)
+    if "password" in description_lower and "reset" in description_lower:
+        enhanced_description = f"{user_story}. This feature enables users to securely reset their passwords when they forget them, improving user experience and reducing support requests. The system should validate email addresses, generate secure reset tokens, and provide clear instructions to users throughout the process."
+    elif "login" in description_lower:
+        enhanced_description = f"{user_story}. This core authentication feature allows users to securely access their accounts. The system should validate credentials, provide clear error messages for failed attempts, and implement security measures like rate limiting to prevent brute force attacks."
+    elif "dashboard" in description_lower:
+        enhanced_description = f"{user_story}. The dashboard serves as the main hub for users to access key information and functionality. It should display relevant metrics, provide quick access to common tasks, and be personalized based on user roles and preferences."
+    elif "search" in description_lower:
+        enhanced_description = f"{user_story}. This feature enhances user productivity by allowing them to quickly find relevant content. The search should be fast, accurate, and provide filtering options to help users narrow down results."
+    else:
+        # Generic enhancement
+        enhanced_description = f"{user_story}. This feature is designed to improve user experience and provide value to the business through enhanced functionality and user satisfaction."
+
     return {
         "name": title,
-        "description": request.description,
+        "description": enhanced_description,
         "acceptanceCriteria": acceptance_criteria,
         "tags": tags,
         "storyPoints": story_points
