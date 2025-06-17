@@ -101,7 +101,8 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
     priority: "medium",
     status: "backlog",
     tags: [],
-    acceptanceCriteria: []
+    acceptanceCriteria: [],
+    dueDate: ""
   })
   
   // AI Generation states
@@ -121,7 +122,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
   // Initialize form when editing
   useEffect(() => {
     if (editingStory) {
-      setStory(editingStory)
+      setStory({
+        ...editingStory,
+        name: editingStory.name || "",
+        description: editingStory.description || "",
+        dueDate: editingStory.dueDate || "",
+        tags: editingStory.tags || [],
+        acceptanceCriteria: editingStory.acceptanceCriteria || []
+      })
       setActiveTab("manual")
     } else {
       // Reset form for new story
@@ -131,7 +139,8 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
         priority: "medium", 
         status: "backlog",
         tags: [],
-        acceptanceCriteria: []
+        acceptanceCriteria: [],
+        dueDate: ""
       })
       setGeneratedStory(null)
       setAiDescription("")
@@ -244,7 +253,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
   }
 
   const handleSave = async () => {
-    if (!story.name.trim()) {
+    if (!story.name?.trim()) {
       setAiError("Story name is required")
       return
     }
@@ -438,7 +447,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                           <Input
                             id="story-name"
                             placeholder="Short reference title (e.g., 'Password Reset Feature')"
-                            value={story.name}
+                            value={story.name || ""}
                             onChange={(e) => setStory(prev => ({ ...prev, name: e.target.value }))}
                             className="mt-2"
                           />
@@ -680,7 +689,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={isSaving || !story.name.trim()}
+                disabled={isSaving || !story.name?.trim()}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 {isSaving ? (

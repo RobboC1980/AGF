@@ -113,7 +113,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
   // Initialize form when editing
   useEffect(() => {
     if (editingEpic) {
-      setEpic(editingEpic)
+      setEpic({
+        ...editingEpic,
+        name: editingEpic.name || "",
+        description: editingEpic.description || "",
+        businessValue: editingEpic.businessValue || "",
+        dueDate: editingEpic.dueDate || "",
+        acceptanceCriteria: editingEpic.acceptanceCriteria || []
+      })
       setActiveTab("manual")
     } else {
       // Reset form for new epic
@@ -220,7 +227,7 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
   }
 
   const handleSave = async () => {
-    if (!epic.name.trim()) {
+    if (!epic.name?.trim()) {
       setAiError("Epic name is required")
       return
     }
@@ -426,7 +433,7 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                           <Input
                             id="epic-name"
                             placeholder="Enter epic name"
-                            value={epic.name}
+                            value={epic.name || ""}
                             onChange={(e) => setEpic(prev => ({ ...prev, name: e.target.value }))}
                             className="mt-2"
                           />
@@ -645,7 +652,7 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={isSaving || !epic.name.trim()}
+                disabled={isSaving || !epic.name?.trim()}
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               >
                 {isSaving ? (
