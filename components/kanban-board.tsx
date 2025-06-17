@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import {
@@ -78,6 +78,11 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   entityType = "stories",
 }) => {
   const [columns, setColumns] = useState(initialColumns)
+
+  // Update local state when props change (for real-time updates)
+  useEffect(() => {
+    setColumns(initialColumns)
+  }, [initialColumns])
 
   const typeConfig = {
     project: { icon: Target, color: "text-blue-700", bg: "bg-blue-50" },

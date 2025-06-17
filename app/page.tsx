@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { QueryProvider } from "../providers/query-provider"
@@ -104,11 +104,14 @@ export default function Page() {
     // The project creation will be handled by the SimpleCreateModal in the header
   }
 
-  const handleCreateSubmit = async (data: any) => {
-    console.log("Creating item:", data)
+  const handleCreateSubmit = async (data: any, entityType?: string) => {
+    console.log("Creating item:", data, "Type:", entityType)
     
     try {
-      if (data.type === "project" || (!data.type && currentPage === "projects")) {
+      // Determine the entity type from parameter or data
+      const type = entityType || data.type || (currentPage === "projects" ? "project" : "task")
+      
+      if (type === "project") {
         // Handle project creation
         const projectPayload = {
           name: data.title,
@@ -120,9 +123,26 @@ export default function Page() {
         await queryClient.invalidateQueries({ queryKey: ['projects'] })
         console.log("Project created successfully!")
         
-      } else if (data.type === "task") {
-        // Handle task creation - existing logic can be expanded here
-        console.log("Task creation not yet implemented")
+      } else if (type === "task") {
+        // Handle task creation
+        if (!data.storyId) {
+          throw new Error("Story is required for task creation")
+        }
+        
+        const taskPayload = {
+          title: data.title,
+          description: data.description || '',
+          story_id: data.storyId,
+          assignee_id: data.assigneeId || null,
+          estimated_hours: data.estimatedHours || 4,
+          status: 'todo',
+          priority: data.priority || 'medium',
+        }
+        
+        await api.tasks.create(taskPayload)
+        await queryClient.invalidateQueries({ queryKey: ['tasks'] })
+        await queryClient.invalidateQueries({ queryKey: ['stories'] })
+        console.log("Task created successfully!")
       }
       
       return Promise.resolve()
@@ -227,8 +247,8 @@ export default function Page() {
     }
   }
 
-  // Create kanban columns from real data
-  const kanbanColumns = [
+  // Create kanban columns from real data - using useMemo for better performance
+  const kanbanColumns = useMemo(() => [
     {
       id: "backlog",
       title: "Backlog",
@@ -336,7 +356,7 @@ export default function Page() {
         createdAt: story.createdAt,
       })),
     },
-  ]
+  ], [kanbanStories])
 
   const pages = [
     { value: "epics", label: "Epics", icon: Rocket, description: "Large feature initiatives" },
@@ -364,7 +384,7 @@ export default function Page() {
                   <div className="flex items-center space-x-2">
                     <SimpleCreateModal 
                       type="project" 
-                      onSubmit={handleCreateSubmit}
+                      onSubmit={(data) => handleCreateSubmit(data, "project")}
                       trigger={
                         <Button variant="outline" size="sm">
                           <Target size={14} className="mr-1" />
@@ -396,7 +416,7 @@ export default function Page() {
                     </Button>
                     <SimpleCreateModal 
                       type="task" 
-                      onSubmit={handleCreateSubmit}
+                      onSubmit={(data) => handleCreateSubmit(data, "task")}
                       stories={modalStories.map(story => ({ 
                         id: story.id, 
                         title: story.name, 
@@ -510,13 +530,37 @@ export default function Page() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <KanbanBoard
                 columns={kanbanColumns}
-                onItemMove={(itemId, fromColumn, toColumn, newIndex) => {
+                onItemMove={async (itemId, fromColumn, toColumn, newIndex) => {
                   console.log(`Moved ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
+                  
+                  try {
+                    // Update story status based on the target column
+                    const statusMap: Record<string, string> = {
+                      'backlog': 'backlog',
+                      'ready': 'ready', 
+                      'in-progress': 'in-progress',
+                      'review': 'review',
+                      'done': 'done'
+                    }
+                    
+                    const newStatus = statusMap[toColumn]
+                    if (newStatus) {
+                      await api.stories.update(itemId, { status: newStatus })
+                      await queryClient.invalidateQueries({ queryKey: ['stories'] })
+                      console.log(`Updated story ${itemId} status to ${newStatus}`)
+                    }
+                  } catch (error) {
+                    console.error('Failed to update story status:', error)
+                    // Optionally show a toast notification here
+                  }
                 }}
                 onItemEdit={handleEdit}
                 onItemDelete={handleDelete}
                 onAddItem={(columnId) => {
                   console.log(`Adding item to column ${columnId}`)
+                  // Open the story creation modal when adding from kanban
+                  setShowStoryModal(true)
+                  setEditingStory(null)
                 }}
                 entityType="stories"
               />
