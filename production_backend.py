@@ -288,7 +288,14 @@ allowed_origins = []
 if os.getenv("ENVIRONMENT") == "development":
     allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
 else:
-    # Production origins
+    # Production origins - but allow localhost for local testing
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ]
+    
     frontend_url = os.getenv("FRONTEND_URL")
     if frontend_url:
         allowed_origins.append(frontend_url)

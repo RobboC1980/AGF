@@ -25,6 +25,18 @@ class StoryCreateRequest(BaseModel):
     acceptanceCriteria: Optional[List[str]] = None
     dueDate: Optional[str] = None
 
+class StoryUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    priority: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$")
+    status: Optional[str] = Field(None, pattern="^(backlog|ready|in-progress|review|done)$")
+    storyPoints: Optional[int] = Field(None, ge=1, le=100)
+    epicId: Optional[str] = None
+    assigneeId: Optional[str] = None
+    tags: Optional[List[str]] = None
+    acceptanceCriteria: Optional[List[str]] = None
+    dueDate: Optional[str] = None
+
 class StoryGenerateRequest(BaseModel):
     description: str = Field(..., min_length=10, max_length=1000)
     epicId: Optional[str] = None
@@ -297,15 +309,76 @@ async def update_story(
     current_user = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
-    """Update a user story"""
+    """Update a user story (full update)"""
     try:
-        # In a real implementation, update in database
-        # For now, return mock data or 404
-        raise HTTPException(status_code=404, detail="Story not found")
-        
+        # Update story in database
+        result = supabase.table('stories').update({
+            'name': request.name,
+            'description': request.description,
+            'priority': request.priority,
+            'status': request.status,
+            'story_points': request.storyPoints,
+            'epic_id': request.epicId,
+            'assignee_id': request.assigneeId,
+            'tags': request.tags,
+            'acceptance_criteria': '\n'.join(request.acceptanceCriteria) if request.acceptanceCriteria else None,
+            'due_date': request.dueDate,
+            'updated_at': datetime.utcnow().isoformat()
+        }).eq('id', story_id).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Story not found")
+
+        return result.data[0]
     except Exception as e:
-        logger.error(f"Failed to update story {story_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error updating story {story_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update story: {str(e)}")
+
+@router.patch("/{story_id}", response_model=StoryResponse)
+async def patch_story(
+    story_id: str,
+    request: StoryUpdateRequest,
+    current_user = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
+    """Partially update a user story (only provided fields)"""
+    try:
+        # Build update dict with only provided fields
+        update_data = {}
+        if request.name is not None:
+            update_data['name'] = request.name
+        if request.description is not None:
+            update_data['description'] = request.description
+        if request.priority is not None:
+            update_data['priority'] = request.priority
+        if request.status is not None:
+            update_data['status'] = request.status
+        if request.storyPoints is not None:
+            update_data['story_points'] = request.storyPoints
+        if request.epicId is not None:
+            update_data['epic_id'] = request.epicId
+        if request.assigneeId is not None:
+            update_data['assignee_id'] = request.assigneeId
+        if request.tags is not None:
+            update_data['tags'] = request.tags
+        if request.acceptanceCriteria is not None:
+            update_data['acceptance_criteria'] = '\n'.join(request.acceptanceCriteria) if request.acceptanceCriteria else None
+        if request.dueDate is not None:
+            update_data['due_date'] = request.dueDate
+        
+        # Always update the timestamp
+        update_data['updated_at'] = datetime.utcnow().isoformat()
+        
+        # Update story in database
+        result = supabase.table('stories').update(update_data).eq('id', story_id).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Story not found")
+
+        return result.data[0]
+    except Exception as e:
+        logger.error(f"Error patching story {story_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to patch story: {str(e)}")
 
 @router.delete("/{story_id}")
 async def delete_story(

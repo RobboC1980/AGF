@@ -18,6 +18,7 @@ import {
   Rocket,
   Clock,
   TrendingUp,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -67,6 +68,7 @@ interface KanbanBoardProps {
   onItemDelete?: (item: KanbanItem) => void
   onAddItem?: (columnId: string) => void
   entityType?: "projects" | "epics" | "stories" | "tasks"
+  movingItems?: Set<string>
 }
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -76,6 +78,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onItemDelete,
   onAddItem,
   entityType = "stories",
+  movingItems = new Set(),
 }) => {
   const [columns, setColumns] = useState(initialColumns)
 
@@ -112,6 +115,15 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
     if (!sourceColumn || !destColumn) return
 
+    // Check WIP limits before allowing the move
+    if (source.droppableId !== destination.droppableId && destColumn.limit) {
+      if (destColumn.items.length >= destColumn.limit) {
+        console.warn(`Cannot move item: ${destColumn.title} has reached its WIP limit of ${destColumn.limit}`)
+        // You could show a toast notification here if available
+        return
+      }
+    }
+
     const sourceItems = Array.from(sourceColumn.items)
     const destItems = source.droppableId === destination.droppableId ? sourceItems : Array.from(destColumn.items)
 
@@ -135,6 +147,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
       )
     }
 
+    // Call the parent's onItemMove handler
     onItemMove?.(draggableId, source.droppableId, destination.droppableId, destination.index)
   }
 
@@ -176,8 +189,10 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`h-full flex flex-col rounded-lg border-2 transition-colors ${
-                          snapshot.isDraggingOver ? "border-blue-300 bg-blue-50/50" : "border-slate-200 bg-slate-50/50"
+                        className={`h-full flex flex-col rounded-lg border-2 transition-all duration-300 ${
+                          snapshot.isDraggingOver 
+                            ? "border-blue-400 bg-blue-50/70 shadow-md scale-[1.02]" 
+                            : "border-slate-200 bg-slate-50/50 hover:bg-slate-100/50"
                         }`}
                       >
                         {/* Column Header */}
@@ -231,6 +246,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             {column.items.map((item, index) => {
                               const config = typeConfig[item.type]
                               const IconComponent = config.icon
+                              const isMoving = movingItems.has(item.id)
 
                               return (
                                 <Draggable key={item.id} draggableId={item.id} index={index}>
@@ -243,15 +259,25 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                       animate={{ opacity: 1, y: 0 }}
                                       exit={{ opacity: 0, y: -20 }}
                                       transition={{ delay: index * 0.05 }}
-                                      className={`transform transition-transform ${
-                                        snapshot.isDragging ? "rotate-2 scale-105" : ""
-                                      }`}
+                                      className={`transform transition-all duration-200 ${
+                                        snapshot.isDragging ? "rotate-2 scale-105 z-50" : "hover:scale-[1.02]"
+                                      } ${isMoving ? "opacity-50" : ""}`}
                                     >
                                       <Card
-                                        className={`group hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing ${
-                                          snapshot.isDragging ? "shadow-lg ring-2 ring-blue-500" : ""
-                                        }`}
+                                        className={`group hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing relative ${
+                                          snapshot.isDragging 
+                                            ? "shadow-xl ring-2 ring-blue-500 ring-opacity-50 bg-white" 
+                                            : "hover:shadow-lg"
+                                        } ${isMoving ? "ring-2 ring-amber-300 ring-opacity-50" : ""}`}
                                       >
+                                        {isMoving && (
+                                          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+                                            <div className="flex items-center space-x-2 text-amber-600">
+                                              <Loader2 size={16} className="animate-spin" />
+                                              <span className="text-sm font-medium">Moving...</span>
+                                            </div>
+                                          </div>
+                                        )}
                                         <CardHeader className="pb-2">
                                           <div className="flex items-start justify-between">
                                             <div className="flex items-center space-x-2">

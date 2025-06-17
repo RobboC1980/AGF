@@ -31,6 +31,7 @@ import { Rocket, Target, BookOpen, CheckSquare, Search, BarChart3, MessageSquare
 import { useStories, useEpics, useUsers } from "@/hooks/useApi"
 import { api } from "@/services/api"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
 
@@ -43,6 +44,7 @@ export default function Page() {
   const [editingStory, setEditingStory] = useState<any>(null)
   const [showEpicModal, setShowEpicModal] = useState(false)
   const [editingEpic, setEditingEpic] = useState<any>(null)
+  const [movingItems, setMovingItems] = useState<Set<string>>(new Set())
   
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth()
   const router = useRouter()
@@ -531,10 +533,20 @@ export default function Page() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <KanbanBoard
                 columns={kanbanColumns}
+                movingItems={movingItems}
                 onItemMove={async (itemId, fromColumn, toColumn, newIndex) => {
-                  console.log(`Moved ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
+                  console.log(`Moving ${itemId} from ${fromColumn} to ${toColumn} at index ${newIndex}`)
+                  
+                  // Add item to moving state
+                  setMovingItems(prev => new Set(prev).add(itemId))
                   
                   try {
+                    // Find the story being moved to get its current data
+                    const storyToMove = kanbanStories.find(story => story.id === itemId)
+                    if (!storyToMove) {
+                      throw new Error('Story not found')
+                    }
+                    
                     // Update story status based on the target column
                     const statusMap: Record<string, string> = {
                       'backlog': 'backlog',
@@ -545,23 +557,54 @@ export default function Page() {
                     }
                     
                     const newStatus = statusMap[toColumn]
-                    if (newStatus) {
-                      await api.stories.update(itemId, { status: newStatus })
+                    if (newStatus && newStatus !== storyToMove.status) {
+                      // Use PATCH for efficient status-only update
+                      const statusUpdate = {
+                        status: newStatus
+                      }
+                      
+                      await api.stories.patchStory(itemId, statusUpdate)
                       await queryClient.invalidateQueries({ queryKey: ['stories'] })
-                      console.log(`Updated story ${itemId} status to ${newStatus}`)
+                      
+                      // Show success feedback
+                      toast.success(`Story moved to ${toColumn.replace('-', ' ')}`)
+                      console.log(`Successfully updated story ${itemId} status to ${newStatus}`)
                     }
                   } catch (error) {
                     console.error('Failed to update story status:', error)
-                    // Optionally show a toast notification here
+                    
+                    // Show error feedback
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+                    toast.error(`Failed to move story: ${errorMessage}`)
+                    
+                    // Refresh the data to revert any optimistic updates
+                    await queryClient.invalidateQueries({ queryKey: ['stories'] })
+                  } finally {
+                    // Remove item from moving state
+                    setMovingItems(prev => {
+                      const newSet = new Set(prev)
+                      newSet.delete(itemId)
+                      return newSet
+                    })
                   }
                 }}
                 onItemEdit={handleEdit}
                 onItemDelete={handleDelete}
                 onAddItem={(columnId) => {
                   console.log(`Adding item to column ${columnId}`)
-                  // Open the story creation modal when adding from kanban
+                  // Open the story creation modal with pre-selected status
+                  const statusMap: Record<string, string> = {
+                    'backlog': 'backlog',
+                    'ready': 'ready', 
+                    'in-progress': 'in-progress',
+                    'review': 'review',
+                    'done': 'done'
+                  }
+                  
+                  // Set the default status for the new story
+                  const defaultStatus = statusMap[columnId] || 'backlog'
+                  setEditingStory({ status: defaultStatus } as any)
                   setShowStoryModal(true)
-                  setEditingStory(null)
                 }}
                 entityType="stories"
               />

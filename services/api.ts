@@ -183,6 +183,14 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' })
   }
 
+  // PATCH request
+  async patch<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
   // Authentication API
   async login(
     email: string,
@@ -273,6 +281,13 @@ class ApiClient {
     return this.request(`/api/stories/${id}`, {
       method: "PUT",
       body: JSON.stringify(story),
+    })
+  }
+
+  async patchStory(id: string, updates: Partial<Story>): Promise<ApiResponse<Story>> {
+    return this.request(`/api/stories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
     })
   }
 
