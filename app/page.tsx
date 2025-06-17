@@ -137,6 +137,7 @@ export default function Page() {
           estimated_hours: data.estimatedHours || 4,
           status: 'todo',
           priority: data.priority || 'medium',
+          due_date: data.dueDate || null
         }
         
         await api.tasks.create(taskPayload)

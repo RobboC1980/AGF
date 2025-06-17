@@ -599,15 +599,24 @@ export const api = {
 
   // Tasks
   tasks: {
-    getAll: (storyId?: string) => {
+    getAll: async (storyId?: string) => {
       // Ensure storyId is a string or null, not an object
       const validStoryId = storyId && typeof storyId === 'string' ? storyId : undefined;
-      return apiClient.get<Task[]>(`/api/tasks${validStoryId ? `?story_id=${validStoryId}` : ''}`);
+      const response = await apiClient.get<{data: {tasks: Task[]}, success: boolean}>(`/api/tasks${validStoryId ? `?story_id=${validStoryId}` : ''}`);
+      return response.data.tasks;
     },
-    getById: (id: string) => apiClient.get<Task>(`/api/tasks/${id}`),
-    create: (data: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'task_key' | 'actual_hours'>) => 
-      apiClient.post<Task>('/api/tasks', data),
-    update: (id: string, data: Partial<Task>) => apiClient.put<Task>(`/api/tasks/${id}`, data),
+    getById: async (id: string) => {
+      const response = await apiClient.get<{data: Task, success: boolean}>(`/api/tasks/${id}`);
+      return response.data;
+    },
+    create: async (data: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'task_key' | 'actual_hours'>) => {
+      const response = await apiClient.post<{data: Task, success: boolean}>('/api/tasks', data);
+      return response.data;
+    },
+    update: async (id: string, data: Partial<Task>) => {
+      const response = await apiClient.put<{data: Task, success: boolean}>(`/api/tasks/${id}`, data);
+      return response.data;
+    },
     delete: (id: string) => apiClient.delete(`/api/tasks/${id}`),
   },
 

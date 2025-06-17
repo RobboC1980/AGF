@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
-from ..database.supabase_client import get_supabase_client
+from ..database.supabase_client import get_supabase
 from ..auth.dependencies import get_current_user
-from ..models.api_models import User
+from ..models.api_models import UserResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,10 +20,10 @@ class ProjectUpdate(BaseModel):
     status: Optional[str] = None
 
 @router.get("/")
-async def get_projects(current_user: User = Depends(get_current_user)):
+async def get_projects(current_user: UserResponse = Depends(get_current_user)):
     """Get all projects for the current user"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         result = supabase.table("projects").select("*").eq("created_by", current_user.id).execute()
         
         projects = []
@@ -47,10 +47,10 @@ async def get_projects(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
 
 @router.post("/")
-async def create_project(project_data: ProjectCreate, current_user: User = Depends(get_current_user)):
+async def create_project(project_data: ProjectCreate, current_user: UserResponse = Depends(get_current_user)):
     """Create a new project"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         project = {
             "name": project_data.name,
@@ -88,10 +88,10 @@ async def create_project(project_data: ProjectCreate, current_user: User = Depen
         raise HTTPException(status_code=500, detail="Failed to create project")
 
 @router.get("/{project_id}")
-async def get_project(project_id: str, current_user: User = Depends(get_current_user)):
+async def get_project(project_id: str, current_user: UserResponse = Depends(get_current_user)):
     """Get a specific project"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         result = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()
         
         if not result.data:
@@ -120,10 +120,10 @@ async def get_project(project_id: str, current_user: User = Depends(get_current_
         raise HTTPException(status_code=500, detail="Failed to fetch project")
 
 @router.put("/{project_id}")
-async def update_project(project_id: str, project_data: ProjectUpdate, current_user: User = Depends(get_current_user)):
+async def update_project(project_id: str, project_data: ProjectUpdate, current_user: UserResponse = Depends(get_current_user)):
     """Update a project"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         # First check if project exists and belongs to user
         existing = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()
@@ -171,10 +171,10 @@ async def update_project(project_id: str, project_data: ProjectUpdate, current_u
         raise HTTPException(status_code=500, detail="Failed to update project")
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str, current_user: User = Depends(get_current_user)):
+async def delete_project(project_id: str, current_user: UserResponse = Depends(get_current_user)):
     """Delete a project"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         # First check if project exists and belongs to user
         existing = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()

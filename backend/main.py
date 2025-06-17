@@ -13,6 +13,7 @@ from .api.auth import router as auth_router
 from .api.projects import router as projects_router
 from .api.epics import router as epics_router
 from .api.users import router as users_router
+from .api.tasks import router as tasks_router
 from .database.supabase_client import init_supabase, close_supabase, get_supabase
 from .services.ai_service import init_ai_service
 from .middleware.auth import AuthMiddleware
@@ -140,6 +141,7 @@ app.include_router(stories_router, prefix="/api/stories", tags=["Stories"])
 app.include_router(projects_router, prefix="/api/projects", tags=["Projects"])
 app.include_router(epics_router, prefix="/api/epics", tags=["Epics"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
+app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
 
 # Error handlers
