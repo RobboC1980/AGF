@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect, useCallback } from "react"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import {
   Plus,
@@ -81,6 +80,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   movingItems = new Set(),
 }) => {
   const [columns, setColumns] = useState(initialColumns)
+  const [isDragDisabled, setIsDragDisabled] = useState(false)
 
   // Update local state when props change (for real-time updates)
   useEffect(() => {
@@ -101,38 +101,68 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     critical: { color: "text-red-700", bg: "bg-red-50", border: "border-red-200" },
   }
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragStart = useCallback(() => {
+    // Disable any conflicting interactions during drag
+    setIsDragDisabled(false)
+  }, [])
+
+  const handleDragEnd = useCallback((result: DropResult) => {
     const { destination, source, draggableId } = result
 
-    if (!destination) return
+    // Reset drag state
+    setIsDragDisabled(false)
+
+    if (!destination) {
+      console.log("No destination, drag cancelled")
+      return
+    }
 
     if (destination.droppableId === source.droppableId && destination.index === source.index) {
+      console.log("Same position, no move needed")
       return
     }
 
     const sourceColumn = columns.find((col) => col.id === source.droppableId)
     const destColumn = columns.find((col) => col.id === destination.droppableId)
 
-    if (!sourceColumn || !destColumn) return
+    if (!sourceColumn || !destColumn) {
+      console.error("Could not find source or destination column")
+      return
+    }
 
     // Check WIP limits before allowing the move
     if (source.droppableId !== destination.droppableId && destColumn.limit) {
       if (destColumn.items.length >= destColumn.limit) {
         console.warn(`Cannot move item: ${destColumn.title} has reached its WIP limit of ${destColumn.limit}`)
-        // You could show a toast notification here if available
         return
       }
     }
 
-    const sourceItems = Array.from(sourceColumn.items)
-    const destItems = source.droppableId === destination.droppableId ? sourceItems : Array.from(destColumn.items)
+    // Create new arrays to avoid mutation
+    const sourceItems = [...sourceColumn.items]
+    const destItems = source.droppableId === destination.droppableId ? sourceItems : [...destColumn.items]
 
-    const [movedItem] = sourceItems.splice(source.index, 1)
+    // Find and remove the moved item
+    const movedItemIndex = sourceItems.findIndex(item => item.id === draggableId)
+    if (movedItemIndex === -1) {
+      console.error("Could not find moved item in source column")
+      return
+    }
+
+    const [movedItem] = sourceItems.splice(movedItemIndex, 1)
 
     if (source.droppableId === destination.droppableId) {
+      // Moving within same column
       sourceItems.splice(destination.index, 0, movedItem)
-      setColumns((prev) => prev.map((col) => (col.id === source.droppableId ? { ...col, items: sourceItems } : col)))
+      setColumns((prev) => 
+        prev.map((col) => 
+          col.id === source.droppableId 
+            ? { ...col, items: sourceItems } 
+            : col
+        )
+      )
     } else {
+      // Moving between columns
       destItems.splice(destination.index, 0, movedItem)
       setColumns((prev) =>
         prev.map((col) => {
@@ -143,13 +173,14 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
             return { ...col, items: destItems }
           }
           return col
-        }),
+        })
       )
     }
 
     // Call the parent's onItemMove handler
+    console.log(`Moving item ${draggableId} from ${source.droppableId} to ${destination.droppableId} at index ${destination.index}`)
     onItemMove?.(draggableId, source.droppableId, destination.droppableId, destination.index)
-  }
+  }, [columns, onItemMove])
 
   const getTotalItems = () => {
     return columns.reduce((total, column) => total + column.items.length, 0)
@@ -179,24 +210,24 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         </div>
 
         {/* Kanban Board */}
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex-1 overflow-x-auto">
             <div className="flex space-x-6 h-full min-w-max pb-6">
               {columns.map((column) => (
                 <div key={column.id} className="flex-shrink-0 w-80">
-                  <Droppable droppableId={column.id}>
+                  <Droppable droppableId={column.id} type="ITEM">
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`h-full flex flex-col rounded-lg border-2 transition-all duration-300 ${
+                        className={`h-full flex flex-col rounded-lg border-2 transition-all duration-200 ${
                           snapshot.isDraggingOver 
-                            ? "border-blue-400 bg-blue-50/70 shadow-md scale-[1.02]" 
+                            ? "border-blue-400 bg-blue-50 shadow-lg" 
                             : "border-slate-200 bg-slate-50/50 hover:bg-slate-100/50"
                         }`}
                       >
                         {/* Column Header */}
-                        <div className="p-4 border-b border-slate-200 bg-white rounded-t-lg">
+                        <div className="p-4 border-b border-slate-200 bg-white rounded-t-lg flex-shrink-0">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center space-x-2">
                               <div className={`w-3 h-3 rounded-full ${column.color}`}></div>
@@ -241,179 +272,187 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </div>
 
                         {/* Column Content */}
-                        <div className="flex-1 p-4 space-y-3 overflow-y-auto">
-                          <AnimatePresence>
-                            {column.items.map((item, index) => {
-                              const config = typeConfig[item.type]
-                              const IconComponent = config.icon
-                              const isMoving = movingItems.has(item.id)
+                        <div className="flex-1 p-4 space-y-3 overflow-y-auto min-h-0">
+                          {column.items.map((item, index) => {
+                            const config = typeConfig[item.type]
+                            const IconComponent = config.icon
+                            const isMoving = movingItems.has(item.id)
 
-                              return (
-                                <Draggable key={item.id} draggableId={item.id} index={index}>
-                                  {(provided, snapshot) => (
-                                    <motion.div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      initial={{ opacity: 0, y: 20 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0, y: -20 }}
-                                      transition={{ delay: index * 0.05 }}
-                                      className={`transform transition-all duration-200 ${
-                                        snapshot.isDragging ? "rotate-2 scale-105 z-50" : "hover:scale-[1.02]"
-                                      } ${isMoving ? "opacity-50" : ""}`}
+                            return (
+                              <Draggable 
+                                key={item.id} 
+                                draggableId={item.id} 
+                                index={index}
+                                isDragDisabled={isMoving || isDragDisabled}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`transition-all duration-200 ${
+                                      snapshot.isDragging 
+                                        ? "rotate-2 scale-105 z-50 shadow-2xl" 
+                                        : "hover:scale-[1.02]"
+                                    } ${isMoving ? "opacity-50" : ""}`}
+                                    style={{
+                                      ...provided.draggableProps.style,
+                                      // Ensure proper positioning during drag
+                                      transform: snapshot.isDragging 
+                                        ? `${provided.draggableProps.style?.transform} rotate(2deg)` 
+                                        : provided.draggableProps.style?.transform,
+                                    }}
+                                  >
+                                    <Card
+                                      className={`group hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing relative ${
+                                        snapshot.isDragging 
+                                          ? "shadow-xl ring-2 ring-blue-500 ring-opacity-50 bg-white" 
+                                          : "hover:shadow-lg"
+                                      } ${isMoving ? "ring-2 ring-amber-300 ring-opacity-50" : ""}`}
                                     >
-                                      <Card
-                                        className={`group hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing relative ${
-                                          snapshot.isDragging 
-                                            ? "shadow-xl ring-2 ring-blue-500 ring-opacity-50 bg-white" 
-                                            : "hover:shadow-lg"
-                                        } ${isMoving ? "ring-2 ring-amber-300 ring-opacity-50" : ""}`}
-                                      >
-                                        {isMoving && (
-                                          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
-                                            <div className="flex items-center space-x-2 text-amber-600">
-                                              <Loader2 size={16} className="animate-spin" />
-                                              <span className="text-sm font-medium">Moving...</span>
+                                      {isMoving && (
+                                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+                                          <div className="flex items-center space-x-2 text-amber-600">
+                                            <Loader2 size={16} className="animate-spin" />
+                                            <span className="text-sm font-medium">Moving...</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      <CardHeader className="pb-2">
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            <div
+                                              className={`w-6 h-6 ${config.bg} rounded flex items-center justify-center`}
+                                            >
+                                              <IconComponent size={12} className={config.color} />
                                             </div>
+                                            <Badge
+                                              variant="secondary"
+                                              className={`${priorityConfig[item.priority].bg} ${priorityConfig[item.priority].color} ${priorityConfig[item.priority].border} border text-xs`}
+                                            >
+                                              {item.priority}
+                                            </Badge>
+                                          </div>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                <MoreHorizontal size={12} />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => onItemEdit?.(item)}>
+                                                <Edit2 size={16} className="mr-2" />
+                                                Edit
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem>
+                                                <Star size={16} className="mr-2" />
+                                                Favorite
+                                              </DropdownMenuItem>
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuItem
+                                                className="text-red-600"
+                                                onClick={() => onItemDelete?.(item)}
+                                              >
+                                                <Trash2 size={16} className="mr-2" />
+                                                Delete
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      </CardHeader>
+
+                                      <CardContent className="space-y-3">
+                                        <div>
+                                          <h4 className="font-medium text-slate-900 text-sm line-clamp-2 leading-snug">
+                                            {item.title}
+                                          </h4>
+                                          {item.description && (
+                                            <p className="text-slate-600 text-xs line-clamp-2 mt-1 leading-relaxed">
+                                              {item.description}
+                                            </p>
+                                          )}
+                                        </div>
+
+                                        {typeof item.progress === "number" && (
+                                          <div className="space-y-1">
+                                            <div className="flex items-center justify-between text-xs">
+                                              <span className="text-slate-600">Progress</span>
+                                              <span className="font-medium text-slate-900">{item.progress}%</span>
+                                            </div>
+                                            <Progress value={item.progress} className="h-1.5" />
                                           </div>
                                         )}
-                                        <CardHeader className="pb-2">
-                                          <div className="flex items-start justify-between">
-                                            <div className="flex items-center space-x-2">
-                                              <div
-                                                className={`w-6 h-6 ${config.bg} rounded flex items-center justify-center`}
+
+                                        {item.tags && item.tags.length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {item.tags.slice(0, 2).map((tag) => (
+                                              <Badge
+                                                key={tag}
+                                                variant="secondary"
+                                                className="text-xs bg-slate-100 text-slate-700"
                                               >
-                                                <IconComponent size={12} className={config.color} />
-                                              </div>
+                                                {tag}
+                                              </Badge>
+                                            ))}
+                                            {item.tags.length > 2 && (
                                               <Badge
                                                 variant="secondary"
-                                                className={`${priorityConfig[item.priority].bg} ${priorityConfig[item.priority].color} ${priorityConfig[item.priority].border} border text-xs`}
+                                                className="text-xs bg-slate-100 text-slate-700"
                                               >
-                                                {item.priority}
+                                                +{item.tags.length - 2}
                                               </Badge>
-                                            </div>
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
-                                                  onClick={(e) => e.stopPropagation()}
-                                                >
-                                                  <MoreHorizontal size={12} />
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => onItemEdit?.(item)}>
-                                                  <Edit2 size={16} className="mr-2" />
-                                                  Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem>
-                                                  <Star size={16} className="mr-2" />
-                                                  Favorite
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                  className="text-red-600"
-                                                  onClick={() => onItemDelete?.(item)}
-                                                >
-                                                  <Trash2 size={16} className="mr-2" />
-                                                  Delete
-                                                </DropdownMenuItem>
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            )}
                                           </div>
-                                        </CardHeader>
+                                        )}
 
-                                        <CardContent className="space-y-3">
-                                          <div>
-                                            <h4 className="font-medium text-slate-900 text-sm line-clamp-2 leading-snug">
-                                              {item.title}
-                                            </h4>
-                                            {item.description && (
-                                              <p className="text-slate-600 text-xs line-clamp-2 mt-1 leading-relaxed">
-                                                {item.description}
-                                              </p>
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                          <div className="flex items-center space-x-2">
+                                            {item.assignee ? (
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Avatar className="w-5 h-5">
+                                                    <AvatarImage src={item.assignee.avatar || "/placeholder.svg"} />
+                                                    <AvatarFallback className="text-xs">
+                                                      {item.assignee.name
+                                                        .split(" ")
+                                                        .map((n) => n[0])
+                                                        .join("")}
+                                                    </AvatarFallback>
+                                                  </Avatar>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>{item.assignee.name}</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            ) : (
+                                              <div className="w-5 h-5 bg-slate-200 rounded-full"></div>
+                                            )}
+                                            {item.storyPoints && (
+                                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                                {item.storyPoints} SP
+                                              </Badge>
                                             )}
                                           </div>
 
-                                          {typeof item.progress === "number" && (
-                                            <div className="space-y-1">
-                                              <div className="flex items-center justify-between text-xs">
-                                                <span className="text-slate-600">Progress</span>
-                                                <span className="font-medium text-slate-900">{item.progress}%</span>
-                                              </div>
-                                              <Progress value={item.progress} className="h-1.5" />
+                                          {item.dueDate && (
+                                            <div className="flex items-center space-x-1 text-xs text-slate-500">
+                                              <Clock size={10} />
+                                              <span>{new Date(item.dueDate).toLocaleDateString('en-GB')}</span>
                                             </div>
                                           )}
-
-                                          {item.tags && item.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                              {item.tags.slice(0, 2).map((tag) => (
-                                                <Badge
-                                                  key={tag}
-                                                  variant="secondary"
-                                                  className="text-xs bg-slate-100 text-slate-700"
-                                                >
-                                                  {tag}
-                                                </Badge>
-                                              ))}
-                                              {item.tags.length > 2 && (
-                                                <Badge
-                                                  variant="secondary"
-                                                  className="text-xs bg-slate-100 text-slate-700"
-                                                >
-                                                  +{item.tags.length - 2}
-                                                </Badge>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                            <div className="flex items-center space-x-2">
-                                              {item.assignee ? (
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <Avatar className="w-5 h-5">
-                                                      <AvatarImage src={item.assignee.avatar || "/placeholder.svg"} />
-                                                      <AvatarFallback className="text-xs">
-                                                        {item.assignee.name
-                                                          .split(" ")
-                                                          .map((n) => n[0])
-                                                          .join("")}
-                                                      </AvatarFallback>
-                                                    </Avatar>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent>
-                                                    <p>{item.assignee.name}</p>
-                                                  </TooltipContent>
-                                                </Tooltip>
-                                              ) : (
-                                                <div className="w-5 h-5 bg-slate-200 rounded-full"></div>
-                                              )}
-                                              {item.storyPoints && (
-                                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                                  {item.storyPoints} SP
-                                                </Badge>
-                                              )}
-                                            </div>
-
-                                            {item.dueDate && (
-                                              <div className="flex items-center space-x-1 text-xs text-slate-500">
-                                                <Clock size={10} />
-                                                <span>{new Date(item.dueDate).toLocaleDateString('en-GB')}</span>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    </motion.div>
-                                  )}
-                                </Draggable>
-                              )
-                            })}
-                          </AnimatePresence>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  </div>
+                                )}
+                              </Draggable>
+                            )
+                          })}
                           {provided.placeholder}
 
                           {/* Add Item Button */}
