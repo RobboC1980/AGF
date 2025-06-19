@@ -1211,6 +1211,97 @@ async def stripe_webhook(request: Request):
         logger.error(f"Stripe webhook error: {e}")
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
+@app.post("/api/stripe/create-checkout-session")
+async def create_checkout_session(request: Request):
+    """Create a Stripe checkout session"""
+    try:
+        data = await request.json()
+        price_id = data.get('priceId')
+        user_id = data.get('userId')
+        success_url = data.get('successUrl')
+        cancel_url = data.get('cancelUrl')
+        
+        if not all([price_id, user_id, success_url, cancel_url]):
+            raise HTTPException(status_code=400, detail="Missing required parameters")
+        
+        # Get or create Stripe customer
+        try:
+            # Check if user already has a Stripe customer ID
+            user_result = supabase.table('users').select('stripe_customer_id, email').eq('id', user_id).execute()
+            if not user_result.data:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            user = user_result.data[0]
+            customer_id = user.get('stripe_customer_id')
+            
+            if not customer_id:
+                # Create new Stripe customer
+                customer = stripe.Customer.create(
+                    email=user['email'],
+                    metadata={'user_id': user_id}
+                )
+                customer_id = customer.id
+                
+                # Save customer ID to user record
+                supabase.table('users').update({
+                    'stripe_customer_id': customer_id
+                }).eq('id', user_id).execute()
+            
+        except Exception as e:
+            logger.error(f"Error handling Stripe customer: {e}")
+            raise HTTPException(status_code=500, detail="Failed to process customer")
+        
+        # Create checkout session
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={
+                'user_id': user_id
+            }
+        )
+        
+        return {"id": session.id, "url": session.url}
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Checkout session error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+
+@app.post("/api/stripe/create-portal-session")
+async def create_portal_session(request: Request):
+    """Create a Stripe customer portal session"""
+    try:
+        data = await request.json()
+        customer_id = data.get('customerId')
+        return_url = data.get('returnUrl')
+        
+        if not all([customer_id, return_url]):
+            raise HTTPException(status_code=400, detail="Missing required parameters")
+        
+        # Create portal session
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+        
+        return {"url": session.url}
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Portal session error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create portal session")
+
 @app.post("/api/webhooks/sendgrid")
 async def sendgrid_webhook(request: Request):
     """Handle SendGrid webhooks for email events"""
