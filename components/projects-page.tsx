@@ -66,6 +66,17 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const { data: epics = [], isLoading: epicsLoading } = useEpics()
   const { data: users = [], isLoading: usersLoading } = useUsers()
 
+  // Debug logging - TODO: Remove after fixing projects loading issue
+  console.log('ProjectsPage - Raw data:', { 
+    projects, 
+    projectsCount: projects?.length, 
+    projectsLoading, 
+    projectsError,
+    stories: stories?.length,
+    epics: epics?.length,
+    users: users?.length
+  })
+
   // Combine loading and error states
   const isLoading = projectsLoading || storiesLoading || epicsLoading || usersLoading
   const error = projectsError
@@ -145,7 +156,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
   // Enhanced projects with calculated stats
   const enhancedProjects = useMemo(() => {
-    return projects.map(project => {
+    console.log('Calculating enhancedProjects...', { 
+      projectsInput: projects, 
+      projectsCount: projects?.length,
+      epicsCount: epics?.length,
+      storiesCount: stories?.length,
+      usersCount: users?.length 
+    })
+    
+    const enhanced = projects.map(project => {
       // Get epics for this project
       const projectEpics = epics.filter(epic => epic.project_id === project.id)
       
@@ -188,10 +207,21 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
         updatedAt: project.updated_at || project.created_at,
       }
     })
+    
+    console.log('Enhanced projects result:', enhanced)
+    return enhanced
   }, [projects, epics, stories, users])
 
   // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
+    console.log('Filtering projects...', {
+      enhancedProjectsCount: enhancedProjects.length,
+      searchQuery,
+      statusFilter,
+      priorityFilter,
+      activeTab
+    })
+    
     let filtered = enhancedProjects.filter((project) => {
       const matchesSearch =
         !searchQuery ||
@@ -204,6 +234,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
       return matchesSearch && matchesStatus && matchesPriority
     })
+
+    console.log('After basic filtering:', filtered.length)
 
     // Apply tab filter
     if (activeTab !== "all") {
@@ -220,6 +252,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
         }
       })
     }
+
+    console.log('After tab filtering:', filtered.length)
 
     // Sort projects
     filtered.sort((a, b) => {
@@ -248,6 +282,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
       return sortOrder === "asc" ? -comparison : comparison
     })
 
+    console.log('Final filtered and sorted projects:', filtered.length)
     return filtered
   }, [enhancedProjects, searchQuery, statusFilter, priorityFilter, activeTab, sortBy, sortOrder])
 

@@ -676,7 +676,22 @@ async def get_projects(current_user: dict = Depends(get_current_user)):
         # For now, allow all authenticated users to view projects
         # In the future, we can add more granular permissions
         result = supabase.table("projects").select("*").execute()
-        return result.data
+        
+        # Debug logging
+        logger.info(f"Projects query returned {len(result.data)} projects")
+        logger.info(f"Sample project data: {result.data[0] if result.data else 'No projects found'}")
+        
+        # Format the response to match what the frontend expects
+        formatted_response = {
+            "success": True,
+            "data": {
+                "projects": result.data
+            }
+        }
+        
+        logger.info(f"Formatted response structure: {list(formatted_response.keys())}")
+        return formatted_response
+        
     except Exception as e:
         logger.error(f"Error fetching projects: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
