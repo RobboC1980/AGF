@@ -42,7 +42,7 @@ export const PRICING_PLANS = {
     id: 'pro',
     name: 'Pro',
     price: 29,
-    priceId: 'price_pro_monthly', // Replace with actual Stripe price ID
+    priceId: 'price_1RbfPxCXLE907oAwV48ccMJk', // Real Stripe price ID
     interval: 'month',
     features: [
       'Unlimited projects',
@@ -65,7 +65,7 @@ export const PRICING_PLANS = {
     id: 'enterprise', 
     name: 'Enterprise',
     price: 99,
-    priceId: 'price_enterprise_monthly', // Replace with actual Stripe price ID
+    priceId: 'price_1RbfPxCXLE907oAwkOOuizO1', // Real Stripe price ID
     interval: 'month',
     features: [
       'Everything in Pro',

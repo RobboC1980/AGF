@@ -1,0 +1,16 @@
+{
+  "pro": {
+    "product_id": "prod_SWirZCSJnLs9EQ",
+    "price_id": "price_1RbfPxCXLE907oAwV48ccMJk",
+    "name": "AgileForge Pro",
+    "price_amount": 2900,
+    "interval": "month"
+  },
+  "enterprise": {
+    "product_id": "prod_SWirPVh60nQlLO",
+    "price_id": "price_1RbfPxCXLE907oAwkOOuizO1",
+    "name": "AgileForge Enterprise",
+    "price_amount": 9900,
+    "interval": "month"
+  }
+}

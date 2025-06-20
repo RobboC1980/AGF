@@ -50,6 +50,7 @@ from backend.api.realtime_endpoints import realtime_router
 from backend.api.analytics_endpoints import analytics_router
 from backend.api.ai_endpoints import router as ai_router
 from backend.api.notification_endpoints import notification_router
+from backend.api.stripe_products import router as stripe_products_router
 
 # Load environment variables
 load_dotenv()
@@ -272,6 +273,7 @@ app.include_router(realtime_router)
 app.include_router(analytics_router)
 app.include_router(ai_router, prefix="/api/ai")
 app.include_router(notification_router)
+app.include_router(stripe_products_router)
 
 # Security middleware
 app.add_middleware(
