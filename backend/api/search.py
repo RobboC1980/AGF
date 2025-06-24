@@ -6,8 +6,13 @@ import logging
 from sqlalchemy import or_, and_, func, text
 from sqlalchemy.orm import Session
 
-from ..database.supabase_client import get_supabase
-from ..auth.enhanced_auth import get_current_active_user, UserInDB
+# Handle imports for both package and direct execution
+try:
+    from ..database.supabase_client import get_supabase
+    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+except ImportError:
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -4,8 +4,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any, Optional
 import logging
 from pydantic import BaseModel
-from ..auth.enhanced_auth import get_current_active_user
-from .auth import get_current_user_supabase
+
+# Handle imports for both package and direct execution
+try:
+    from ..auth.enhanced_auth import get_current_active_user
+    from .auth import get_current_user_supabase
+except ImportError:
+    from auth.enhanced_auth import get_current_active_user
+    from api.auth import get_current_user_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["AI Features"])
@@ -42,7 +48,11 @@ async def test_endpoint():
     """Test endpoint to verify basic functionality"""
     try:
         # Test basic AI service import
-        from ..services.ai_service import get_basic_ai_service
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
+        
         ai_service = get_basic_ai_service()
         return {
             "status": "success", 
@@ -58,8 +68,12 @@ async def test_endpoint():
 async def ai_status():
     """Detailed AI service status"""
     try:
-        from ..services.ai_service import get_basic_ai_service, get_ai_service
-        from ..database.supabase_client import get_supabase
+        try:
+            from ..services.ai_service import get_basic_ai_service, get_ai_service
+            from ..database.supabase_client import get_supabase
+        except ImportError:
+            from services.ai_service import get_basic_ai_service, get_ai_service
+            from database.supabase_client import get_supabase
         
         status = {
             "basic_service": False,
@@ -107,7 +121,10 @@ async def generate_epic_endpoint(
 ):
     """Generate an epic using AI"""
     try:
-        from ..services.ai_service import get_basic_ai_service
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
         
         ai_service = get_basic_ai_service()
         
@@ -152,7 +169,10 @@ async def generate_story_endpoint(
 ):
     """Generate a user story using AI"""
     try:
-        from ..services.ai_service import get_basic_ai_service
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
         
         ai_service = get_basic_ai_service()
         
@@ -197,7 +217,10 @@ async def generate_tasks_endpoint(
 ):
     """Generate tasks for a user story using AI"""
     try:
-        from ..services.ai_service import get_basic_ai_service
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
         
         ai_service = get_basic_ai_service()
         

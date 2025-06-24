@@ -1,8 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 import logging
-from ..database.supabase_client import get_supabase
 from supabase import Client
+
+# Handle imports for both package and direct execution
+try:
+    from ..database.supabase_client import get_supabase
+except ImportError:
+    from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

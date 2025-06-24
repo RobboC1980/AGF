@@ -3,7 +3,12 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
-from ..database.supabase_client import get_supabase
+
+# Handle imports for both package and direct execution
+try:
+    from ..database.supabase_client import get_supabase
+except ImportError:
+    from database.supabase_client import get_supabase
 
 security = HTTPBearer()
 

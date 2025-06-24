@@ -18,6 +18,7 @@ try:
     from .api.teams import router as teams_router
     from .api.search import router as search_router
     from .api.sprints import router as sprints_router
+    from .api.analytics_endpoints import analytics_router
     from .database.supabase_client import init_supabase, close_supabase, get_supabase
     from .services.ai_service import init_ai_service
     from .middleware.auth import AuthMiddleware
@@ -40,6 +41,7 @@ except ImportError:
     from api.teams import router as teams_router
     from api.search import router as search_router
     from api.sprints import router as sprints_router
+    from api.analytics_endpoints import analytics_router
     from database.supabase_client import init_supabase, close_supabase, get_supabase
     from services.ai_service import init_ai_service
     from middleware.auth import AuthMiddleware
@@ -181,6 +183,7 @@ app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
 app.include_router(search_router, prefix="/api/search", tags=["Search"])
 app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
+app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 
 # Error handlers
 @app.exception_handler(404)

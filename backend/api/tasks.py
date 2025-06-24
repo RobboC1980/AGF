@@ -5,10 +5,17 @@ from datetime import datetime
 import logging
 import uuid
 
-from ..services.ai_service import get_basic_ai_service, AIResponse
-from ..database.supabase_client import get_supabase
-from ..auth.enhanced_auth import get_current_active_user, UserInDB
-from .auth import get_current_user_supabase
+# Handle imports for both package and direct execution
+try:
+    from ..services.ai_service import get_basic_ai_service, AIResponse
+    from ..database.supabase_client import get_supabase
+    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from .auth import get_current_user_supabase
+except ImportError:
+    from services.ai_service import get_basic_ai_service, AIResponse
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
+    from api.auth import get_current_user_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

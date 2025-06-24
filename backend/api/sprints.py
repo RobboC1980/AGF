@@ -16,7 +16,7 @@ try:
     from ..database.supabase_client import get_supabase
     from ..models.api_models import SprintResponse, SprintBase, SprintUpdate
 except ImportError:
-    from auth.dependencies import get_current_user
+    from auth.enhanced_auth import get_current_active_user, UserInDB
     from database.supabase_client import get_supabase
     from models.api_models import SprintResponse, SprintBase, SprintUpdate
 

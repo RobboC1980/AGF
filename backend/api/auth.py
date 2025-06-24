@@ -6,9 +6,15 @@ import os
 from datetime import datetime, timedelta
 import logging
 
-from ..database.supabase_client import get_supabase
-from ..auth.enhanced_auth import get_current_active_user, UserInDB
-from ..auth.dependencies import User
+# Handle imports for both package and direct execution
+try:
+    from ..database.supabase_client import get_supabase
+    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from ..auth.dependencies import User
+except ImportError:
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
+    from auth.dependencies import User
 
 # Make get_current_user_supabase available for other modules
 __all__ = ['get_current_user_supabase']

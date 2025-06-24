@@ -65,7 +65,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-from backend.services.analytics_service import AnalyticsService, get_analytics_service
+# Handle imports for both package and direct execution
+try:
+    from ..services.analytics_service import AnalyticsService, get_analytics_service
+except ImportError:
+    from services.analytics_service import AnalyticsService, get_analytics_service
 
 logger = logging.getLogger(__name__)
 
@@ -392,4 +396,59 @@ async def refresh_project_analytics(
         
     except Exception as e:
         logger.error(f"Error refreshing analytics: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@analytics_router.get("/overview")
+async def get_analytics_overview(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get analytics overview with real data"""
+    try:
+        if not supabase_client:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database not available"
+            )
+            
+        # Get all stories for analytics
+        stories_result = supabase_client.table("stories").select("*").execute()
+        stories = stories_result.data
+        
+        # Calculate analytics metrics
+        total_stories = len(stories)
+        completed_stories = len([s for s in stories if s.get("status") == "done"])
+        in_progress_stories = len([s for s in stories if s.get("status") == "in-progress"])
+        
+        total_story_points = sum(s.get("story_points", 0) for s in stories if s.get("story_points"))
+        completed_story_points = sum(s.get("story_points", 0) for s in stories if s.get("status") == "done" and s.get("story_points"))
+        
+        completion_rate = (completed_stories / total_stories) if total_stories > 0 else 0
+        average_story_points = total_story_points / total_stories if total_stories > 0 else 0
+        
+        # Group by status
+        stories_by_status = {}
+        for story in stories:
+            status = story.get("status", "backlog")
+            stories_by_status[status] = stories_by_status.get(status, 0) + 1
+            
+        # Group by priority
+        stories_by_priority = {}
+        for story in stories:
+            priority = story.get("priority", "medium")
+            stories_by_priority[priority] = stories_by_priority.get(priority, 0) + 1
+        
+        return {
+            "total_stories": total_stories,
+            "completed_stories": completed_stories,
+            "in_progress_stories": in_progress_stories,
+            "total_story_points": total_story_points,
+            "completed_story_points": completed_story_points,
+            "completion_rate": completion_rate,
+            "average_story_points": average_story_points,
+            "stories_by_status": stories_by_status,
+            "stories_by_priority": stories_by_priority
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting analytics overview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics overview: {str(e)}") 
