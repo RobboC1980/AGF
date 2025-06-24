@@ -1,5 +1,5 @@
 """
-Supabase Storage Service for AgileForge
+Supabase Storage Service for SynqForge
 Handles file uploads, downloads, and management using Supabase Storage
 """
 

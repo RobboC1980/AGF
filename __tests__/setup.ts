@@ -2,7 +2,7 @@ import '@testing-library/jest-dom'
 
 // Mock environment variables for tests
 process.env.NODE_ENV = 'test'
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/agileforge_test'
+process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/synqforge_test'
 process.env.JWT_SECRET = 'test-jwt-secret-for-testing-purposes-only'
 
 // Mock Next.js router

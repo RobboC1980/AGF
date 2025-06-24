@@ -1,5 +1,5 @@
 """
-AgileForge API Models (Pydantic Schemas)
+SynqForge API Models (Pydantic Schemas)
 Complete set of Pydantic models for request/response validation
 """
 

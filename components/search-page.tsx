@@ -145,7 +145,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
       ...result,
       project: result.type !== 'project' ? {
         id: 'proj-1',
-        name: 'AgileForge Platform',
+        name: 'SynqForge Platform',
         color: 'bg-blue-500'
       } : undefined,
       epic: result.type === 'story' || result.type === 'task' ? {

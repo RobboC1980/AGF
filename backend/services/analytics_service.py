@@ -1,5 +1,5 @@
 """
-Advanced Analytics Service for AgileForge
+Advanced Analytics Service for SynqForge
 Provides comprehensive project insights and AI-powered analytics
 """
 
@@ -90,13 +90,19 @@ class AnalyticsService:
     async def _calculate_project_metrics(self, project_id: str, start_date: datetime, end_date: datetime) -> Dict[str, AnalyticsMetric]:
         """Calculate basic project metrics"""
         try:
-            # Get stories data
-            stories_result = self.supabase.table("stories").select("*").eq("project_id", project_id).execute()
-            stories = stories_result.data
-            
-            # Get epics data
+            # Get epics for this project
             epics_result = self.supabase.table("epics").select("*").eq("project_id", project_id).execute()
             epics = epics_result.data
+            
+            if not epics:
+                # No epics, return empty metrics
+                return {}
+                
+            epic_ids = [epic["id"] for epic in epics]
+            
+            # Get stories for all epics in this project
+            stories_result = self.supabase.table("stories").select("*").in_("epic_id", epic_ids).execute()
+            stories = stories_result.data
             
             # Calculate metrics
             total_stories = len(stories)
@@ -141,8 +147,17 @@ class AnalyticsService:
     async def _calculate_velocity(self, project_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Calculate team velocity over time"""
         try:
-            # Get completed stories with completion dates
-            stories_result = self.supabase.table("stories").select("*").eq("project_id", project_id).eq("status", "done").execute()
+            # Get epics for this project
+            epics_result = self.supabase.table("epics").select("id").eq("project_id", project_id).execute()
+            epics = epics_result.data
+            
+            if not epics:
+                return {"weekly_data": {}, "average_velocity": 0, "trend": "stable", "total_weeks": 0}
+                
+            epic_ids = [epic["id"] for epic in epics]
+            
+            # Get completed stories with completion dates for this project's epics
+            stories_result = self.supabase.table("stories").select("*").in_("epic_id", epic_ids).eq("status", "done").execute()
             completed_stories = stories_result.data
             
             # Group by week
@@ -186,8 +201,17 @@ class AnalyticsService:
     async def _calculate_burndown(self, project_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Calculate burndown chart data"""
         try:
-            # Get all stories for the project
-            stories_result = self.supabase.table("stories").select("*").eq("project_id", project_id).execute()
+            # Get epics for this project
+            epics_result = self.supabase.table("epics").select("id").eq("project_id", project_id).execute()
+            epics = epics_result.data
+            
+            if not epics:
+                return {"actual_burndown": {}, "ideal_burndown": {}, "total_points": 0, "remaining_points": 0}
+                
+            epic_ids = [epic["id"] for epic in epics]
+            
+            # Get all stories for the project's epics
+            stories_result = self.supabase.table("stories").select("*").in_("epic_id", epic_ids).execute()
             stories = stories_result.data
             
             total_points = sum(s.get("story_points", 0) for s in stories if s.get("story_points"))
@@ -233,8 +257,17 @@ class AnalyticsService:
     async def _calculate_team_performance(self, project_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Calculate team performance metrics"""
         try:
-            # Get stories assigned to team members
-            stories_result = self.supabase.table("stories").select("*, assignee:assignee_id(id, name)").eq("project_id", project_id).execute()
+            # Get epics for this project
+            epics_result = self.supabase.table("epics").select("id").eq("project_id", project_id).execute()
+            epics = epics_result.data
+            
+            if not epics:
+                return {"team_members": 0, "individual_performance": {}, "top_performer": None}
+                
+            epic_ids = [epic["id"] for epic in epics]
+            
+            # Get stories assigned to team members for this project's epics
+            stories_result = self.supabase.table("stories").select("*, assignee:assignee_id(id, name)").in_("epic_id", epic_ids).execute()
             stories = stories_result.data
             
             team_stats = {}
@@ -292,8 +325,17 @@ class AnalyticsService:
     async def _calculate_quality_metrics(self, project_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Calculate quality metrics"""
         try:
-            # Get stories with defects/bugs
-            stories_result = self.supabase.table("stories").select("*").eq("project_id", project_id).execute()
+            # Get epics for this project
+            epics_result = self.supabase.table("epics").select("id").eq("project_id", project_id).execute()
+            epics = epics_result.data
+            
+            if not epics:
+                return {"bug_rate": 0, "rework_rate": 0, "priority_distribution": {}, "total_bugs": 0, "quality_score": 100}
+                
+            epic_ids = [epic["id"] for epic in epics]
+            
+            # Get stories with defects/bugs for this project's epics
+            stories_result = self.supabase.table("stories").select("*").in_("epic_id", epic_ids).execute()
             stories = stories_result.data
             
             # Count stories by priority
@@ -330,89 +372,178 @@ class AnalyticsService:
             return {}
             
     async def _generate_project_insights(self, project_id: str, metrics: Dict, velocity_data: Dict, team_performance: Dict) -> List[ProjectInsight]:
-        """Generate AI-powered project insights"""
+        """Generate AI-powered project insights using comprehensive AI analysis"""
         try:
-            insights = []
+            # Get project details
+            project_result = self.supabase.table("projects").select("name").eq("id", project_id).execute()
+            project_name = project_result.data[0]["name"] if project_result.data else "Unknown Project"
             
-            # Velocity insights
-            if velocity_data.get("trend") == "down":
-                insights.append(ProjectInsight(
-                    project_id=project_id,
-                    insight_type="velocity",
-                    title="Declining Velocity Detected",
-                    description="Team velocity has been decreasing over the past few sprints.",
-                    severity="warning",
-                    recommendations=[
-                        "Review sprint planning and story estimation",
-                        "Check for team capacity issues or blockers",
-                        "Consider reducing story complexity or scope"
-                    ],
-                    data={"current_velocity": velocity_data.get("average_velocity", 0)}
-                ))
+            # Import AI service
+            try:
+                from .ai_service import get_basic_ai_service
+                ai_service = get_basic_ai_service()
                 
-            # Completion rate insights
-            completion_rate = metrics.get("completion_rate", {}).value if "completion_rate" in metrics else 0
-            if completion_rate < 70:
-                insights.append(ProjectInsight(
-                    project_id=project_id,
-                    insight_type="completion",
-                    title="Low Completion Rate",
-                    description=f"Only {completion_rate:.1f}% of stories are completed.",
-                    severity="critical" if completion_rate < 50 else "warning",
-                    recommendations=[
-                        "Review story sizing and complexity",
-                        "Identify and remove blockers",
-                        "Improve team focus and reduce context switching"
-                    ],
-                    data={"completion_rate": completion_rate}
-                ))
+                # Prepare comprehensive data for AI analysis
+                variables = {
+                    "project_name": project_name,
+                    "analysis_period": 30,
+                    "team_size": team_performance.get("team_members", 5),
+                    "current_velocity": velocity_data.get("average_velocity", 0),
+                    "historical_velocities": str(velocity_data.get("weekly_data", {})),
+                    "completion_rate": metrics.get("completion_rate", AnalyticsMetric("", 0, "", "", 0, datetime.utcnow())).value,
+                    "avg_cycle_time": metrics.get("avg_cycle_time", AnalyticsMetric("", 0, "", "", 0, datetime.utcnow())).value,
+                    "total_stories": int(metrics.get("total_stories", AnalyticsMetric("", 0, "", "", 0, datetime.utcnow())).value),
+                    "completed_stories": int(metrics.get("completed_stories", AnalyticsMetric("", 0, "", "", 0, datetime.utcnow())).value),
+                    "in_progress_stories": 0,  # Calculate this if needed
+                    "backlog_stories": 0,  # Calculate this if needed
+                    "bug_rate": 5.0,  # Default - could be calculated from story tags
+                    "rework_rate": 8.0,  # Default - would need tracking
+                    "priority_distribution": '{"high": 3, "medium": 8, "low": 5}',
+                    "team_performance_data": str(team_performance.get("individual_performance", {})),
+                    "current_blockers": "No current blockers identified"  # Could be enhanced
+                }
                 
-            # Cycle time insights
-            avg_cycle_time = metrics.get("avg_cycle_time", {}).value if "avg_cycle_time" in metrics else 0
-            if avg_cycle_time > 7:  # More than a week
-                insights.append(ProjectInsight(
-                    project_id=project_id,
-                    insight_type="cycle_time",
-                    title="High Cycle Time",
-                    description=f"Stories are taking an average of {avg_cycle_time:.1f} days to complete.",
-                    severity="warning",
-                    recommendations=[
-                        "Break down large stories into smaller tasks",
-                        "Implement daily standups to identify blockers",
-                        "Review and optimize development workflow"
-                    ],
-                    data={"avg_cycle_time": avg_cycle_time}
-                ))
+                # Generate AI insights
+                ai_response = await ai_service.generate_completion("analytics_insights", variables)
                 
-            # Team performance insights
-            if team_performance.get("individual_performance"):
-                performances = list(team_performance["individual_performance"].values())
-                completion_rates = [p["completion_rate"] for p in performances]
-                
-                if completion_rates:
-                    min_rate = min(completion_rates)
-                    max_rate = max(completion_rates)
+                if ai_response.success and ai_response.data:
+                    # Parse AI response and convert to ProjectInsight objects
+                    ai_insights = ai_response.data
+                    insights = []
                     
-                    if max_rate - min_rate > 30:  # Large performance gap
+                    # Process key insights
+                    for insight_data in ai_insights.get("key_insights", []):
                         insights.append(ProjectInsight(
                             project_id=project_id,
-                            insight_type="team_balance",
-                            title="Uneven Team Performance",
-                            description="There's a significant performance gap between team members.",
-                            severity="warning",
-                            recommendations=[
-                                "Provide additional support to struggling team members",
-                                "Consider pair programming or mentoring",
-                                "Review task assignment and workload distribution"
-                            ],
-                            data={"performance_gap": max_rate - min_rate}
+                            insight_type=insight_data.get("category", "general"),
+                            title=f"{insight_data.get('category', 'General').title()} Insight",
+                            description=insight_data.get("insight", "AI generated insight"),
+                            severity="warning" if insight_data.get("impact") == "high" else "info",
+                            recommendations=[insight_data.get("recommendation", "No specific recommendation")],
+                            data={"trend": insight_data.get("trend", "stable"), "impact": insight_data.get("impact", "medium")}
                         ))
-                        
-            return insights
-            
+                    
+                    # Process risk alerts
+                    for risk in ai_insights.get("risk_alerts", []):
+                        severity = "critical" if risk.get("risk_level") == "high" else "warning" if risk.get("risk_level") == "medium" else "info"
+                        insights.append(ProjectInsight(
+                            project_id=project_id,
+                            insight_type=risk.get("risk_type", "general"),
+                            title=f"Risk Alert: {risk.get('risk_type', 'General').title()}",
+                            description=risk.get("description", "Risk identified"),
+                            severity=severity,
+                            recommendations=[risk.get("mitigation", "Monitor situation")],
+                            data={"probability": risk.get("probability"), "impact": risk.get("impact"), "timeline": risk.get("timeline")}
+                        ))
+                    
+                    # Process optimization opportunities
+                    for opportunity in ai_insights.get("optimization_opportunities", []):
+                        insights.append(ProjectInsight(
+                            project_id=project_id,
+                            insight_type="optimization",
+                            title=f"Optimization: {opportunity.get('area', 'General').title()}",
+                            description=opportunity.get("opportunity", "Optimization opportunity identified"),
+                            severity="info",
+                            recommendations=[opportunity.get("implementation", "Consider implementing")],
+                            data={"potential_impact": opportunity.get("potential_impact"), "effort": opportunity.get("effort_required")}
+                        ))
+                    
+                    logger.info(f"Generated {len(insights)} AI-powered insights for project {project_id}")
+                    return insights
+                    
+                else:
+                    logger.warning(f"AI insight generation failed: {ai_response.error}")
+                    # Fall back to rule-based insights
+                    return self._generate_fallback_insights(project_id, metrics, velocity_data, team_performance)
+                    
+            except Exception as ai_error:
+                logger.warning(f"AI service unavailable: {ai_error}")
+                # Fall back to rule-based insights
+                return self._generate_fallback_insights(project_id, metrics, velocity_data, team_performance)
+                
         except Exception as e:
             logger.error(f"Error generating insights: {e}")
             return []
+            
+    def _generate_fallback_insights(self, project_id: str, metrics: Dict, velocity_data: Dict, team_performance: Dict) -> List[ProjectInsight]:
+        """Generate basic rule-based insights when AI is not available"""
+        insights = []
+        
+        # Velocity insights
+        if velocity_data.get("trend") == "down":
+            insights.append(ProjectInsight(
+                project_id=project_id,
+                insight_type="velocity",
+                title="Declining Velocity Detected",
+                description="Team velocity has been decreasing over the past few sprints.",
+                severity="warning",
+                recommendations=[
+                    "Review sprint planning and story estimation",
+                    "Check for team capacity issues or blockers",
+                    "Consider reducing story complexity or scope"
+                ],
+                data={"current_velocity": velocity_data.get("average_velocity", 0)}
+            ))
+            
+        # Completion rate insights
+        completion_rate = metrics.get("completion_rate", {}).value if "completion_rate" in metrics else 0
+        if completion_rate < 70:
+            insights.append(ProjectInsight(
+                project_id=project_id,
+                insight_type="completion",
+                title="Low Completion Rate",
+                description=f"Only {completion_rate:.1f}% of stories are completed.",
+                severity="critical" if completion_rate < 50 else "warning",
+                recommendations=[
+                    "Review story sizing and complexity",
+                    "Identify and remove blockers",
+                    "Improve team focus and reduce context switching"
+                ],
+                data={"completion_rate": completion_rate}
+            ))
+            
+        # Cycle time insights
+        avg_cycle_time = metrics.get("avg_cycle_time", {}).value if "avg_cycle_time" in metrics else 0
+        if avg_cycle_time > 7:  # More than a week
+            insights.append(ProjectInsight(
+                project_id=project_id,
+                insight_type="cycle_time",
+                title="High Cycle Time",
+                description=f"Stories are taking an average of {avg_cycle_time:.1f} days to complete.",
+                severity="warning",
+                recommendations=[
+                    "Break down large stories into smaller tasks",
+                    "Implement daily standups to identify blockers",
+                    "Review and optimize development workflow"
+                ],
+                data={"avg_cycle_time": avg_cycle_time}
+            ))
+            
+        # Team performance insights
+        if team_performance.get("individual_performance"):
+            performances = list(team_performance["individual_performance"].values())
+            completion_rates = [p["completion_rate"] for p in performances]
+            
+            if completion_rates:
+                min_rate = min(completion_rates)
+                max_rate = max(completion_rates)
+                
+                if max_rate - min_rate > 30:  # Large performance gap
+                    insights.append(ProjectInsight(
+                        project_id=project_id,
+                        insight_type="team_balance",
+                        title="Uneven Team Performance",
+                        description="There's a significant performance gap between team members.",
+                        severity="warning",
+                        recommendations=[
+                            "Provide additional support to struggling team members",
+                            "Consider pair programming or mentoring",
+                            "Review task assignment and workload distribution"
+                        ],
+                        data={"performance_gap": max_rate - min_rate}
+                    ))
+                    
+        return insights
             
     async def get_team_analytics(self, team_id: Optional[str] = None, days: int = 30) -> Dict[str, Any]:
         """Get team-wide analytics across all projects"""

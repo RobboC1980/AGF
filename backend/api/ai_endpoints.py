@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any, Optional
 import logging
 from pydantic import BaseModel
+from ..auth.enhanced_auth import get_current_active_user
+from .auth import get_current_user_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["AI Features"])
@@ -99,7 +101,10 @@ async def ai_status():
         return {"status": "error", "message": str(e)}
 
 @router.post("/generate-epic")
-async def generate_epic_endpoint(request: EpicGenerateRequest):
+async def generate_epic_endpoint(
+    request: EpicGenerateRequest,
+    current_user = Depends(get_current_user_supabase)
+):
     """Generate an epic using AI"""
     try:
         from ..services.ai_service import get_basic_ai_service
@@ -136,10 +141,15 @@ async def generate_epic_endpoint(request: EpicGenerateRequest):
             
     except Exception as e:
         logger.error(f"Epic generation failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-story")
-async def generate_story_endpoint(request: StoryGenerateRequest):
+async def generate_story_endpoint(
+    request: StoryGenerateRequest,
+    current_user = Depends(get_current_user_supabase)
+):
     """Generate a user story using AI"""
     try:
         from ..services.ai_service import get_basic_ai_service
@@ -176,10 +186,15 @@ async def generate_story_endpoint(request: StoryGenerateRequest):
             
     except Exception as e:
         logger.error(f"Story generation failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-tasks")
-async def generate_tasks_endpoint(request: TaskGenerateRequest):
+async def generate_tasks_endpoint(
+    request: TaskGenerateRequest,
+    current_user = Depends(get_current_user_supabase)
+):
     """Generate tasks for a user story using AI"""
     try:
         from ..services.ai_service import get_basic_ai_service
@@ -217,4 +232,6 @@ async def generate_tasks_endpoint(request: TaskGenerateRequest):
             
     except Exception as e:
         logger.error(f"Task generation failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e)) 

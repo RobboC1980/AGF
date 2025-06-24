@@ -1,5 +1,5 @@
 """
-Database Webhooks Handler for AgileForge
+Database Webhooks Handler for SynqForge
 Handles real-time database changes from Supabase webhooks
 """
 

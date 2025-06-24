@@ -1,5 +1,5 @@
 """
-Real-time API Endpoints for AgileForge
+Real-time API Endpoints for SynqForge
 Handles WebSocket connections and real-time collaboration features
 """
 

@@ -583,7 +583,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                           <div className="flex items-center space-x-2 min-w-0">
                             <div className="w-3 h-3 rounded-full bg-purple-500 flex-shrink-0"></div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-purple-800 truncate break-words overflow-hidden text-ellipsis">AgileForge Platform</p>
+                              <p className="text-sm font-medium text-purple-800 truncate break-words overflow-hidden text-ellipsis">SynqForge Platform</p>
                             </div>
                             <Target size={14} className="text-purple-600 flex-shrink-0" />
                           </div>

@@ -83,6 +83,37 @@ export interface UserStory {
   startDate?: string
 }
 
+export interface Sprint {
+  id: string
+  name: string
+  goal?: string
+  description?: string
+  projectId: string
+  sprintNumber: number
+  startDate: string
+  endDate: string
+  actualStartDate?: string
+  actualEndDate?: string
+  status: "planning" | "active" | "completed" | "cancelled"
+  teamCapacity?: number
+  plannedStoryPoints?: number
+  completedStoryPoints: number
+  velocity?: number
+  scopeChanges: number
+  whatWentWell?: string
+  whatToImprove?: string
+  actionItems?: any[]
+  createdBy: string
+  creator?: {
+    id: string
+    name: string
+    avatar?: string
+  }
+  storiesCount: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Project {
   id: string
   name: string
@@ -275,6 +306,92 @@ export async function generateAcceptanceCriteria(storyDescription: string): Prom
   })
 }
 
+// Sprint API functions
+export async function getSprints(projectId?: string, status?: string): Promise<ApiResponse<Sprint[]>> {
+  const params = new URLSearchParams()
+  if (projectId) params.append('project_id', projectId)
+  if (status) params.append('status', status)
+  
+  return apiRequest<Sprint[]>(`/api/sprints${params.toString() ? `?${params.toString()}` : ''}`)
+}
+
+export async function getSprint(id: string): Promise<ApiResponse<Sprint>> {
+  return apiRequest<Sprint>(`/api/sprints/${id}`)
+}
+
+export async function createSprint(sprint: Partial<Sprint> & { projectId: string }): Promise<ApiResponse<Sprint>> {
+  return apiRequest<Sprint>('/api/sprints', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: sprint.name,
+      goal: sprint.goal,
+      description: sprint.description,
+      project_id: sprint.projectId,
+      start_date: sprint.startDate,
+      end_date: sprint.endDate,
+      team_capacity: sprint.teamCapacity,
+      planned_story_points: sprint.plannedStoryPoints,
+    }),
+  })
+}
+
+export async function updateSprint(id: string, sprint: Partial<Sprint>): Promise<ApiResponse<Sprint>> {
+  return apiRequest<Sprint>(`/api/sprints/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(sprint),
+  })
+}
+
+export async function updateSprintStatus(
+  id: string, 
+  status: string, 
+  actualStartDate?: string, 
+  actualEndDate?: string
+): Promise<ApiResponse<Sprint>> {
+  return apiRequest<Sprint>(`/api/sprints/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status,
+      actual_start_date: actualStartDate,
+      actual_end_date: actualEndDate,
+    }),
+  })
+}
+
+export async function addStoriesToSprint(sprintId: string, storyIds: string[]): Promise<ApiResponse<any>> {
+  return apiRequest<any>(`/api/sprints/${sprintId}/stories`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      story_ids: storyIds,
+      action: 'add',
+    }),
+  })
+}
+
+export async function removeStoriesFromSprint(sprintId: string, storyIds: string[]): Promise<ApiResponse<any>> {
+  return apiRequest<any>(`/api/sprints/${sprintId}/stories`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      story_ids: storyIds,
+      action: 'remove',
+    }),
+  })
+}
+
+export async function getSprintStories(sprintId: string): Promise<ApiResponse<{ stories: UserStory[] }>> {
+  return apiRequest<{ stories: UserStory[] }>(`/api/sprints/${sprintId}/stories`)
+}
+
+export async function getSprintBurndown(sprintId: string): Promise<ApiResponse<any>> {
+  return apiRequest<any>(`/api/sprints/${sprintId}/burndown`)
+}
+
+export async function deleteSprint(id: string): Promise<ApiResponse<void>> {
+  return apiRequest<void>(`/api/sprints/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export default {
   // Health
   checkApiHealth,
@@ -299,6 +416,18 @@ export default {
   createProject,
   updateProject,
   deleteProject,
+  
+  // Sprints
+  getSprints,
+  getSprint,
+  createSprint,
+  updateSprint,
+  updateSprintStatus,
+  addStoriesToSprint,
+  removeStoriesFromSprint,
+  getSprintStories,
+  getSprintBurndown,
+  deleteSprint,
   
   // AI
   generateStory,

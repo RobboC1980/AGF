@@ -1,1 +1,1 @@
-# Services package for AgileForge 
+# Services package for SynqForge 

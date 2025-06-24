@@ -33,7 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useStories, useUsers } from "@/hooks/useApi"
+import { useStories, useUsers, useTasks } from "@/hooks/useApi"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +42,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import TaskAssignmentDropdown from "@/components/task-assignment-dropdown"
+import { toast } from "sonner"
+import { api } from "@/services/api"
+import { useQueryClient } from "@tanstack/react-query"
 
 interface Task {
   id: string
@@ -77,34 +81,43 @@ const TasksPage: React.FC<TasksPageProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Use real API data instead of mock data
-  const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch } = useStories()
+  // Use real API data for tasks, stories, and users
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksError, refetch } = useTasks()
+  const { data: stories = [], isLoading: storiesLoading, error: storiesError } = useStories()
   const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
+  const queryClient = useQueryClient()
 
-  const isLoading = storiesLoading || usersLoading
-  const error = storiesError || usersError
+  const isLoading = tasksLoading || storiesLoading || usersLoading
+  const error = tasksError || storiesError || usersError
 
-  // Create tasks from stories data (since stories contain task-like information)
-  const mockTasks = stories.map((story, index) => ({
-    id: `task-${story.id}`,
-    title: story.name,
-    description: story.description || '',
-    status: story.status === 'done' ? 'done' as const : 
-             story.status === 'in-progress' ? 'in-progress' as const :
-             story.status === 'review' ? 'review' as const : 'todo' as const,
-    priority: story.priority,
-    assignee: story.assignee,
-    storyId: story.id,
-    storyTitle: story.name,
-    estimatedHours: story.storyPoints ? story.storyPoints * 2 : 4, // Estimate 2 hours per story point
-    actualHours: story.stats ? Math.round(story.stats.completedTasks * 2.5) : undefined,
-    createdAt: story.createdAt,
-    updatedAt: story.updatedAt,
-    dueDate: story.dueDate,
-    tags: story.tags || [],
-    subtasks: story.stats?.totalTasks,
-    completedSubtasks: story.stats?.completedTasks,
-  }))
+  // Transform tasks to include related story and assignee information
+  const transformedTasks = tasks.map((task: any) => {
+    const relatedStory = stories.find((story: any) => story.id === task.story_id)
+    const assignee = task.assignee_id ? users.find((user: any) => user.id === task.assignee_id) : null
+    
+    return {
+      id: task.id,
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: task.priority,
+      assignee: assignee ? {
+        id: assignee.id,
+        name: assignee.name,
+        avatar: assignee.avatar_url
+      } : undefined,
+      storyId: task.story_id,
+      storyTitle: relatedStory?.name || 'Unknown Story',
+      estimatedHours: task.estimated_hours || 0,
+      actualHours: task.actual_hours || 0,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+      dueDate: task.due_date,
+      tags: [], // Tasks don't have tags in current schema
+      subtasks: 0, // Not tracking subtasks currently
+      completedSubtasks: 0,
+    }
+  })
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -114,11 +127,26 @@ const TasksPage: React.FC<TasksPageProps> = ({
   const [sortBy, setSortBy] = useState<"title" | "status" | "priority" | "dueDate">("dueDate")
   const [activeTab, setActiveTab] = useState("all")
 
+  // Handle task assignment changes
+  const handleAssignmentChange = async (taskId: string, assigneeId: string | null) => {
+    try {
+      await api.tasks.assign(taskId, { assignee_id: assigneeId, notify_assignee: true })
+      
+      // Invalidate and refetch task data
+      await queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      
+      return Promise.resolve()
+    } catch (error) {
+      console.error('Failed to assign task:', error)
+      throw error
+    }
+  }
+
 
 
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = mockTasks.filter((task) => {
+    let filtered = transformedTasks.filter((task) => {
       const matchesSearch =
         !searchQuery ||
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -174,7 +202,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
     })
 
     return filtered
-  }, [mockTasks, searchQuery, statusFilter, priorityFilter, assigneeFilter, activeTab, sortBy])
+  }, [transformedTasks, searchQuery, statusFilter, priorityFilter, assigneeFilter, activeTab, sortBy])
 
   const handleSelectTask = (taskId: string) => {
     setSelectedTasks((prev) =>
@@ -233,12 +261,12 @@ const TasksPage: React.FC<TasksPageProps> = ({
   }
 
   const stats = {
-    total: mockTasks.length,
-    todo: mockTasks.filter((t) => t.status === "todo").length,
-    inProgress: mockTasks.filter((t) => t.status === "in-progress").length,
-    review: mockTasks.filter((t) => t.status === "review").length,
-    done: mockTasks.filter((t) => t.status === "done").length,
-    overdue: mockTasks.filter((t) => isOverdue(t.dueDate)).length,
+    total: transformedTasks.length,
+    todo: transformedTasks.filter((t) => t.status === "todo").length,
+    inProgress: transformedTasks.filter((t) => t.status === "in-progress").length,
+    review: transformedTasks.filter((t) => t.status === "review").length,
+    done: transformedTasks.filter((t) => t.status === "done").length,
+    overdue: transformedTasks.filter((t) => isOverdue(t.dueDate)).length,
   }
 
   if (isLoading) {
@@ -565,21 +593,26 @@ const TasksPage: React.FC<TasksPageProps> = ({
                         )}
                       </div>
 
-                      {/* Assignee */}
+                      {/* Assignee with Enhanced Assignment */}
                       <div className="flex items-center justify-between">
-                        {task.assignee ? (
-                          <div className="flex items-center space-x-2">
-                            <Avatar className="w-6 h-6">
-                              <AvatarImage src={task.assignee.avatar} />
-                              <AvatarFallback className="text-xs">
-                                {task.assignee.name.split(" ").map(n => n[0]).join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm text-slate-600">{task.assignee.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-slate-400">Unassigned</span>
-                        )}
+                        <div className="flex-1 max-w-[200px]">
+                          <TaskAssignmentDropdown
+                            users={users.map(user => ({
+                              id: user.id,
+                              name: user.name,
+                              email: user.email,
+                              avatar: user.avatar_url,
+                              role: user.roles?.[0] || 'Developer',
+                              workload: Math.floor(Math.random() * 100), // Mock workload data
+                              availability: Math.random() > 0.3 ? 'available' : 'busy'
+                            }))}
+                            currentAssigneeId={task.assignee?.id}
+                            taskId={task.id}
+                            taskTitle={task.title}
+                            onAssignmentChange={handleAssignmentChange}
+                            showWorkload={true}
+                          />
+                        </div>
                         
                         {isOverdue(task.dueDate) && (
                           <Tooltip>

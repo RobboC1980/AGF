@@ -1,5 +1,5 @@
 groups:
-  - name: agileforge_alerts
+  - name: synqforge_alerts
     rules:
       # High error rate alert
       - alert: HighErrorRate

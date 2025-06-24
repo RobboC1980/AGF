@@ -385,7 +385,7 @@ export default function Page() {
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">AgileForge Complete Platform Demo</CardTitle>
+                  <CardTitle className="text-lg">SynqForge Complete Platform Demo</CardTitle>
                   <div className="flex items-center space-x-2">
                     <SimpleCreateModal 
                       type="project" 

@@ -1,5 +1,5 @@
 """
-Storage API Endpoints for AgileForge
+Storage API Endpoints for SynqForge
 Handles file uploads, downloads, and management using Supabase Storage
 """
 

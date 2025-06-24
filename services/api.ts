@@ -474,6 +474,16 @@ class ApiClient {
   async healthCheck(): Promise<{ status: string; environment: string; version: string }> {
     return this.request("/health")
   }
+
+  // Analytics
+  analytics = {
+    getOverview: async (): Promise<AnalyticsOverview> => {
+      return this.request("/api/analytics/overview")
+    },
+    getProjectAnalytics: async (projectId: string): Promise<AnalyticsOverview> => {
+      return this.request(`/api/analytics/projects/${projectId}`)
+    }
+  }
 }
 
 // Create API client instance
@@ -566,6 +576,68 @@ export interface Task {
   created_by: string
   created_at: string
   updated_at?: string
+}
+
+export interface Sprint {
+  id: string
+  project_id: string
+  name: string
+  goal?: string
+  description?: string
+  sprint_number: number
+  start_date: string
+  end_date: string
+  actual_start_date?: string
+  actual_end_date?: string
+  status: 'planning' | 'active' | 'completed' | 'cancelled'
+  team_capacity?: number
+  planned_story_points?: number
+  completed_story_points: number
+  velocity?: number
+  scope_changes: number
+  what_went_well?: string
+  what_to_improve?: string
+  action_items?: any[]
+  created_by: string
+  created_at: string
+  updated_at?: string
+  stories_count: number
+  creator?: {
+    id: string
+    name: string
+    avatar_url?: string
+  }
+  project?: {
+    id: string
+    name: string
+  }
+}
+
+export interface Team {
+  id: string
+  name: string
+  description?: string
+  color: string
+  is_private: boolean
+  is_default: boolean
+  member_count: number
+  project_count: number
+  created_at: string
+  created_by: string
+  members: TeamMember[]
+  projects: string[]
+}
+
+export interface TeamMember {
+  id: string
+  team_id: string
+  user_id: string
+  role: 'admin' | 'manager' | 'member'
+  can_manage_team: boolean
+  can_manage_projects: boolean
+  can_assign_tasks: boolean
+  joined_at: string
+  user: User
 }
 
 export interface AnalyticsOverview {
@@ -679,7 +751,51 @@ export const api = {
       const response = await apiClient.put<{data: Task, success: boolean}>(`/api/tasks/${id}`, data);
       return response.data;
     },
+    assign: async (id: string, data: { assignee_id: string | null; notify_assignee?: boolean }) => {
+      const response = await apiClient.patch<{data: Task, success: boolean}>(`/api/tasks/${id}/assign`, data);
+      return response.data;
+    },
     delete: (id: string) => apiClient.delete(`/api/tasks/${id}`),
+  },
+
+  // Teams
+  teams: {
+    getAll: async (userId?: string, includeMembers: boolean = true) => {
+      const params = new URLSearchParams()
+      if (userId) params.append('user_id', userId)
+      params.append('include_members', includeMembers.toString())
+      const response = await apiClient.get<{data: {teams: Team[]}, success: boolean}>(`/api/teams?${params}`)
+      return response.data.teams
+    },
+    getById: async (id: string) => {
+      const response = await apiClient.get<Team>(`/api/teams/${id}`)
+      return response
+    },
+    create: async (data: { name: string; description?: string; color?: string; is_private?: boolean }) => {
+      const response = await apiClient.post<Team>('/api/teams', data)
+      return response
+    },
+    update: async (id: string, data: Partial<Team>) => {
+      const response = await apiClient.put<Team>(`/api/teams/${id}`, data)
+      return response
+    },
+    delete: (id: string) => apiClient.delete(`/api/teams/${id}`),
+    
+    // Team member management
+    addMember: async (teamId: string, data: { user_id: string; role?: string; can_manage_team?: boolean; can_manage_projects?: boolean; can_assign_tasks?: boolean }) => {
+      const response = await apiClient.post<TeamMember>(`/api/teams/${teamId}/members`, data)
+      return response
+    },
+    updateMember: async (teamId: string, userId: string, data: { role?: string; can_manage_team?: boolean; can_manage_projects?: boolean; can_assign_tasks?: boolean }) => {
+      const response = await apiClient.patch<TeamMember>(`/api/teams/${teamId}/members/${userId}`, data)
+      return response
+    },
+    removeMember: (teamId: string, userId: string) => apiClient.delete(`/api/teams/${teamId}/members/${userId}`),
+    
+    getProjects: async (teamId: string) => {
+      const response = await apiClient.get<{data: {projects: Project[]}, success: boolean}>(`/api/teams/${teamId}/projects`)
+      return response.data.projects
+    },
   },
 
   // Analytics
@@ -687,6 +803,83 @@ export const api = {
     getOverview: () => apiClient.get<AnalyticsOverview>('/api/analytics/overview'),
     getProjectAnalytics: (projectId: string) => 
       apiClient.get<AnalyticsOverview>(`/api/analytics/project/${projectId}`),
+    getProjectDashboard: (projectId: string, days: number = 30) =>
+      apiClient.get(`/api/analytics/dashboard/${projectId}?days=${days}`),
+    getProjectVelocity: (projectId: string, days: number = 30) =>
+      apiClient.get(`/api/analytics/velocity/${projectId}?days=${days}`),
+    getProjectBurndown: (projectId: string, days: number = 30) =>
+      apiClient.get(`/api/analytics/burndown/${projectId}?days=${days}`),
+    getTeamPerformance: (projectId: string, days: number = 30) =>
+      apiClient.get(`/api/analytics/team-performance/${projectId}?days=${days}`),
+    getProjectInsights: (projectId: string, days: number = 30) =>
+      apiClient.get(`/api/analytics/insights/${projectId}?days=${days}`),
+    getTeamAnalytics: (teamId?: string, days: number = 30) =>
+      apiClient.get(`/api/analytics/team${teamId ? `?team_id=${teamId}` : ''}${teamId ? '&' : '?'}days=${days}`),
+  },
+
+  // Sprints
+  sprints: {
+    getAll: async (projectId?: string, status?: string) => {
+      const params = new URLSearchParams()
+      if (projectId) params.append('project_id', projectId)
+      if (status) params.append('status', status)
+      const queryString = params.toString() ? `?${params.toString()}` : ''
+      
+      const response = await apiClient.get<Sprint[]>(`/api/sprints${queryString}`)
+      return response
+    },
+    getById: async (id: string) => {
+      const response = await apiClient.get<Sprint>(`/api/sprints/${id}`)
+      return response
+    },
+    create: async (data: Omit<Sprint, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'sprint_number' | 'completed_story_points' | 'scope_changes' | 'stories_count'> & { project_id: string }) => {
+      const response = await apiClient.post<Sprint>('/api/sprints', {
+        name: data.name,
+        goal: data.goal,
+        description: data.description,
+        project_id: data.project_id,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        team_capacity: data.team_capacity,
+        planned_story_points: data.planned_story_points,
+      })
+      return response
+    },
+    update: async (id: string, data: Partial<Sprint>) => {
+      const response = await apiClient.put<Sprint>(`/api/sprints/${id}`, data)
+      return response
+    },
+    updateStatus: async (id: string, status: string, actualStartDate?: string, actualEndDate?: string) => {
+      const response = await apiClient.patch<Sprint>(`/api/sprints/${id}/status`, {
+        status,
+        actual_start_date: actualStartDate,
+        actual_end_date: actualEndDate,
+      })
+      return response
+    },
+    addStories: async (sprintId: string, storyIds: string[]) => {
+      const response = await apiClient.patch<any>(`/api/sprints/${sprintId}/stories`, {
+        story_ids: storyIds,
+        action: 'add',
+      })
+      return response
+    },
+    removeStories: async (sprintId: string, storyIds: string[]) => {
+      const response = await apiClient.patch<any>(`/api/sprints/${sprintId}/stories`, {
+        story_ids: storyIds,
+        action: 'remove',
+      })
+      return response
+    },
+    getStories: async (sprintId: string) => {
+      const response = await apiClient.get<{stories: Story[]}>(`/api/sprints/${sprintId}/stories`)
+      return response.stories
+    },
+    getBurndown: async (sprintId: string) => {
+      const response = await apiClient.get<any>(`/api/sprints/${sprintId}/burndown`)
+      return response
+    },
+    delete: (id: string) => apiClient.delete(`/api/sprints/${id}`),
   },
 
   // Search

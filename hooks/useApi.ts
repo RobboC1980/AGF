@@ -179,6 +179,72 @@ export const useAnalytics = () => {
   })
 }
 
+export const useProjectAnalytics = (projectId: string, days: number = 30) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
+  return useQuery({
+    queryKey: ['analytics', 'project', projectId, days],
+    queryFn: () => api.analytics.getProjectDashboard(projectId, days),
+    staleTime: 1 * 60 * 1000, // 1 minute
+    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+  })
+}
+
+export const useProjectVelocity = (projectId: string, days: number = 30) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
+  return useQuery({
+    queryKey: ['analytics', 'velocity', projectId, days],
+    queryFn: () => api.analytics.getProjectVelocity(projectId, days),
+    staleTime: 1 * 60 * 1000,
+    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+  })
+}
+
+export const useProjectBurndown = (projectId: string, days: number = 30) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
+  return useQuery({
+    queryKey: ['analytics', 'burndown', projectId, days],
+    queryFn: () => api.analytics.getProjectBurndown(projectId, days),
+    staleTime: 1 * 60 * 1000,
+    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+  })
+}
+
+export const useTeamPerformance = (projectId: string, days: number = 30) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
+  return useQuery({
+    queryKey: ['analytics', 'team-performance', projectId, days],
+    queryFn: () => api.analytics.getTeamPerformance(projectId, days),
+    staleTime: 1 * 60 * 1000,
+    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+  })
+}
+
+export const useProjectInsights = (projectId: string, days: number = 30) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
+  return useQuery({
+    queryKey: ['analytics', 'insights', projectId, days],
+    queryFn: () => api.analytics.getProjectInsights(projectId, days),
+    staleTime: 2 * 60 * 1000, // 2 minutes for AI insights
+    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+  })
+}
+
+export const useTeamAnalytics = (teamId?: string, days: number = 30) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  
+  return useQuery({
+    queryKey: ['analytics', 'team', teamId, days],
+    queryFn: () => api.analytics.getTeamAnalytics(teamId, days),
+    staleTime: 1 * 60 * 1000,
+    enabled: !authLoading && isAuthenticated && !!user,
+  })
+}
+
 // Projects hooks
 export const useProjects = () => {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()

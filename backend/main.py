@@ -7,17 +7,45 @@ import logging
 from typing import List
 
 # Import routers
-from .api.ai_endpoints import router as ai_router
-from .api.stories import router as stories_router
-from .api.auth import router as auth_router
-from .api.projects import router as projects_router
-from .api.epics import router as epics_router
-from .api.users import router as users_router
-from .api.tasks import router as tasks_router
-from .database.supabase_client import init_supabase, close_supabase, get_supabase
-from .services.ai_service import init_ai_service
-from .middleware.auth import AuthMiddleware
-from .middleware.logging import LoggingMiddleware
+try:
+    from .api.ai_endpoints import router as ai_router
+    from .api.stories import router as stories_router
+    from .api.auth import router as auth_router
+    from .api.projects import router as projects_router
+    from .api.epics import router as epics_router
+    from .api.users import router as users_router
+    from .api.tasks import router as tasks_router
+    from .api.teams import router as teams_router
+    from .api.search import router as search_router
+    from .api.sprints import router as sprints_router
+    from .database.supabase_client import init_supabase, close_supabase, get_supabase
+    from .services.ai_service import init_ai_service
+    from .middleware.auth import AuthMiddleware
+    from .middleware.logging import LoggingMiddleware
+    from .auth.enhanced_auth import EnhancedAuthManager
+    from .auth import enhanced_auth
+except ImportError:
+    # Handle running as main module
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).parent))
+    
+    from api.ai_endpoints import router as ai_router
+    from api.stories import router as stories_router
+    from api.auth import router as auth_router
+    from api.projects import router as projects_router
+    from api.epics import router as epics_router
+    from api.users import router as users_router
+    from api.tasks import router as tasks_router
+    from api.teams import router as teams_router
+    from api.search import router as search_router
+    from api.sprints import router as sprints_router
+    from database.supabase_client import init_supabase, close_supabase, get_supabase
+    from services.ai_service import init_ai_service
+    from middleware.auth import AuthMiddleware
+    from middleware.logging import LoggingMiddleware
+    from auth.enhanced_auth import EnhancedAuthManager
+    from auth import enhanced_auth
 
 # Configure logging
 logging.basicConfig(
@@ -29,16 +57,23 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting AgileScribe API...")
+    logger.info("Starting SynqForge API...")
     
     # Initialize Supabase
     try:
         init_supabase()
         logger.info("Supabase client initialized successfully")
         
-        # Initialize AI service with Supabase
+        # Initialize Enhanced Auth Manager
         try:
             supabase = get_supabase()
+            enhanced_auth.auth_manager = EnhancedAuthManager(supabase)
+            logger.info("Enhanced Auth Manager initialized successfully")
+        except Exception as auth_error:
+            logger.error(f"Enhanced Auth Manager initialization failed: {auth_error}")
+        
+        # Initialize AI service with Supabase
+        try:
             enhanced_service = init_ai_service(supabase)
             if enhanced_service:
                 logger.info("Enhanced AI service initialized successfully")
@@ -53,12 +88,12 @@ async def lifespan(app: FastAPI):
         logger.warning("Application will continue with limited database functionality")
     
     # Application is ready
-    logger.info("AgileScribe API startup completed")
+    logger.info("SynqForge API startup completed")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down AgileScribe API...")
+    logger.info("Shutting down SynqForge API...")
     try:
         close_supabase()
         logger.info("Supabase client closed")
@@ -67,7 +102,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="AgileScribe API",
+    title="SynqForge API",
     description="AI-Powered Agile Project Management Platform",
     version="1.0.0",
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
@@ -108,7 +143,7 @@ app.add_middleware(
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["*"] if os.getenv("ENVIRONMENT") == "development" else [
-        "agilescribe-api.onrender.com",
+        "synqforge-api.onrender.com",
         "localhost",
         "127.0.0.1"
     ]
@@ -130,7 +165,7 @@ async def health_check():
 @app.get("/")
 async def root():
     return {
-        "message": "AgileScribe API",
+        "message": "SynqForge API",
         "version": "1.0.0",
         "docs": "/docs" if os.getenv("ENVIRONMENT") != "production" else "Documentation disabled in production"
     }
@@ -142,6 +177,9 @@ app.include_router(projects_router, prefix="/api/projects", tags=["Projects"])
 app.include_router(epics_router, prefix="/api/epics", tags=["Epics"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
+app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
+app.include_router(search_router, prefix="/api/search", tags=["Search"])
+app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
 
 # Error handlers

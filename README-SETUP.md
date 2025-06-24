@@ -1,4 +1,4 @@
-# AgileForge Setup Guide
+# SynqForge Setup Guide
 
 ## Prerequisites
 

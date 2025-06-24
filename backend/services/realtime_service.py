@@ -1,5 +1,5 @@
 """
-Enhanced Real-time Service for AgileForge
+Enhanced Real-time Service for SynqForge
 Provides live collaboration features using Supabase Realtime
 """
 

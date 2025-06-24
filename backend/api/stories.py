@@ -1,13 +1,20 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
 import uuid
 
-from ..services.ai_service import get_basic_ai_service, AIResponse
-from ..database.supabase_client import get_supabase
-from ..auth.dependencies import get_current_user
+try:
+    from ..services.ai_service import get_basic_ai_service, AIResponse
+    from ..database.supabase_client import get_supabase
+    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from .story_mentions import handle_story_description_mentions
+except ImportError:
+    from services.ai_service import get_basic_ai_service, AIResponse
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
+    from api.story_mentions import handle_story_description_mentions
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -148,7 +155,7 @@ def generate_story_fallback(description: str, priority: str, include_acceptance_
 @router.post("/generate", response_model=GeneratedStoryResponse)
 async def generate_story(
     request: StoryGenerateRequest,
-    current_user = Depends(get_current_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     supabase = Depends(get_supabase)
 ):
     """Generate a user story using AI based on description"""
@@ -244,7 +251,7 @@ async def generate_story(
 @router.post("/", response_model=StoryResponse)
 async def create_story(
     request: StoryCreateRequest,
-    current_user = Depends(get_current_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     supabase = Depends(get_supabase)
 ):
     """Create a new user story"""
@@ -289,7 +296,7 @@ async def get_stories(
 @router.get("/{story_id}", response_model=StoryResponse)
 async def get_story(
     story_id: str,
-    current_user = Depends(get_current_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     supabase = Depends(get_supabase)
 ):
     """Get a specific user story"""
@@ -306,11 +313,20 @@ async def get_story(
 async def update_story(
     story_id: str,
     request: StoryCreateRequest,
-    current_user = Depends(get_current_user),
+    background_tasks: BackgroundTasks,
+    current_user: UserInDB = Depends(get_current_active_user),
     supabase = Depends(get_supabase)
 ):
     """Update a user story (full update)"""
     try:
+        # Get current story for @mention comparison
+        current_story = supabase.table('stories').select('description').eq('id', story_id).single().execute()
+        if not current_story.data:
+            raise HTTPException(status_code=404, detail="Story not found")
+            
+        old_description = current_story.data.get('description', '')
+        new_description = request.description or ''
+        
         # Update story in database
         result = supabase.table('stories').update({
             'name': request.name,
@@ -329,7 +345,19 @@ async def update_story(
         if not result.data:
             raise HTTPException(status_code=404, detail="Story not found")
 
+        # Process @mentions in background
+        if new_description != old_description:
+            background_tasks.add_task(
+                handle_story_description_mentions,
+                story_id,
+                new_description,
+                old_description,
+                current_user.id
+            )
+
         return result.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating story {story_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update story: {str(e)}")
@@ -338,11 +366,20 @@ async def update_story(
 async def patch_story(
     story_id: str,
     request: StoryUpdateRequest,
-    current_user = Depends(get_current_user),
+    background_tasks: BackgroundTasks,
+    current_user: UserInDB = Depends(get_current_active_user),
     supabase = Depends(get_supabase)
 ):
     """Partially update a user story (only provided fields)"""
     try:
+        # Get current story for @mention comparison if description is being updated
+        old_description = ''
+        if request.description is not None:
+            current_story = supabase.table('stories').select('description').eq('id', story_id).single().execute()
+            if not current_story.data:
+                raise HTTPException(status_code=404, detail="Story not found")
+            old_description = current_story.data.get('description', '')
+        
         # Build update dict with only provided fields
         update_data = {}
         if request.name is not None:
@@ -375,7 +412,19 @@ async def patch_story(
         if not result.data:
             raise HTTPException(status_code=404, detail="Story not found")
 
+        # Process @mentions in background if description changed
+        if request.description is not None and request.description != old_description:
+            background_tasks.add_task(
+                handle_story_description_mentions,
+                story_id,
+                request.description,
+                old_description,
+                current_user.id
+            )
+
         return result.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error patching story {story_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to patch story: {str(e)}")
@@ -383,7 +432,7 @@ async def patch_story(
 @router.delete("/{story_id}")
 async def delete_story(
     story_id: str,
-    current_user = Depends(get_current_user),
+    current_user: UserInDB = Depends(get_current_active_user),
     supabase = Depends(get_supabase)
 ):
     """Delete a user story"""

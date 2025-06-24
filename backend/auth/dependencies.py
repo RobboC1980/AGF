@@ -49,14 +49,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         
-        # Demo mode: if token is "demo" or empty, return a demo user
-        if token == "demo" or not token:
-            return User(
-                id="demo-user",
-                email="demo@agileforge.com",
-                name="Demo User"
-            )
-        
         payload = verify_token(token)
         if payload is None:
             raise credentials_exception
@@ -74,12 +66,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
         
     except Exception:
-        # In demo mode, if authentication fails, return demo user
-        return User(
-            id="demo-user",
-            email="demo@agileforge.com", 
-            name="Demo User"
-        )
+        raise credentials_exception
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """Get current active user (can be extended to check if user is active)"""

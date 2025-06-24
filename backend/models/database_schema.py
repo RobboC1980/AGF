@@ -1,6 +1,6 @@
 """
-AgileForge Complete Database Schema
-This file contains the complete database schema for the AgileForge platform
+SynqForge Complete Database Schema
+This file contains the complete database schema for the SynqForge platform
 covering all entities and their relationships with no gaps.
 """
 
@@ -13,6 +13,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 import enum
+import uuid
 
 Base = declarative_base()
 

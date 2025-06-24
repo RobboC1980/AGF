@@ -160,31 +160,263 @@ class NotificationService:
         """Create default email templates"""
         templates = [
             {
-                'template_id': 'story_assigned',
-                'name': 'Story Assigned',
-                'subject': 'New Story Assigned: {{story_name}}',
+                'template_id': 'task_assigned',
+                'name': 'Task Assigned',
+                'subject': '[SynqForge] New Task Assigned: {{task_title}}',
                 'html_content': '''
-                <h2>You've been assigned a new story!</h2>
-                <p><strong>Story:</strong> {{story_name}}</p>
-                <p><strong>Epic:</strong> {{epic_name}}</p>
-                <p><strong>Priority:</strong> {{priority}}</p>
-                <p><strong>Story Points:</strong> {{story_points}}</p>
-                <p>{{description}}</p>
-                <a href="{{story_url}}" style="background-color: #3B82F6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Story</a>
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #3B82F6, #8B5CF6); color: white; padding: 20px; text-align: center;">
+                        <h1 style="margin: 0;">SynqForge</h1>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Task Assignment</p>
+                    </div>
+                    <div style="padding: 30px 20px;">
+                        <h2 style="color: #1F2937; margin-top: 0;">🎯 New Task Assigned</h2>
+                        <p style="color: #4B5563; line-height: 1.6; font-size: 16px;">You have been assigned a new task that requires your attention.</p>
+                        
+                        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3 style="margin: 0 0 15px 0; color: #1E40AF;">{{task_title}}</h3>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Story:</strong> {{story_name}}
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Priority:</strong> 
+                                <span style="background: #FEF3C7; color: #92400E; padding: 2px 8px; border-radius: 12px; font-size: 12px; text-transform: uppercase;">{{priority}}</span>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Estimated Hours:</strong> {{estimated_hours}}h
+                            </div>
+                            {{#if due_date}}
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Due Date:</strong> {{due_date}}
+                            </div>
+                            {{/if}}
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{{task_url}}" style="background: linear-gradient(135deg, #3B82F6, #1D4ED8); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                                View Task
+                            </a>
+                        </div>
+                        
+                        <div style="margin-top: 30px; padding: 20px; background: #F3F4F6; border-radius: 8px;">
+                            <p style="margin: 0; color: #6B7280; font-size: 14px;">
+                                This task was assigned by your team. Click the button above to view details and start working.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="background: #F9FAFB; padding: 20px; text-align: center; border-top: 1px solid #E5E7EB;">
+                        <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
+                            © 2024 AgileForge. All rights reserved.
+                        </p>
+                    </div>
+                </div>
                 ''',
                 'text_content': '''
-                You've been assigned a new story!
+                                  🎯 SynqForge - New Task Assigned
+                
+                You have been assigned a new task: {{task_title}}
                 
                 Story: {{story_name}}
+                Priority: {{priority}}
+                Estimated Hours: {{estimated_hours}}h
+                {{#if due_date}}Due Date: {{due_date}}{{/if}}
+                
+                View task: {{task_url}}
+                
+                ---
+                This task was assigned by your team.
+                © 2024 SynqForge. All rights reserved.
+                ''',
+                'variables': ['task_title', 'story_name', 'priority', 'estimated_hours', 'due_date', 'task_url', 'user_name']
+            },
+            {
+                'template_id': 'story_assigned',
+                'name': 'Story Assigned',
+                'subject': '[SynqForge] New Story Assigned: {{story_name}}',
+                'html_content': '''
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 20px; text-align: center;">
+                        <h1 style="margin: 0;">SynqForge</h1>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Story Assignment</p>
+                    </div>
+                    <div style="padding: 30px 20px;">
+                        <h2 style="color: #1F2937; margin-top: 0;">📖 New Story Assigned</h2>
+                        <p style="color: #4B5563; line-height: 1.6; font-size: 16px;">You've been assigned a new user story to work on.</p>
+                        
+                        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3 style="margin: 0 0 15px 0; color: #14532D;">{{story_name}}</h3>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Epic:</strong> {{epic_name}}
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Priority:</strong> 
+                                <span style="background: #FEF3C7; color: #92400E; padding: 2px 8px; border-radius: 12px; font-size: 12px; text-transform: uppercase;">{{priority}}</span>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <strong style="color: #374151;">Story Points:</strong> {{story_points}}
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #10B981;">
+                                <p style="margin: 0; color: #4B5563; font-style: italic;">"{{description}}"</p>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{{story_url}}" style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                                View Story
+                            </a>
+                        </div>
+                    </div>
+                    <div style="background: #F9FAFB; padding: 20px; text-align: center; border-top: 1px solid #E5E7EB;">
+                        <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
+                            © 2024 AgileForge. All rights reserved.
+                        </p>
+                    </div>
+                </div>
+                ''',
+                'text_content': '''
+                                  📖 SynqForge - New Story Assigned
+                
+                You've been assigned a new user story: {{story_name}}
+                
                 Epic: {{epic_name}}
                 Priority: {{priority}}
                 Story Points: {{story_points}}
                 
-                {{description}}
+                Description: {{description}}
                 
                 View story: {{story_url}}
+                
+                ---
+                © 2024 SynqForge. All rights reserved.
                 ''',
-                'variables': ['story_name', 'epic_name', 'priority', 'story_points', 'description', 'story_url']
+                'variables': ['story_name', 'epic_name', 'priority', 'story_points', 'description', 'story_url', 'user_name']
+            },
+            {
+                'template_id': 'team_mention',
+                'name': 'Team Mention',
+                'subject': '[SynqForge] You were mentioned in {{story_title}}',
+                'html_content': '''
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; padding: 20px; text-align: center;">
+                        <h1 style="margin: 0;">SynqForge</h1>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">You were mentioned</p>
+                    </div>
+                    <div style="padding: 30px 20px;">
+                        <h2 style="color: #1F2937; margin-top: 0;">💬 Mentioned in Story</h2>
+                        <p style="color: #4B5563; line-height: 1.6; font-size: 16px;">{{mentioner_name}} mentioned you in a story {{mention_type}}.</p>
+                        
+                        <div style="background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3 style="margin: 0 0 15px 0; color: #1E40AF;">{{story_title}}</h3>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Epic:</strong> {{epic_name}}
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="color: #374151;">Project:</strong> {{project_name}}
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <strong style="color: #374151;">Context:</strong>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #8B5CF6;">
+                                <p style="margin: 0; color: #4B5563; font-style: italic;">"{{mention_context}}"</p>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{{story_url}}" style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                                View Story
+                            </a>
+                        </div>
+                        
+                        <div style="margin-top: 30px; padding: 20px; background: #F3F4F6; border-radius: 8px;">
+                            <p style="margin: 0; color: #6B7280; font-size: 14px;">
+                                Stay in the loop with your team's conversations and updates.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="background: #F9FAFB; padding: 20px; text-align: center; border-top: 1px solid #E5E7EB;">
+                        <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
+                            © 2024 AgileForge. All rights reserved.
+                        </p>
+                    </div>
+                </div>
+                ''',
+                'text_content': '''
+                💬 SynqForge - You were mentioned
+                
+                {{mentioner_name}} mentioned you in a story {{mention_type}}.
+                
+                Story: {{story_title}}
+                Epic: {{epic_name}}
+                Project: {{project_name}}
+                
+                Context: "{{mention_context}}"
+                
+                View story: {{story_url}}
+                
+                ---
+                Stay in the loop with your team's conversations and updates.
+                © 2024 AgileForge. All rights reserved.
+                ''',
+                'variables': ['story_title', 'epic_name', 'project_name', 'mentioner_name', 'mention_context', 'mention_type', 'story_url', 'user_name']
+            },
+            {
+                'template_id': 'team_invitation',
+                'name': 'Team Invitation',
+                'subject': '[SynqForge] You\'ve been invited to join {{team_name}}',
+                'html_content': '''
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; padding: 20px; text-align: center;">
+                        <h1 style="margin: 0;">SynqForge</h1>
+                        <p style="margin: 5px 0 0 0; opacity: 0.9;">Team Invitation</p>
+                    </div>
+                    <div style="padding: 30px 20px;">
+                        <h2 style="color: #1F2937; margin-top: 0;">🎉 Team Invitation</h2>
+                        <p style="color: #4B5563; line-height: 1.6; font-size: 16px;">
+                            {{inviter_name}} has invited you to join the <strong>{{team_name}}</strong> team!
+                        </p>
+                        
+                        <div style="background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3 style="margin: 0 0 15px 0; color: #5B21B6;">{{team_name}}</h3>
+                            {{#if team_description}}
+                            <p style="margin: 0; color: #6B7280;">{{team_description}}</p>
+                            {{/if}}
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{{team_url}}" style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+                                View Team
+                            </a>
+                        </div>
+                        
+                        <div style="margin-top: 30px; padding: 20px; background: #F3F4F6; border-radius: 8px;">
+                            <p style="margin: 0; color: #6B7280; font-size: 14px;">
+                                Join your team to collaborate on projects, share ideas, and track progress together.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="background: #F9FAFB; padding: 20px; text-align: center; border-top: 1px solid #E5E7EB;">
+                        <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
+                            © 2024 AgileForge. All rights reserved.
+                        </p>
+                    </div>
+                </div>
+                ''',
+                'text_content': '''
+                                  🎉 SynqForge - Team Invitation
+                
+                {{inviter_name}} has invited you to join the {{team_name}} team!
+                
+                {{#if team_description}}
+                About the team: {{team_description}}
+                {{/if}}
+                
+                View team: {{team_url}}
+                
+                ---
+                Join your team to collaborate on projects and track progress together.
+                © 2024 AgileForge. All rights reserved.
+                ''',
+                'variables': ['team_name', 'team_description', 'team_url', 'inviter_name', 'user_name']
             },
             {
                 'template_id': 'ai_insight',
@@ -442,6 +674,16 @@ class NotificationService:
             
             user = user_result.data[0]
             
+            # Prepare template variables
+            template_variables = notification.data or {}
+            template_variables.update({
+                'user_name': user['name'],
+                'user_email': user['email'],
+                                  'app_name': 'SynqForge',
+                'app_url': os.getenv('FRONTEND_URL', 'http://localhost:3000'),
+                'notification_date': datetime.now().strftime('%B %d, %Y')
+            })
+            
             # Use Edge Function for email sending
             async with aiohttp.ClientSession() as session:
                 headers = {
@@ -456,7 +698,7 @@ class NotificationService:
                     'subject': template['subject'],
                     'html_content': template['html_content'],
                     'text_content': template['text_content'],
-                    'variables': notification.data or {}
+                    'variables': template_variables
                 }
                 
                 async with session.post(
@@ -465,11 +707,17 @@ class NotificationService:
                     json=payload
                 ) as response:
                     if response.status != 200:
-                        raise Exception(f"Email sending failed: {await response.text()}")
+                        error_text = await response.text()
+                        logger.error(f"Email Edge Function failed: {response.status} - {error_text}")
+                        # Don't raise exception to avoid blocking notification creation
+                        return
+                    
+                    result = await response.json()
+                    logger.info(f"Email sent successfully via {result.get('provider', 'unknown')} to {user['email']}")
                         
         except Exception as e:
             logger.error(f"Failed to send email notification: {e}")
-            raise
+            # Don't raise exception to avoid blocking notification creation
     
     async def _send_generic_email(self, notification: Notification):
         """Send generic email notification"""
@@ -483,6 +731,41 @@ class NotificationService:
             
             user = user_result.data[0]
             
+            # Create a simple HTML template for generic emails
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #3B82F6, #8B5CF6); color: white; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0;">AgileForge</h1>
+                </div>
+                <div style="padding: 30px 20px;">
+                    <h2 style="color: #1F2937; margin-top: 0;">{notification.title}</h2>
+                    <p style="color: #4B5563; line-height: 1.6; font-size: 16px;">{notification.message}</p>
+                    <div style="margin-top: 30px; padding: 20px; background: #F3F4F6; border-radius: 8px;">
+                        <p style="margin: 0; color: #6B7280; font-size: 14px;">
+                            This notification was sent from your AgileForge workspace.
+                        </p>
+                    </div>
+                </div>
+                <div style="background: #F9FAFB; padding: 20px; text-align: center; border-top: 1px solid #E5E7EB;">
+                    <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
+                        © 2024 AgileForge. All rights reserved.
+                    </p>
+                </div>
+            </div>
+            """
+            
+            text_content = f"""
+            AgileForge Notification
+            
+            {notification.title}
+            
+            {notification.message}
+            
+            ---
+            This notification was sent from your AgileForge workspace.
+            © 2024 AgileForge. All rights reserved.
+            """
+            
             async with aiohttp.ClientSession() as session:
                 headers = {
                     'Authorization': f'Bearer {self.service_key}',
@@ -492,9 +775,9 @@ class NotificationService:
                 payload = {
                     'to_email': user['email'],
                     'to_name': user['name'],
-                    'subject': notification.title,
-                    'html_content': f"<h2>{notification.title}</h2><p>{notification.message}</p>",
-                    'text_content': f"{notification.title}\n\n{notification.message}",
+                    'subject': f"[AgileForge] {notification.title}",
+                    'html_content': html_content,
+                    'text_content': text_content,
                     'variables': {}
                 }
                 
@@ -504,11 +787,16 @@ class NotificationService:
                     json=payload
                 ) as response:
                     if response.status != 200:
-                        raise Exception(f"Generic email sending failed: {await response.text()}")
+                        error_text = await response.text()
+                        logger.error(f"Generic email Edge Function failed: {response.status} - {error_text}")
+                        return
+                    
+                    result = await response.json()
+                    logger.info(f"Generic email sent successfully via {result.get('provider', 'unknown')} to {user['email']}")
                         
         except Exception as e:
             logger.error(f"Failed to send generic email: {e}")
-            raise
+            # Don't raise exception to avoid blocking notification creation
     
     async def _send_push_notification(self, notification: Notification):
         """Send push notification"""

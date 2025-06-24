@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-Enhanced Authentication System for AgileForge
+Enhanced Authentication System for SynqForge
 Production-ready role-based access control with permissions and team management
 """
 

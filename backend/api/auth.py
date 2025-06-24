@@ -7,7 +7,11 @@ from datetime import datetime, timedelta
 import logging
 
 from ..database.supabase_client import get_supabase
-from ..auth.dependencies import get_current_user as get_authenticated_user, User
+from ..auth.enhanced_auth import get_current_active_user, UserInDB
+from ..auth.dependencies import User
+
+# Make get_current_user_supabase available for other modules
+__all__ = ['get_current_user_supabase']
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

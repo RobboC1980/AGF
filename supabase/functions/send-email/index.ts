@@ -1,101 +1,74 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders } from "../_shared/cors.ts"
 
 interface EmailRequest {
   to_email: string
   to_name: string
-  template_id?: string
   subject: string
   html_content: string
   text_content: string
-  variables: Record<string, any>
+  template_id?: string
+  variables?: Record<string, any>
+}
+
+interface EmailTemplate {
+  template_id: string
+  subject: string
+  html_content: string
+  text_content: string
+  variables: string[]
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { to_email, to_name, template_id, subject, html_content, text_content, variables } = await req.json() as EmailRequest
+    const { to_email, to_name, subject, html_content, text_content, template_id, variables = {} }: EmailRequest = await req.json()
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Template variable substitution
-    const substituteVariables = (content: string, vars: Record<string, any>): string => {
-      let result = content
-      for (const [key, value] of Object.entries(vars)) {
-        const regex = new RegExp(`{{${key}}}`, 'g')
-        result = result.replace(regex, String(value))
-      }
-      return result
-    }
-
-    // Process templates
-    const processedSubject = substituteVariables(subject, variables)
-    const processedHtmlContent = substituteVariables(html_content, variables)
-    const processedTextContent = substituteVariables(text_content, variables)
-
-    // Send email using your preferred email service
-    // This example uses a generic email service API
-    const emailServiceUrl = Deno.env.get('EMAIL_SERVICE_URL')
-    const emailServiceKey = Deno.env.get('EMAIL_SERVICE_KEY')
-
-    if (!emailServiceUrl || !emailServiceKey) {
-      throw new Error('Email service not configured')
-    }
-
-    const emailResponse = await fetch(emailServiceUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${emailServiceKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: [{ email: to_email, name: to_name }],
-        subject: processedSubject,
-        html: processedHtmlContent,
-        text: processedTextContent,
-        from: {
-          email: Deno.env.get('FROM_EMAIL') ?? 'noreply@agileforge.com',
-          name: 'AgileForge'
-        }
-      })
-    })
-
-    if (!emailResponse.ok) {
-      throw new Error(`Email service error: ${emailResponse.statusText}`)
-    }
-
-    const emailResult = await emailResponse.json()
-
-    // Log email sending
-    await supabaseClient
-      .from('email_logs')
-      .insert({
+    // Get email service configuration from environment
+    const emailProvider = Deno.env.get('EMAIL_PROVIDER') || 'sendgrid'
+    
+    let emailResult
+    
+    if (emailProvider === 'sendgrid') {
+      emailResult = await sendWithSendGrid({
         to_email,
-        template_id,
-        subject: processedSubject,
-        status: 'sent',
-        external_id: emailResult.id,
-        sent_at: new Date().toISOString()
+        to_name,
+        subject,
+        html_content,
+        text_content,
+        variables
       })
+    } else if (emailProvider === 'resend') {
+      emailResult = await sendWithResend({
+        to_email,
+        to_name,
+        subject,
+        html_content,
+        text_content,
+        variables
+      })
+    } else {
+      // Fallback: log email instead of sending
+      emailResult = await logEmailFallback({
+        to_email,
+        to_name,
+        subject,
+        html_content,
+        text_content,
+        variables
+      })
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Email sent successfully',
-        email_id: emailResult.id 
+        provider: emailProvider,
+        result: emailResult
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -104,12 +77,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Email sending error:', error)
+    console.error('Email sending failed:', error)
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message || 'Failed to send email' 
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -117,4 +90,139 @@ serve(async (req) => {
       }
     )
   }
-}) 
+})
+
+async function sendWithSendGrid(emailData: any) {
+  const apiKey = Deno.env.get('SENDGRID_API_KEY')
+  if (!apiKey) {
+    throw new Error('SendGrid API key not configured')
+  }
+
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'noreply@agileforge.com'
+  const fromName = Deno.env.get('FROM_NAME') || 'AgileForge'
+
+  // Replace template variables in content
+  let processedHtml = emailData.html_content
+  let processedText = emailData.text_content
+  let processedSubject = emailData.subject
+
+  for (const [key, value] of Object.entries(emailData.variables)) {
+    const placeholder = `{{${key}}}`
+    processedHtml = processedHtml.replace(new RegExp(placeholder, 'g'), String(value))
+    processedText = processedText.replace(new RegExp(placeholder, 'g'), String(value))
+    processedSubject = processedSubject.replace(new RegExp(placeholder, 'g'), String(value))
+  }
+
+  const payload = {
+    personalizations: [
+      {
+        to: [
+          {
+            email: emailData.to_email,
+            name: emailData.to_name
+          }
+        ],
+        subject: processedSubject
+      }
+    ],
+    from: {
+      email: fromEmail,
+      name: fromName
+    },
+    content: [
+      {
+        type: 'text/plain',
+        value: processedText
+      },
+      {
+        type: 'text/html',
+        value: processedHtml
+      }
+    ]
+  }
+
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`SendGrid API error: ${response.status} ${errorText}`)
+  }
+
+  return {
+    provider: 'sendgrid',
+    status: response.status,
+    message_id: response.headers.get('x-message-id')
+  }
+}
+
+async function sendWithResend(emailData: any) {
+  const apiKey = Deno.env.get('RESEND_API_KEY')
+  if (!apiKey) {
+    throw new Error('Resend API key not configured')
+  }
+
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'noreply@agileforge.com'
+
+  // Replace template variables
+  let processedHtml = emailData.html_content
+  let processedText = emailData.text_content
+  let processedSubject = emailData.subject
+
+  for (const [key, value] of Object.entries(emailData.variables)) {
+    const placeholder = `{{${key}}}`
+    processedHtml = processedHtml.replace(new RegExp(placeholder, 'g'), String(value))
+    processedText = processedText.replace(new RegExp(placeholder, 'g'), String(value))
+    processedSubject = processedSubject.replace(new RegExp(placeholder, 'g'), String(value))
+  }
+
+  const payload = {
+    from: fromEmail,
+    to: [emailData.to_email],
+    subject: processedSubject,
+    html: processedHtml,
+    text: processedText
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Resend API error: ${response.status} ${errorText}`)
+  }
+
+  const result = await response.json()
+  return {
+    provider: 'resend',
+    status: response.status,
+    message_id: result.id
+  }
+}
+
+async function logEmailFallback(emailData: any) {
+  // Log email to console (development fallback)
+  console.log('📧 EMAIL FALLBACK (would send email):')
+  console.log('To:', emailData.to_email, '(' + emailData.to_name + ')')
+  console.log('Subject:', emailData.subject)
+  console.log('Variables:', emailData.variables)
+  console.log('---')
+  
+  return {
+    provider: 'fallback',
+    status: 200,
+    message: 'Email logged to console (development mode)'
+  }
+} 

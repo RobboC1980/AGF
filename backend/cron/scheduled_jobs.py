@@ -1,5 +1,5 @@
 """
-Scheduled Jobs Manager for AgileForge
+Scheduled Jobs Manager for SynqForge
 Handles automated AI-powered features and maintenance tasks using Supabase pg_cron
 """
 

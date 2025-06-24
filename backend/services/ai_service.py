@@ -91,7 +91,7 @@ class StoryRecommendation(BaseModel):
     confidence: float
 
 class AIService:
-    """Core AI service for all AgileScribe AI features"""
+    """Core AI service for all SynqForge AI features"""
     
     def __init__(self):
         self.config = AIConfig()
@@ -162,6 +162,568 @@ class AIService:
                 }}
                 """,
                 variables=["team_capacity", "historical_velocity", "velocity_sprints", "candidate_stories", "dependencies"]
+            ),
+            
+            "analytics_insights": PromptTemplate(
+                name="analytics_insights",
+                version="2.0",
+                system_prompt="""You are an expert Agile metrics analyst and data scientist specializing in development team performance analysis.
+
+ANALYTICS EXPERTISE:
+- **Velocity Analysis**: Understand story point delivery patterns, capacity planning, and predictive forecasting
+- **Cycle Time Optimization**: Identify bottlenecks in development workflow and suggest improvements  
+- **Team Performance**: Analyze individual and team productivity patterns
+- **Quality Metrics**: Assess defect rates, rework patterns, and quality trends
+- **Predictive Analytics**: Forecast delivery dates, identify risks, and recommend optimizations
+
+INSIGHT CATEGORIES:
+- **Performance Trends**: Velocity, throughput, cycle time analysis
+- **Risk Identification**: Early warning signs of project delays or quality issues
+- **Optimization Opportunities**: Process improvements and efficiency gains
+- **Capacity Planning**: Resource allocation and sprint planning recommendations
+- **Quality Analysis**: Defect patterns, rework reduction strategies""",
+                user_prompt_template="""
+                Analyze this project data and generate comprehensive insights:
+                
+                **PROJECT OVERVIEW:**
+                Project: {project_name}
+                Analysis Period: {analysis_period} days
+                Team Size: {team_size} members
+                
+                **PERFORMANCE METRICS:**
+                Current Velocity: {current_velocity} points/sprint
+                Historical Velocity: {historical_velocities}
+                Completion Rate: {completion_rate}%
+                Average Cycle Time: {avg_cycle_time} days
+                
+                **STORY BREAKDOWN:**
+                Total Stories: {total_stories}
+                Completed: {completed_stories}
+                In Progress: {in_progress_stories}
+                Backlog: {backlog_stories}
+                
+                **QUALITY METRICS:**
+                Bug Rate: {bug_rate}%
+                Rework Rate: {rework_rate}%
+                Priority Distribution: {priority_distribution}
+                
+                **TEAM PERFORMANCE:**
+                {team_performance_data}
+                
+                **BLOCKERS & ISSUES:**
+                {current_blockers}
+                
+                GENERATE ANALYTICS INSIGHTS:
+                
+                1. **Performance Analysis**: Velocity trends, cycle time patterns, throughput analysis
+                2. **Risk Assessment**: Identify potential delivery risks and quality concerns
+                3. **Optimization Recommendations**: Specific actionable improvements
+                4. **Predictive Insights**: Forecast delivery timelines and capacity needs
+                5. **Team Health**: Workload balance, performance gaps, collaboration patterns
+                
+                Return ONLY this JSON structure:
+                {{
+                    "overall_health": "excellent|good|warning|critical",
+                    "health_score": 85,
+                    "key_insights": [
+                        {{
+                            "category": "velocity|cycle_time|quality|team_performance|capacity",
+                            "insight": "Specific data-driven observation",
+                            "impact": "high|medium|low",
+                            "trend": "improving|declining|stable",
+                            "recommendation": "Specific actionable advice"
+                        }}
+                    ],
+                    "performance_trends": {{
+                        "velocity_trend": "increasing|decreasing|stable",
+                        "velocity_change": "+12%",
+                        "cycle_time_trend": "improving|worsening|stable", 
+                        "cycle_time_change": "-2.3 days",
+                        "quality_trend": "improving|declining|stable"
+                    }},
+                    "risk_alerts": [
+                        {{
+                            "risk_type": "schedule|scope|quality|team",
+                            "risk_level": "high|medium|low",
+                            "description": "Clear description of the risk",
+                            "probability": "high|medium|low",
+                            "impact": "high|medium|low",
+                            "mitigation": "Specific mitigation strategy",
+                            "timeline": "immediate|1-2 weeks|1 month"
+                        }}
+                    ],
+                    "optimization_opportunities": [
+                        {{
+                            "area": "workflow|planning|quality|team",
+                            "opportunity": "Specific improvement opportunity",
+                            "potential_impact": "High: +15% velocity improvement",
+                            "effort_required": "low|medium|high",
+                            "implementation": "Step-by-step implementation plan"
+                        }}
+                    ],
+                    "capacity_forecast": {{
+                        "next_sprint_capacity": 42,
+                        "recommended_story_points": 38,
+                        "confidence_level": "high|medium|low",
+                        "capacity_utilization": "90%",
+                        "delivery_forecast": "3 weeks for remaining 120 points"
+                    }},
+                    "team_insights": [
+                        {{
+                            "insight_type": "performance|workload|collaboration|skills",
+                            "description": "Team-specific observation",
+                            "affected_members": ["member1", "member2"],
+                            "recommendation": "Specific team improvement action"
+                        }}
+                    ],
+                    "actionable_recommendations": [
+                        {{
+                            "priority": "high|medium|low",
+                            "category": "process|team|quality|planning",
+                            "action": "Specific action to take",
+                            "owner": "team_lead|scrum_master|product_owner|team",
+                            "timeline": "immediate|this_sprint|next_sprint",
+                            "success_criteria": "How to measure success"
+                        }}
+                    ],
+                    "confidence_score": 0.92
+                }}
+                """,
+                variables=["project_name", "analysis_period", "team_size", "current_velocity", "historical_velocities", 
+                         "completion_rate", "avg_cycle_time", "total_stories", "completed_stories", "in_progress_stories", 
+                         "backlog_stories", "bug_rate", "rework_rate", "priority_distribution", "team_performance_data", "current_blockers"]
+            ),
+            
+            "velocity_forecasting": PromptTemplate(
+                name="velocity_forecasting",
+                version="1.0", 
+                system_prompt="""You are a predictive analytics expert specializing in Agile team velocity forecasting.
+                Use historical data patterns to predict future performance and provide capacity planning insights.""",
+                user_prompt_template="""
+                Generate velocity forecasting based on this data:
+                
+                Team: {team_name}
+                Historical Velocity: {velocity_history}
+                Current Sprint Capacity: {current_capacity} points
+                Upcoming Work: {upcoming_work} points
+                Team Changes: {team_changes}
+                
+                External Factors:
+                - Holidays/PTO: {pto_periods}
+                - New Team Members: {new_members}
+                - Technology Changes: {tech_changes}
+                
+                Provide forecasting analysis:
+                
+                Return JSON:
+                {{
+                    "velocity_forecast": {{
+                        "next_sprint": {{
+                            "predicted_velocity": 35,
+                            "confidence_range": "30-40 points",
+                            "confidence_level": "high"
+                        }},
+                        "next_3_sprints": [35, 38, 40],
+                        "trend_prediction": "stable_growth"
+                    }},
+                    "capacity_recommendations": {{
+                        "optimal_commitment": 32,
+                        "stretch_commitment": 38,
+                        "safe_commitment": 28,
+                        "rationale": "Based on 85% confidence level"
+                    }},
+                    "delivery_timeline": {{
+                        "remaining_work_weeks": 8.5,
+                        "estimated_completion": "2024-03-15",
+                        "risk_factors": ["holiday_period", "new_team_member"]
+                    }},
+                    "influencing_factors": [
+                        {{
+                            "factor": "team_stability",
+                            "impact": "positive|negative|neutral",
+                            "magnitude": "high|medium|low",
+                            "description": "How this affects velocity"
+                        }}
+                    ]
+                }}
+                """,
+                variables=["team_name", "velocity_history", "current_capacity", "upcoming_work", "team_changes", "pto_periods", "new_members", "tech_changes"]
+            ),
+            
+            "burndown_analysis": PromptTemplate(
+                name="burndown_analysis",
+                version="1.0",
+                system_prompt="""You are a burndown chart analysis expert who identifies patterns and provides sprint guidance.
+                Analyze burndown data to assess sprint health and provide real-time recommendations.""",
+                user_prompt_template="""
+                Analyze this sprint burndown data:
+                
+                Sprint: {sprint_name}
+                Sprint Length: {sprint_days} days
+                Days Remaining: {days_remaining}
+                
+                Burndown Data:
+                {burndown_data}
+                
+                Ideal vs Actual:
+                {ideal_vs_actual}
+                
+                Story Completion Pattern:
+                {story_completion_pattern}
+                
+                Analyze burndown health and provide recommendations:
+                
+                Return JSON:
+                {{
+                    "sprint_health": "on_track|at_risk|behind|ahead",
+                    "completion_probability": 85,
+                    "burndown_pattern": "healthy|late_start|irregular|frontend_loaded",
+                    "key_observations": [
+                        "Slow start in first 3 days",
+                        "Accelerated completion in middle sprint",
+                        "Large stories completed late"
+                    ],
+                    "risk_assessment": {{
+                        "primary_risks": ["scope_creep", "blocking_dependencies"],
+                        "risk_level": "medium",
+                        "mitigation_actions": [
+                            "Focus on completing current stories before starting new ones",
+                            "Address blocker in story ABC-123"
+                        ]
+                    }},
+                    "recommendations": {{
+                        "immediate_actions": [
+                            "Daily focus on story completion",
+                            "Identify and resolve blockers"
+                        ],
+                        "process_improvements": [
+                            "Break down large stories earlier",
+                            "Improve story estimation accuracy"
+                        ]
+                    }},
+                    "forecast": {{
+                        "likely_completion": "95% of sprint goal",
+                        "completion_date": "Sprint end - 1 day",
+                        "at_risk_stories": ["story1", "story2"]
+                    }}
+                }}
+                """,
+                variables=["sprint_name", "sprint_days", "days_remaining", "burndown_data", "ideal_vs_actual", "story_completion_pattern"]
+            ),
+            
+            "team_performance_analysis": PromptTemplate(
+                name="team_performance_analysis", 
+                version="1.0",
+                system_prompt="""You are a team performance analyst who provides insights on individual and team productivity.
+                Focus on constructive feedback and growth opportunities while maintaining team morale.""",
+                user_prompt_template="""
+                Analyze team performance data:
+                
+                Team: {team_name}
+                Analysis Period: {analysis_period}
+                
+                Individual Performance:
+                {individual_metrics}
+                
+                Team Collaboration Metrics:
+                {collaboration_metrics}
+                
+                Workload Distribution:
+                {workload_distribution}
+                
+                Skill Utilization:
+                {skill_utilization}
+                
+                Provide performance insights and development recommendations:
+                
+                Return JSON:
+                {{
+                    "team_health": "high_performing|balanced|needs_attention",
+                    "performance_summary": {{
+                        "strengths": ["strong_collaboration", "consistent_delivery"],
+                        "improvement_areas": ["story_estimation", "testing_coverage"],
+                        "overall_trend": "improving|stable|declining"
+                    }},
+                    "individual_insights": [
+                        {{
+                            "member_id": "anonymous_1",
+                            "strengths": ["technical_skills", "problem_solving"],
+                            "development_areas": ["estimation_accuracy"],
+                            "recommended_actions": ["pair_programming", "estimation_training"],
+                            "support_needed": "medium"
+                        }}
+                    ],
+                    "workload_analysis": {{
+                        "distribution_balance": "well_balanced|uneven|concerning",
+                        "overloaded_members": 0,
+                        "underutilized_members": 1,
+                        "rebalancing_suggestions": [
+                            "Consider redistributing complex stories"
+                        ]
+                    }},
+                    "collaboration_insights": {{
+                        "pair_programming_effectiveness": "high",
+                        "knowledge_sharing": "good",
+                        "cross_functional_collaboration": "needs_improvement",
+                        "recommendations": [
+                            "Increase cross-functional story assignments"
+                        ]
+                    }},
+                    "development_recommendations": [
+                        {{
+                            "focus_area": "technical_skills|soft_skills|process",
+                            "recommendation": "Specific development action",
+                            "target_audience": "individual|team|leads",
+                            "priority": "high|medium|low"
+                        }}
+                    ]
+                }}
+                """,
+                variables=["team_name", "analysis_period", "individual_metrics", "collaboration_metrics", "workload_distribution", "skill_utilization"]
+            ),
+            
+            "quality_trends_analysis": PromptTemplate(
+                name="quality_trends_analysis",
+                version="1.0",
+                system_prompt="""You are a quality assurance analyst who identifies patterns in defects, rework, and quality metrics.
+                Provide insights to improve development quality and reduce technical debt.""",
+                user_prompt_template="""
+                Analyze quality trends and metrics:
+                
+                Project: {project_name}
+                Time Period: {time_period}
+                
+                Defect Metrics:
+                {defect_metrics}
+                
+                Rework Patterns:
+                {rework_patterns}
+                
+                Code Quality Metrics:
+                {code_quality_metrics}
+                
+                Testing Coverage:
+                {testing_coverage}
+                
+                User Feedback/Bugs:
+                {user_feedback}
+                
+                Analyze quality trends and provide improvement recommendations:
+                
+                Return JSON:
+                {{
+                    "quality_health": "excellent|good|concerning|poor",
+                    "quality_score": 82,
+                    "defect_analysis": {{
+                        "defect_rate_trend": "improving|stable|worsening",
+                        "defect_rate": "2.1%",
+                        "severity_distribution": {{
+                            "critical": 1,
+                            "high": 3,
+                            "medium": 8,
+                            "low": 12
+                        }},
+                        "common_defect_types": ["UI_bugs", "validation_errors", "integration_issues"]
+                    }},
+                    "rework_insights": {{
+                        "rework_rate": "8%",
+                        "rework_trend": "decreasing",
+                        "primary_rework_causes": [
+                            "changing_requirements",
+                            "insufficient_testing",
+                            "unclear_acceptance_criteria"
+                        ],
+                        "cost_impact": "medium"
+                    }},
+                    "quality_patterns": [
+                        {{
+                            "pattern": "Higher defect rate in complex features",
+                            "impact": "medium",
+                            "recommendation": "Increase testing for complex stories"
+                        }},
+                        {{
+                            "pattern": "UI bugs spike after design changes", 
+                            "impact": "low",
+                            "recommendation": "Implement design review checkpoints"
+                        }}
+                    ],
+                    "improvement_recommendations": [
+                        {{
+                            "category": "process|tools|training|reviews",
+                            "recommendation": "Specific quality improvement action",
+                            "expected_impact": "high|medium|low",
+                            "implementation_effort": "low|medium|high",
+                            "timeline": "immediate|short_term|long_term"
+                        }}
+                    ],
+                    "preventive_measures": [
+                        "Implement code review checklists",
+                        "Enhance automated testing coverage",
+                        "Add integration testing for API changes"
+                    ]
+                }}
+                """,
+                variables=["project_name", "time_period", "defect_metrics", "rework_patterns", "code_quality_metrics", "testing_coverage", "user_feedback"]
+            ),
+            
+            "capacity_planning": PromptTemplate(
+                name="capacity_planning",
+                version="1.0",
+                system_prompt="""You are a capacity planning expert who helps teams optimize resource allocation and sprint planning.
+                Consider team skills, availability, story complexity, and dependencies.""",
+                user_prompt_template="""
+                Analyze capacity and provide planning recommendations:
+                
+                Team Composition:
+                {team_composition}
+                
+                Upcoming Work:
+                {upcoming_stories}
+                
+                Team Availability:
+                {team_availability}
+                
+                Historical Performance:
+                {historical_performance}
+                
+                Dependencies & Constraints:
+                {dependencies_constraints}
+                
+                Skill Requirements:
+                {skill_requirements}
+                
+                Provide capacity planning analysis and recommendations:
+                
+                Return JSON:
+                {{
+                    "capacity_analysis": {{
+                        "total_available_hours": 320,
+                        "estimated_velocity": 38,
+                        "capacity_utilization": "85%",
+                        "buffer_recommendation": "15%"
+                    }},
+                    "resource_allocation": [
+                        {{
+                            "team_member": "developer_1",
+                            "allocated_hours": 40,
+                            "story_assignments": ["story1", "story2"],
+                            "skill_match": "excellent|good|adequate",
+                            "workload_level": "optimal|high|low"
+                        }}
+                    ],
+                    "planning_recommendations": {{
+                        "sprint_goal_feasibility": "achievable|aggressive|conservative",
+                        "recommended_story_points": 35,
+                        "story_prioritization": [
+                            {{
+                                "story_id": "story1",
+                                "priority_reason": "critical_dependency",
+                                "complexity_factor": "medium",
+                                "skill_availability": "high"
+                            }}
+                        ]
+                    }},
+                    "risk_mitigation": {{
+                        "capacity_risks": [
+                            "Single point of failure in frontend skills",
+                            "Dependency on external API completion"
+                        ],
+                        "mitigation_strategies": [
+                            "Cross-train team member in frontend",
+                            "Create contingency plan for API delay"
+                        ]
+                    }},
+                    "optimization_suggestions": [
+                        {{
+                            "area": "skill_distribution|workload_balance|story_sizing",
+                            "suggestion": "Specific optimization recommendation",
+                            "impact": "Improved team efficiency by 15%"
+                        }}
+                    ]
+                }}
+                """,
+                variables=["team_composition", "upcoming_stories", "team_availability", "historical_performance", "dependencies_constraints", "skill_requirements"]
+            ),
+            
+            "retrospective_insights": PromptTemplate(
+                name="retrospective_insights",
+                version="1.0",
+                system_prompt="""You are a retrospective facilitator who analyzes team feedback and identifies actionable improvements.
+                Focus on constructive insights that promote team growth and process optimization.""",
+                user_prompt_template="""
+                Analyze retrospective feedback and generate insights:
+                
+                Sprint: {sprint_name}
+                Team: {team_name}
+                
+                Feedback Categories:
+                What Went Well: {went_well}
+                What Didn't Go Well: {went_poorly}
+                Improvement Ideas: {improvement_ideas}
+                Action Items from Last Retro: {previous_actions}
+                
+                Team Sentiment:
+                {team_sentiment}
+                
+                Metrics Context:
+                {sprint_metrics}
+                
+                Generate comprehensive retrospective insights:
+                
+                Return JSON:
+                {{
+                    "retrospective_summary": {{
+                        "overall_sentiment": "positive|neutral|negative",
+                        "key_themes": ["communication", "process_efficiency", "technical_debt"],
+                        "improvement_momentum": "strong|moderate|weak"
+                    }},
+                    "pattern_analysis": [
+                        {{
+                            "pattern": "Recurring issue pattern identified",
+                            "frequency": "3_out_of_5_sprints",
+                            "impact": "high|medium|low",
+                            "root_cause": "Likely underlying cause",
+                            "trend": "increasing|stable|decreasing"
+                        }}
+                    ],
+                    "success_factors": [
+                        {{
+                            "factor": "What contributed to success",
+                            "impact": "Specific positive outcome",
+                            "replication_strategy": "How to maintain this success"
+                        }}
+                    ],
+                    "improvement_opportunities": [
+                        {{
+                            "category": "process|communication|technical|planning",
+                            "opportunity": "Specific improvement area",
+                            "current_impact": "How this affects the team now",
+                            "potential_benefit": "Expected improvement outcome",
+                            "effort_required": "low|medium|high"
+                        }}
+                    ],
+                    "action_item_recommendations": [
+                        {{
+                            "action": "Specific, actionable item",
+                            "category": "process|tool|training|communication",
+                            "priority": "high|medium|low",
+                            "owner": "role_or_team",
+                            "timeline": "this_sprint|next_sprint|ongoing",
+                            "success_criteria": "How to measure success",
+                            "effort_estimate": "hours_or_story_points"
+                        }}
+                    ],
+                    "follow_up_suggestions": {{
+                        "check_in_frequency": "weekly|biweekly|next_retro",
+                        "metrics_to_track": ["cycle_time", "team_satisfaction"],
+                        "experiment_ideas": [
+                            "Trial new process for 2 sprints",
+                            "Implement daily standup improvements"
+                        ]
+                    }}
+                }}
+                """,
+                variables=["sprint_name", "team_name", "went_well", "went_poorly", "improvement_ideas", "previous_actions", "team_sentiment", "sprint_metrics"]
             ),
             
             "standup_reporter": PromptTemplate(

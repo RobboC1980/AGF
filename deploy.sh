@@ -14,11 +14,11 @@ NC='\033[0m' # No Color
 
 # Configuration
 ENVIRONMENT=${1:-staging}
-PROJECT_NAME="agileforge"
+PROJECT_NAME="synqforge"
 BACKEND_SERVICE="${PROJECT_NAME}-api"
 FRONTEND_SERVICE="${PROJECT_NAME}-frontend"
 
-echo -e "${BLUE}🚀 Starting AgileForge deployment to ${ENVIRONMENT}...${NC}"
+echo -e "${BLUE}🚀 Starting SynqForge deployment to ${ENVIRONMENT}...${NC}"
 
 # Function to print colored output
 print_status() {
@@ -290,7 +290,7 @@ create_deployment_summary() {
     COMMIT_HASH=$(git rev-parse --short HEAD)
     
     cat > "deployment-${ENVIRONMENT}-$(date +%Y%m%d-%H%M%S).log" << EOF
-AgileForge Deployment Summary
+SynqForge Deployment Summary
 ============================
 
 Environment: $ENVIRONMENT
@@ -336,7 +336,7 @@ trap cleanup EXIT
 
 # Main deployment flow
 main() {
-    echo -e "${BLUE}🎯 Deploying AgileForge to ${ENVIRONMENT} environment${NC}"
+    echo -e "${BLUE}🎯 Deploying SynqForge to ${ENVIRONMENT} environment${NC}"
     
     check_dependencies
     validate_environment

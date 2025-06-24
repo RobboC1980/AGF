@@ -65,7 +65,7 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_DB=agileforge
+      - POSTGRES_DB=synqforge
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     volumes:
@@ -118,4 +118,4 @@ volumes:
 
 networks:
   default:
-    name: agileforge-network 
+    name: synqforge-network 

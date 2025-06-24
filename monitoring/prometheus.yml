@@ -12,16 +12,16 @@ alerting:
           - alertmanager:9093
 
 scrape_configs:
-  # AgileForge Backend API
-  - job_name: 'agileforge-backend'
+  # SynqForge Backend API
+  - job_name: 'synqforge-backend'
     static_configs:
       - targets: ['backend:8000']
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 10s
 
-  # AgileForge Frontend (if metrics are exposed)
-  - job_name: 'agileforge-frontend'
+  # SynqForge Frontend (if metrics are exposed)
+  - job_name: 'synqforge-frontend'
     static_configs:
       - targets: ['frontend:3000']
     metrics_path: '/_next/metrics'

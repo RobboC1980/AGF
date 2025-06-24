@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AgileForge Production Backend
+SynqForge Production Backend
 Production-ready FastAPI server with security, validation, and proper error handling
 """
 
@@ -223,7 +223,7 @@ class EmailRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting AgileForge API...")
+    logger.info("Starting SynqForge API...")
     
     # Test database connection
     try:
@@ -252,11 +252,11 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("Shutting down AgileForge API...")
+    logger.info("Shutting down SynqForge API...")
 
 # Create FastAPI app
 app = FastAPI(
-    title="AgileForge API",
+    title="SynqForge API",
     description="Production AI-Powered Agile Project Management Platform",
     version="1.0.0",
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
@@ -270,7 +270,7 @@ app.include_router(webhooks_router)
 app.include_router(cron_router)
 app.include_router(storage_router)
 app.include_router(realtime_router)
-app.include_router(analytics_router)
+app.include_router(analytics_router, prefix="/api")
 app.include_router(ai_router, prefix="/api/ai")
 app.include_router(notification_router)
 app.include_router(stripe_products_router)
@@ -357,7 +357,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         # Check for cron job authentication
         cron_api_key = os.getenv("CRON_API_KEY")
         if cron_api_key and credentials.credentials == cron_api_key:
-            return {"id": "cron-system", "email": "system@agileforge.com", "name": "System User"}
+            return {"id": "cron-system", "email": "system@synqforge.com", "name": "System User"}
         
         if not supabase:
             raise HTTPException(
@@ -413,7 +413,7 @@ async def send_email(to_email: str, subject: str, content: str, template_id: Opt
     """Send email using SendGrid"""
     try:
         message = Mail(
-            from_email=os.getenv("FROM_EMAIL", "noreply@agileforge.com"),
+            from_email=os.getenv("FROM_EMAIL", "noreply@synqforge.com"),
             to_emails=to_email,
             subject=subject,
             html_content=content
@@ -582,7 +582,7 @@ async def get_metrics():
 @app.get("/")
 async def root():
     return {
-        "message": "AgileForge API",
+        "message": "SynqForge API",
         "version": "1.0.0",
         "environment": os.getenv("ENVIRONMENT", "development"),
         "docs": "/docs" if os.getenv("ENVIRONMENT") != "production" else "Documentation disabled in production",
@@ -834,7 +834,7 @@ async def generate_story_endpoint(request: StoryGenerateRequest, current_user: d
             return GeneratedStoryResponse(
                 success=True,
                 story=story_data,
-                provider="AgileForge AI (Fallback)",
+                provider="SynqForge AI (Fallback)",
                 model="story-generator-v1",
                 confidence=0.75,
                 suggestions=[
@@ -1375,7 +1375,7 @@ async def send_notification(
         background_tasks.add_task(
             send_email,
             to_email=user["email"],
-            subject="AgileForge Notification",
+            subject="SynqForge Notification",
             content=f"<h2>Hello {user['name']}</h2><p>{message}</p>"
         )
         
@@ -1384,6 +1384,277 @@ async def send_notification(
     except Exception as e:
         logger.error(f"Error queuing notification: {e}")
         raise HTTPException(status_code=500, detail="Failed to queue notification")
+
+# Analytics endpoints
+@app.get("/api/analytics/overview")
+async def get_analytics_overview(current_user: dict = Depends(get_current_user)):
+    """Get analytics overview with real data"""
+    try:
+        # Get all stories for analytics
+        stories_result = supabase.table("stories").select("*").execute()
+        stories = stories_result.data
+        
+        # Calculate analytics metrics
+        total_stories = len(stories)
+        completed_stories = len([s for s in stories if s.get("status") == "done"])
+        in_progress_stories = len([s for s in stories if s.get("status") == "in-progress"])
+        
+        total_story_points = sum(s.get("story_points", 0) for s in stories if s.get("story_points"))
+        completed_story_points = sum(s.get("story_points", 0) for s in stories if s.get("status") == "done" and s.get("story_points"))
+        
+        completion_rate = (completed_stories / total_stories) if total_stories > 0 else 0
+        average_story_points = total_story_points / total_stories if total_stories > 0 else 0
+        
+        # Group by status
+        stories_by_status = {}
+        for story in stories:
+            status = story.get("status", "backlog")
+            stories_by_status[status] = stories_by_status.get(status, 0) + 1
+            
+        # Group by priority
+        stories_by_priority = {}
+        for story in stories:
+            priority = story.get("priority", "medium")
+            stories_by_priority[priority] = stories_by_priority.get(priority, 0) + 1
+        
+        return {
+            "total_stories": total_stories,
+            "completed_stories": completed_stories,
+            "in_progress_stories": in_progress_stories,
+            "total_story_points": total_story_points,
+            "completed_story_points": completed_story_points,
+            "completion_rate": completion_rate,
+            "average_story_points": average_story_points,
+            "stories_by_status": stories_by_status,
+            "stories_by_priority": stories_by_priority
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching analytics overview: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics overview")
+
+@app.get("/api/analytics/dashboard/{project_id}")
+async def get_project_analytics_dashboard(
+    project_id: str,
+    days: int = 30,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get comprehensive project analytics dashboard with AI insights"""
+    try:
+        # Initialize analytics service with current supabase instance
+        from backend.services.analytics_service import AnalyticsService
+        analytics_service = AnalyticsService(supabase)
+        
+        # Get comprehensive dashboard data
+        dashboard_data = await analytics_service.get_project_dashboard(project_id, days)
+        
+        return {
+            "success": True,
+            "data": dashboard_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting project analytics dashboard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics dashboard: {str(e)}")
+
+@app.get("/api/analytics/insights/{project_id}")
+async def get_project_ai_insights(
+    project_id: str,
+    days: int = 30,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get AI-powered insights for a specific project"""
+    try:
+        from backend.services.analytics_service import AnalyticsService
+        analytics_service = AnalyticsService(supabase)
+        
+        # Get analytics data
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        metrics = await analytics_service._calculate_project_metrics(project_id, start_date, end_date)
+        velocity_data = await analytics_service._calculate_velocity(project_id, start_date, end_date)
+        team_performance = await analytics_service._calculate_team_performance(project_id, start_date, end_date)
+        
+        # Generate AI insights
+        insights = await analytics_service._generate_project_insights(project_id, metrics, velocity_data, team_performance)
+        
+        # Convert insights to serializable format
+        insights_data = []
+        for insight in insights:
+            insights_data.append({
+                "project_id": insight.project_id,
+                "insight_type": insight.insight_type,
+                "title": insight.title,
+                "description": insight.description,
+                "severity": insight.severity,
+                "recommendations": insight.recommendations,
+                "data": insight.data
+            })
+        
+        return {
+            "success": True,
+            "project_id": project_id,
+            "period": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+            "insights": insights_data,
+            "total_insights": len(insights_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting AI insights: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get AI insights: {str(e)}")
+
+@app.get("/api/analytics/velocity/{project_id}")
+async def get_project_velocity_analysis(
+    project_id: str,
+    days: int = 30,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get velocity analysis with AI forecasting"""
+    try:
+        from backend.services.analytics_service import AnalyticsService
+        analytics_service = AnalyticsService(supabase)
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        velocity_data = await analytics_service._calculate_velocity(project_id, start_date, end_date)
+        
+        # Try to get AI-powered velocity forecasting
+        try:
+            from backend.services.ai_service import get_basic_ai_service
+            ai_service = get_basic_ai_service()
+            
+            # Get project name
+            project_result = supabase.table("projects").select("name").eq("id", project_id).execute()
+            project_name = project_result.data[0]["name"] if project_result.data else "Unknown Project"
+            
+            variables = {
+                "team_name": project_name,
+                "velocity_history": str(list(velocity_data.get("weekly_data", {}).values())),
+                "current_capacity": velocity_data.get("average_velocity", 35),
+                "upcoming_work": 100,  # Could be calculated from backlog
+                "team_changes": "No recent changes",
+                "pto_periods": "No planned PTO",
+                "new_members": "No new team members",
+                "tech_changes": "No major technology changes"
+            }
+            
+            ai_response = await ai_service.generate_completion("velocity_forecasting", variables)
+            
+            if ai_response.success:
+                velocity_data["ai_forecast"] = ai_response.data
+                
+        except Exception as ai_error:
+            logger.warning(f"AI forecasting failed: {ai_error}")
+            
+        return {
+            "success": True,
+            "project_id": project_id,
+            "period": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+            "velocity_analysis": velocity_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting velocity analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get velocity analysis: {str(e)}")
+
+@app.get("/api/analytics/team")
+async def get_team_analytics_overview(
+    team_id: str = None,
+    days: int = 30,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get team-wide analytics with AI insights"""
+    try:
+        from backend.services.analytics_service import AnalyticsService
+        analytics_service = AnalyticsService(supabase)
+        
+        team_analytics = await analytics_service.get_team_analytics(team_id, days)
+        
+        return {
+            "success": True,
+            "team_id": team_id,
+            "period_days": days,
+            "analytics": team_analytics
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting team analytics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get team analytics: {str(e)}")
+
+@app.post("/api/analytics/generate-report")
+async def generate_analytics_report(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Generate AI-powered analytics report"""
+    try:
+        project_id = request.get("project_id")
+        report_type = request.get("report_type", "comprehensive")
+        
+        if not project_id:
+            raise HTTPException(status_code=400, detail="Project ID is required")
+        
+        from backend.services.analytics_service import AnalyticsService
+        analytics_service = AnalyticsService(supabase)
+        
+        # Get comprehensive analytics data
+        dashboard_data = await analytics_service.get_project_dashboard(project_id, 30)
+        
+        # Generate AI report based on the data
+        try:
+            from backend.services.ai_service import get_basic_ai_service
+            ai_service = get_basic_ai_service()
+            
+            # Prepare report generation variables
+            variables = {
+                "project_name": dashboard_data.get("project_id", "Unknown Project"),
+                "analysis_period": 30,
+                "metrics_summary": str(dashboard_data.get("metrics", {})),
+                "velocity_data": str(dashboard_data.get("velocity", {})),
+                "team_performance": str(dashboard_data.get("team_performance", {})),
+                "quality_metrics": str(dashboard_data.get("quality", {})),
+                "insights": str(dashboard_data.get("insights", []))
+            }
+            
+            # Use analytics insights template for report generation
+            ai_response = await ai_service.generate_completion("analytics_insights", variables)
+            
+            if ai_response.success:
+                return {
+                    "success": True,
+                    "report_type": report_type,
+                    "project_id": project_id,
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "ai_report": ai_response.data,
+                    "raw_data": dashboard_data
+                }
+            else:
+                # Return basic report without AI
+                return {
+                    "success": True,
+                    "report_type": report_type,
+                    "project_id": project_id,
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "basic_report": dashboard_data,
+                    "note": "AI report generation unavailable"
+                }
+                
+        except Exception as ai_error:
+            logger.warning(f"AI report generation failed: {ai_error}")
+            return {
+                "success": True,
+                "report_type": report_type,
+                "project_id": project_id,
+                "generated_at": datetime.utcnow().isoformat(),
+                "basic_report": dashboard_data,
+                "note": "AI report generation unavailable"
+            }
+        
+    except Exception as e:
+        logger.error(f"Error generating analytics report: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))

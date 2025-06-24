@@ -34,6 +34,12 @@ import {
   Flag,
   MessageSquare,
   Paperclip,
+  ChevronDown,
+  ChevronRight,
+  Timer,
+  PlayCircle,
+  PauseCircle,
+  XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,13 +58,207 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { useStories, useEpics, useUsers, useTasks } from "@/hooks/useApi"
 import { type Story } from "@/services/api"
+import { SimpleCreateModal } from "@/components/simple-create-modal"
 
 interface UserStoriesPageProps {
   onCreateNew?: () => void
   onEdit?: (story: Story) => void
   onDelete?: (story: Story) => void
+}
+
+interface TaskBreakdownProps {
+  storyId: string
+  storyTitle: string
+  users: any[]
+}
+
+const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ storyId, storyTitle, users }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const { data: allTasks = [] } = useTasks()
+  
+  // Filter tasks for this story
+  const storyTasks = allTasks.filter((task: any) => task.story_id === storyId)
+  
+  const taskStats = {
+    total: storyTasks.length,
+    completed: storyTasks.filter((task: any) => task.status === 'done').length,
+    inProgress: storyTasks.filter((task: any) => task.status === 'in-progress').length,
+    estimatedHours: storyTasks.reduce((sum: number, task: any) => sum + (task.estimated_hours || 0), 0),
+    actualHours: storyTasks.reduce((sum: number, task: any) => sum + (task.actual_hours || 0), 0),
+  }
+
+  const handleCreateTask = async (taskData: any) => {
+    // This will be handled by the parent component
+    console.log('Creating task for story:', storyId, taskData)
+  }
+
+  const getTaskStatusIcon = (status: string) => {
+    switch (status) {
+      case 'todo':
+        return <Circle size={14} className="text-slate-500" />
+      case 'in-progress':
+        return <PlayCircle size={14} className="text-amber-500" />
+      case 'review':
+        return <PauseCircle size={14} className="text-purple-500" />
+      case 'done':
+        return <CheckCircle2 size={14} className="text-emerald-500" />
+      default:
+        return <Circle size={14} className="text-slate-500" />
+    }
+  }
+
+  if (storyTasks.length === 0) {
+    return (
+      <div className="mt-3 pt-3 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-slate-500">
+            <CheckSquare size={16} />
+            <span className="text-sm">No engineering tasks yet</span>
+          </div>
+          <SimpleCreateModal
+            type="task"
+            onSubmit={handleCreateTask}
+            stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
+            users={users}
+            trigger={
+              <Button size="sm" variant="outline" className="h-7 text-xs">
+                <Plus size={12} className="mr-1" />
+                Break Down
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <div className="flex items-center justify-between">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent">
+              <div className="flex items-center space-x-2">
+                {isOpen ? (
+                  <ChevronDown size={16} className="text-slate-400" />
+                ) : (
+                  <ChevronRight size={16} className="text-slate-400" />
+                )}
+                <CheckSquare size={16} className="text-slate-600" />
+                <span className="text-sm font-medium text-slate-700">
+                  Engineering Tasks ({taskStats.completed}/{taskStats.total})
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {taskStats.estimatedHours}h
+                </Badge>
+              </div>
+            </Button>
+          </CollapsibleTrigger>
+          
+          <div className="flex items-center space-x-2">
+            {taskStats.total > 0 && (
+              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-300"
+                  style={{ width: `${(taskStats.completed / taskStats.total) * 100}%` }}
+                />
+              </div>
+            )}
+            <SimpleCreateModal
+              type="task"
+              onSubmit={handleCreateTask}
+              stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
+              users={users}
+              trigger={
+                <Button size="sm" variant="outline" className="h-7 text-xs">
+                  <Plus size={12} className="mr-1" />
+                  Add Task
+                </Button>
+              }
+            />
+          </div>
+        </div>
+
+        <CollapsibleContent className="mt-3">
+          <div className="space-y-2">
+            {storyTasks.map((task: any) => (
+              <div
+                key={task.id}
+                className="flex items-center justify-between p-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  {getTaskStatusIcon(task.status)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-slate-700 truncate">
+                        {task.title}
+                      </span>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          task.priority === 'critical' ? 'border-red-200 text-red-700' :
+                          task.priority === 'high' ? 'border-orange-200 text-orange-700' :
+                          task.priority === 'medium' ? 'border-amber-200 text-amber-700' :
+                          'border-emerald-200 text-emerald-700'
+                        }`}
+                      >
+                        {task.priority}
+                      </Badge>
+                    </div>
+                    {task.description && (
+                      <p className="text-xs text-slate-500 truncate mt-1">
+                        {task.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  {task.assignee_id && (
+                    <Avatar className="w-5 h-5">
+                      <AvatarImage src={users.find(u => u.id === task.assignee_id)?.avatar} />
+                      <AvatarFallback className="text-xs">
+                        {users.find(u => u.id === task.assignee_id)?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex items-center space-x-1 text-xs text-slate-500">
+                    <Timer size={12} />
+                    <span>{task.estimated_hours}h</span>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <MoreHorizontal size={12} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Edit2 size={14} className="mr-2" />
+                        Edit Task
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Copy size={14} className="mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-red-600">
+                        <Trash2 size={14} className="mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  )
 }
 
 const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
@@ -657,6 +857,9 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                         <span>{new Date(story.created_at).toLocaleDateString()}</span>
                       </div>
                     )}
+
+                    {/* Task Breakdown */}
+                    <TaskBreakdown storyId={story.id} storyTitle={story.name} users={users} />
                   </CardContent>
                 </Card>
               ))}

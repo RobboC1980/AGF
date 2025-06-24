@@ -1,10 +1,50 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
 from ..database.supabase_client import get_supabase
-from ..auth.dependencies import get_current_user
-from ..models.api_models import UserResponse
+
+security = HTTPBearer()
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    avatar_url: Optional[str] = None
+
+async def get_current_user_supabase(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    supabase = Depends(get_supabase)
+):
+    """Get the current authenticated user from Supabase"""
+    try:
+        # Verify the JWT token with Supabase
+        user = supabase.auth.get_user(credentials.credentials)
+        
+        if not user or not user.user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
+            )
+        
+        # Get user details from the database
+        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+        
+        if not user_data.data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        return UserResponse(**user_data.data)
+        
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,7 +60,7 @@ class ProjectUpdate(BaseModel):
     status: Optional[str] = None
 
 @router.get("/")
-async def get_projects(current_user: UserResponse = Depends(get_current_user)):
+async def get_projects(current_user: UserResponse = Depends(get_current_user_supabase)):
     """Get all projects for the current user"""
     try:
         supabase = get_supabase()
@@ -47,7 +87,7 @@ async def get_projects(current_user: UserResponse = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to fetch projects")
 
 @router.post("/")
-async def create_project(project_data: ProjectCreate, current_user: UserResponse = Depends(get_current_user)):
+async def create_project(project_data: ProjectCreate, current_user: UserResponse = Depends(get_current_user_supabase)):
     """Create a new project"""
     try:
         supabase = get_supabase()
@@ -88,7 +128,7 @@ async def create_project(project_data: ProjectCreate, current_user: UserResponse
         raise HTTPException(status_code=500, detail="Failed to create project")
 
 @router.get("/{project_id}")
-async def get_project(project_id: str, current_user: UserResponse = Depends(get_current_user)):
+async def get_project(project_id: str, current_user: UserResponse = Depends(get_current_user_supabase)):
     """Get a specific project"""
     try:
         supabase = get_supabase()
@@ -120,7 +160,7 @@ async def get_project(project_id: str, current_user: UserResponse = Depends(get_
         raise HTTPException(status_code=500, detail="Failed to fetch project")
 
 @router.put("/{project_id}")
-async def update_project(project_id: str, project_data: ProjectUpdate, current_user: UserResponse = Depends(get_current_user)):
+async def update_project(project_id: str, project_data: ProjectUpdate, current_user: UserResponse = Depends(get_current_user_supabase)):
     """Update a project"""
     try:
         supabase = get_supabase()
@@ -171,7 +211,7 @@ async def update_project(project_id: str, project_data: ProjectUpdate, current_u
         raise HTTPException(status_code=500, detail="Failed to update project")
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: str, current_user: UserResponse = Depends(get_current_user)):
+async def delete_project(project_id: str, current_user: UserResponse = Depends(get_current_user_supabase)):
     """Delete a project"""
     try:
         supabase = get_supabase()

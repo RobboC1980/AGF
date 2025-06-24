@@ -1,5 +1,5 @@
 """
-Authentication Endpoints for AgileForge
+Authentication Endpoints for SynqForge
 Complete set of authentication and user management endpoints
 """
 

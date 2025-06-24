@@ -1,4 +1,4 @@
-# AgileForge Enterprise (Full-stack Monorepo)
+# SynqForge Enterprise (Full-stack Monorepo)
 
 ## Prerequisites
 - Node.js 20+
@@ -9,7 +9,7 @@
 
 ```bash
 git clone <repo>
-cd agileforge-enterprise-full
+cd synqforge-enterprise-full
 
 # Backend
 cd backend
@@ -63,7 +63,7 @@ npm test
 ## Deployment on Render
 
 1. [Create a free account](https://render.com/) and connect your repository.
-2. Add a **PostgreSQL** database named `agileforge-db`.
+2. Add a **PostgreSQL** database named `synqforge-db`.
 3. Create a **Web Service** using the included `render.yaml`.
 4. Set the `JWT_SECRET`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` environment variables in the Render dashboard.
 5. Deploy the service. Render will install dependencies, build the backend and start the server.
