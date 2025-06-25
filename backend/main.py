@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import os
 import logging
 from typing import List
+from fastapi.responses import JSONResponse
 
 # Import routers
 try:
@@ -66,9 +67,23 @@ async def lifespan(app: FastAPI):
         init_supabase()
         logger.info("Supabase client initialized successfully")
         
+        # Get Supabase client for service initialization
+        supabase = get_supabase()
+        
+        # Initialize Analytics Service
+        try:
+            from .services.analytics_service import init_analytics_service
+            analytics_svc = init_analytics_service(supabase)
+            logger.info("Analytics service initialized successfully")
+        except ImportError:
+            from services.analytics_service import init_analytics_service
+            analytics_svc = init_analytics_service(supabase)
+            logger.info("Analytics service initialized successfully")
+        except Exception as analytics_error:
+            logger.error(f"Analytics service initialization failed: {analytics_error}")
+        
         # Initialize Enhanced Auth Manager
         try:
-            supabase = get_supabase()
             enhanced_auth.auth_manager = EnhancedAuthManager(supabase)
             logger.info("Enhanced Auth Manager initialized successfully")
         except Exception as auth_error:
@@ -188,12 +203,36 @@ app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 # Error handlers
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
-    return {"error": "Endpoint not found", "status_code": 404}
+    return JSONResponse(
+        status_code=404,
+        content={"error": "Endpoint not found", "status_code": 404}
+    )
 
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
     logger.error(f"Internal server error: {exc}")
-    return {"error": "Internal server error", "status_code": 500}
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "status_code": 500}
+    )
+
+@app.exception_handler(RuntimeError)
+async def runtime_error_handler(request, exc):
+    logger.error(f"Runtime error: {exc}")
+    # Handle specific service initialization errors
+    if "Analytics service not initialized" in str(exc):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Analytics service temporarily unavailable", 
+                "status_code": 503,
+                "detail": "The analytics service is initializing. Please try again in a moment."
+            }
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Service error", "status_code": 500, "detail": str(exc)}
+    )
 
 if __name__ == "__main__":
     import uvicorn

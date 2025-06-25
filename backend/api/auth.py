@@ -5,6 +5,7 @@ from typing import Optional
 import os
 from datetime import datetime, timedelta
 import logging
+import asyncio
 
 # Handle imports for both package and direct execution
 try:
@@ -62,8 +63,28 @@ async def get_current_user_supabase(
 ):
     """Get the current authenticated user from Supabase"""
     try:
-        # Verify the JWT token with Supabase
-        user = supabase.auth.get_user(credentials.credentials)
+        # Add timeout and better error handling for Supabase auth call
+        async def verify_token_with_timeout():
+            try:
+                # Verify the JWT token with Supabase
+                user = supabase.auth.get_user(credentials.credentials)
+                return user
+            except Exception as e:
+                logger.error(f"Supabase auth verification failed: {e}")
+                return None
+        
+        # Use asyncio.wait_for to add timeout
+        try:
+            user = await asyncio.wait_for(
+                verify_token_with_timeout(),
+                timeout=5.0  # 5 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error("Supabase auth verification timed out")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication service timeout"
+            )
         
         if not user or not user.user:
             raise HTTPException(
@@ -71,8 +92,20 @@ async def get_current_user_supabase(
                 detail="Invalid token"
             )
         
-        # Get user details from the database
-        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+        # Get user details from the database with timeout
+        try:
+            user_data = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+                ),
+                timeout=3.0  # 3 second timeout for database query
+            )
+        except asyncio.TimeoutError:
+            logger.error("User data fetch timed out")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Database timeout"
+            )
         
         if not user_data.data:
             raise HTTPException(
@@ -82,6 +115,8 @@ async def get_current_user_supabase(
         
         return UserResponse(**user_data.data)
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
         raise HTTPException(
@@ -217,8 +252,28 @@ async def get_current_user_info(
 ):
     """Get current user information"""
     try:
-        # Verify the JWT token with Supabase
-        user = supabase.auth.get_user(credentials.credentials)
+        # Add timeout and better error handling for Supabase auth call
+        async def verify_token_with_timeout():
+            try:
+                # Verify the JWT token with Supabase
+                user = supabase.auth.get_user(credentials.credentials)
+                return user
+            except Exception as e:
+                logger.error(f"Supabase auth verification failed: {e}")
+                return None
+        
+        # Use asyncio.wait_for to add timeout
+        try:
+            user = await asyncio.wait_for(
+                verify_token_with_timeout(),
+                timeout=5.0  # 5 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error("Supabase auth verification timed out")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication service timeout"
+            )
         
         if not user or not user.user:
             raise HTTPException(
@@ -226,8 +281,20 @@ async def get_current_user_info(
                 detail="Invalid token"
             )
         
-        # Get user details from the database
-        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+        # Get user details from the database with timeout
+        try:
+            user_data = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+                ),
+                timeout=3.0  # 3 second timeout for database query
+            )
+        except asyncio.TimeoutError:
+            logger.error("User data fetch timed out")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Database timeout"
+            )
         
         if not user_data.data:
             raise HTTPException(
@@ -237,6 +304,8 @@ async def get_current_user_info(
         
         return UserResponse(**user_data.data)
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
         raise HTTPException(

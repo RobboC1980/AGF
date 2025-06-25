@@ -7,13 +7,34 @@ import { User } from '@/services/api'
 // Get API base URL - hardcoded to ensure correct port
 const API_BASE_URL = 'http://localhost:8000'
 
-// Utility function to check if a JWT token is expired
+// Utility function to check if a JWT token is expired and properly formatted
 function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    const currentTime = Date.now() / 1000
-    return payload.exp < currentTime
-  } catch {
+    // Check if token has proper JWT format (3 parts separated by dots)
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      console.warn('Invalid JWT format: token does not have 3 parts')
+      return true
+    }
+
+    // Check if each part is properly base64 encoded
+    try {
+      const payload = JSON.parse(atob(parts[1]))
+      const currentTime = Date.now() / 1000
+      
+      // Check if token has expiration
+      if (!payload.exp) {
+        console.warn('JWT token missing expiration claim')
+        return true
+      }
+      
+      return payload.exp < currentTime
+    } catch (decodeError) {
+      console.warn('Failed to decode JWT payload:', decodeError)
+      return true
+    }
+  } catch (error) {
+    console.warn('JWT validation error:', error)
     return true // If we can't parse the token, consider it expired
   }
 }
