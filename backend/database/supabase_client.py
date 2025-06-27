@@ -14,24 +14,36 @@ class SupabaseManager:
     def __init__(self):
         self.client: Optional[Client] = None
         self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+        # Try multiple possible key environment variables
+        self.supabase_key = (
+            os.getenv("SUPABASE_SERVICE_KEY") or 
+            os.getenv("SUPABASE_KEY") or 
+            os.getenv("SUPABASE_ANON_KEY")
+        )
         
         if not self.supabase_url or not self.supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables are required")
+            logger.error(f"Missing Supabase credentials - URL: {bool(self.supabase_url)}, Key: {bool(self.supabase_key)}")
+            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY (or SUPABASE_KEY) environment variables are required")
     
     def init_client(self):
         """Initialize the Supabase client"""
         try:
-            self.client = create_client(self.supabase_url, self.supabase_key)
-            logger.info("Supabase client initialized")
+            logger.info(f"Initializing Supabase client with URL: {self.supabase_url[:50]}...")
+            
+            # Initialize with just the required parameters
+            self.client = create_client(
+                supabase_url=self.supabase_url, 
+                supabase_key=self.supabase_key
+            )
+            logger.info("Supabase client initialized successfully")
             
             # Test the connection with a simple query
             try:
-                # Try to query a table that should exist
-                result = self.client.table("epics").select("id").limit(1).execute()
+                # Try a simple health check - this might fail if tables don't exist yet
+                result = self.client.table("projects").select("id").limit(1).execute()
                 logger.info(f"Supabase connection test successful - found {len(result.data)} records")
             except Exception as conn_error:
-                logger.warning(f"Supabase connection test failed but client initialized: {conn_error}")
+                logger.warning(f"Supabase connection test failed (tables may not exist yet): {conn_error}")
                 # Don't raise here - client is initialized even if test query fails
             
         except Exception as e:
