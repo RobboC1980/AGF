@@ -48,7 +48,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useEpics, useStories, useUsers } from "@/hooks/useApi"
+import { useEpics, useUpdateEpic, useDeleteEpic, useStories, useUsers } from "@/hooks/useApi"
 import { type Epic } from "@/services/api"
 
 interface EpicsPageProps {
@@ -66,6 +66,28 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
   const { data: epics = [], isLoading, error, refetch } = useEpics()
   const { data: stories = [] } = useStories()
   const { data: users = [] } = useUsers()
+
+  // CRUD operations
+  const updateEpicMutation = useUpdateEpic()
+  const deleteEpicMutation = useDeleteEpic()
+
+  const handleEdit = (epic: Epic) => {
+    if (onEdit) {
+      onEdit(epic)
+    }
+  }
+
+  const handleDelete = async (epic: Epic) => {
+    try {
+      await deleteEpicMutation.mutateAsync(epic.id)
+      if (onDelete) {
+        onDelete(epic)
+      }
+    } catch (error) {
+      console.error('Failed to delete epic:', error)
+    }
+  }
+
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -545,7 +567,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => onEdit?.(epic)}>
+                              <DropdownMenuItem onClick={() => handleEdit(epic)}>
                                 <Edit2 size={16} className="mr-2" />
                                 Edit
                               </DropdownMenuItem>
@@ -558,7 +580,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                                 Add to Favorites
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600" onClick={() => onDelete?.(epic)}>
+                              <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(epic)}>
                                 <Trash2 size={16} className="mr-2" />
                                 Delete
                               </DropdownMenuItem>

@@ -40,6 +40,8 @@ import {
   PlayCircle,
   PauseCircle,
   XCircle,
+  Wand2,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,14 +56,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { useStories, useEpics, useUsers, useTasks } from "@/hooks/useApi"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { useStories, useEpics, useUsers, useTasks, useCreateTask } from "@/hooks/useApi"
 import { type Story } from "@/services/api"
 import { SimpleCreateModal } from "@/components/simple-create-modal"
+import { api } from "@/services/api"
 
 interface UserStoriesPageProps {
   onCreateNew?: () => void
@@ -72,12 +85,31 @@ interface UserStoriesPageProps {
 interface TaskBreakdownProps {
   storyId: string
   storyTitle: string
+  storyDescription?: string
+  storyPoints?: number
+  acceptanceCriteria?: string
   users: any[]
 }
 
-const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ storyId, storyTitle, users }) => {
+const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ 
+  storyId, 
+  storyTitle, 
+  storyDescription = "",
+  storyPoints = 5,
+  acceptanceCriteria = "",
+  users 
+}) => {
   const [isOpen, setIsOpen] = useState(false)
-  const { data: allTasks = [] } = useTasks()
+  const [showBreakdownModal, setShowBreakdownModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<"ai" | "manual">("ai")
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatedTasks, setGeneratedTasks] = useState<any[]>([])
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([])
+  const [technicalContext, setTechnicalContext] = useState("")
+  const [teamSkills, setTeamSkills] = useState("")
+
+  const { data: allTasks = [], refetch: refetchTasks } = useTasks()
+  const createTaskMutation = useCreateTask()
   
   // Filter tasks for this story
   const storyTasks = allTasks.filter((task: any) => task.story_id === storyId)
@@ -90,9 +122,80 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ storyId, storyTitle, user
     actualHours: storyTasks.reduce((sum: number, task: any) => sum + (task.actual_hours || 0), 0),
   }
 
-  const handleCreateTask = async (taskData: any) => {
-    // This will be handled by the parent component
-    console.log('Creating task for story:', storyId, taskData)
+  const generateAITasks = async () => {
+    setIsGenerating(true)
+    try {
+      const response = await api.ai.generateTasks({
+        storyTitle,
+        storyDescription,
+        storyPoints,
+        acceptanceCriteria,
+        technicalContext,
+        teamSkills,
+        includeSubtasks: true,
+      })
+
+      if (response.success && response.tasks?.tasks) {
+        setGeneratedTasks(response.tasks.tasks)
+        setSelectedTasks(response.tasks.tasks.map((_, index) => index.toString()))
+      }
+    } catch (error) {
+      console.error("Error generating AI tasks:", error)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const createTasksFromAI = async () => {
+    if (selectedTasks.length === 0) return
+
+    try {
+      const tasksToCreate = selectedTasks.map(index => generatedTasks[parseInt(index)])
+      
+      for (const aiTask of tasksToCreate) {
+        const taskData = {
+          title: aiTask.title,
+          description: aiTask.description,
+          story_id: storyId,
+          priority: aiTask.priority as any,
+          estimated_hours: aiTask.estimated_hours,
+          status: 'todo' as any,
+          technical_notes: aiTask.technical_notes,
+        }
+        
+        await createTaskMutation.mutateAsync(taskData)
+      }
+
+      await refetchTasks()
+      setShowBreakdownModal(false)
+      setGeneratedTasks([])
+      setSelectedTasks([])
+    } catch (error) {
+      console.error("Error creating AI tasks:", error)
+    }
+  }
+
+  const handleTaskCreate = async (taskData: any) => {
+    try {
+      const fullTaskData = {
+        ...taskData,
+        story_id: storyId,
+      }
+      
+      await createTaskMutation.mutateAsync(fullTaskData)
+      await refetchTasks()
+    } catch (error) {
+      console.error("Error creating task:", error)
+    }
+  }
+
+  const handleTaskDelete = async (task: any) => {
+    try {
+      await api.tasks.delete(task.id)
+      await refetchTasks()
+    } catch (error) {
+      console.error("Error deleting task:", error)
+    }
   }
 
   const getTaskStatusIcon = (status: string) => {
@@ -118,18 +221,202 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ storyId, storyTitle, user
             <CheckSquare size={16} />
             <span className="text-sm">No engineering tasks yet</span>
           </div>
-          <SimpleCreateModal
-            type="task"
-            onSubmit={handleCreateTask}
-            stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
-            users={users}
-            trigger={
+          
+          <Dialog open={showBreakdownModal} onOpenChange={setShowBreakdownModal}>
+            <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="h-7 text-xs">
                 <Plus size={12} className="mr-1" />
                 Break Down
               </Button>
-            }
-          />
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center space-x-2">
+                  <CheckSquare size={20} className="text-blue-600" />
+                  <span>Break Down Story into Tasks</span>
+                </DialogTitle>
+                <DialogDescription>
+                  Create tasks for "{storyTitle}" using AI assistance or manual creation
+                </DialogDescription>
+              </DialogHeader>
+
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ai" | "manual")}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="ai" className="flex items-center space-x-2">
+                    <Sparkles size={16} />
+                    <span>AI Assistant</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="flex items-center space-x-2">
+                    <User size={16} />
+                    <span>Manual Creation</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="ai" className="mt-6">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="technical-context">Technical Context</Label>
+                        <Textarea
+                          id="technical-context"
+                          placeholder="e.g., React, Node.js, PostgreSQL, existing API patterns..."
+                          value={technicalContext}
+                          onChange={(e) => setTechnicalContext(e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="team-skills">Team Skills</Label>
+                        <Textarea
+                          id="team-skills"
+                          placeholder="e.g., Frontend: React/TypeScript, Backend: Python/FastAPI..."
+                          value={teamSkills}
+                          onChange={(e) => setTeamSkills(e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={generateAITasks}
+                        disabled={isGenerating}
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 size={16} className="mr-2 animate-spin" />
+                            Generating Tasks...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 size={16} className="mr-2" />
+                            Generate AI Tasks
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {generatedTasks.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-slate-900">Generated Tasks</h4>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedTasks(generatedTasks.map((_, i) => i.toString()))}
+                            >
+                              Select All
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedTasks([])}
+                            >
+                              Clear All
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="grid gap-3">
+                          {generatedTasks.map((task, index) => (
+                            <Card key={index} className="border border-slate-200">
+                              <CardContent className="p-4">
+                                <div className="flex items-start space-x-3">
+                                  <Checkbox
+                                    checked={selectedTasks.includes(index.toString())}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedTasks([...selectedTasks, index.toString()])
+                                      } else {
+                                        setSelectedTasks(selectedTasks.filter(id => id !== index.toString()))
+                                      }
+                                    }}
+                                    className="mt-1"
+                                  />
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <h5 className="font-medium text-slate-900">{task.title}</h5>
+                                      <Badge variant="outline" className="text-xs">
+                                        {task.category}
+                                      </Badge>
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`text-xs ${
+                                          task.priority === 'high' ? 'border-orange-200 text-orange-700' :
+                                          task.priority === 'medium' ? 'border-amber-200 text-amber-700' :
+                                          'border-emerald-200 text-emerald-700'
+                                        }`}
+                                      >
+                                        {task.priority}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-slate-600 mb-2">{task.description}</p>
+                                    <div className="flex items-center space-x-4 text-xs text-slate-500">
+                                      <div className="flex items-center space-x-1">
+                                        <Clock size={12} />
+                                        <span>{task.estimated_hours}h</span>
+                                      </div>
+                                      {task.skills_required && task.skills_required.length > 0 && (
+                                        <div className="flex items-center space-x-1">
+                                          <span>Skills: {task.skills_required.join(", ")}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setGeneratedTasks([])
+                              setSelectedTasks([])
+                            }}
+                          >
+                            Regenerate
+                          </Button>
+                          <Button
+                            onClick={createTasksFromAI}
+                            disabled={selectedTasks.length === 0}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            Create {selectedTasks.length} Task{selectedTasks.length !== 1 ? 's' : ''}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="manual" className="mt-6">
+                  <SimpleCreateModal
+                    type="task"
+                    onSubmit={handleTaskCreate}
+                    stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
+                    users={users}
+                    trigger={
+                      <Card className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors">
+                        <div className="text-center">
+                          <Plus size={24} className="mx-auto text-slate-400 mb-2" />
+                          <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
+                          <p className="text-sm text-slate-600">
+                            Create a task with full control over all details
+                          </p>
+                        </div>
+                      </Card>
+                    }
+                  />
+                </TabsContent>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     )
@@ -167,18 +454,134 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ storyId, storyTitle, user
                 />
               </div>
             )}
-            <SimpleCreateModal
-              type="task"
-              onSubmit={handleCreateTask}
-              stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
-              users={users}
-              trigger={
+            
+            <Dialog open={showBreakdownModal} onOpenChange={setShowBreakdownModal}>
+              <DialogTrigger asChild>
                 <Button size="sm" variant="outline" className="h-7 text-xs">
                   <Plus size={12} className="mr-1" />
                   Add Task
                 </Button>
-              }
-            />
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add Tasks to Story</DialogTitle>
+                  <DialogDescription>
+                    Add more tasks to "{storyTitle}" using AI assistance or manual creation
+                  </DialogDescription>
+                </DialogHeader>
+
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ai" | "manual")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="ai">AI Assistant</TabsTrigger>
+                    <TabsTrigger value="manual">Manual Creation</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="ai" className="mt-6">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Technical Context</Label>
+                          <Textarea
+                            placeholder="e.g., React, Node.js, PostgreSQL..."
+                            value={technicalContext}
+                            onChange={(e) => setTechnicalContext(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Team Skills</Label>
+                          <Textarea
+                            placeholder="e.g., Frontend: React/TypeScript..."
+                            value={teamSkills}
+                            onChange={(e) => setTeamSkills(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <Button
+                          onClick={generateAITasks}
+                          disabled={isGenerating}
+                          className="bg-gradient-to-r from-purple-600 to-blue-600"
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 size={16} className="mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Wand2 size={16} className="mr-2" />
+                              Generate AI Tasks
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {generatedTasks.length > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="font-semibold">Generated Tasks</h4>
+                          <div className="grid gap-3">
+                            {generatedTasks.map((task, index) => (
+                              <Card key={index}>
+                                <CardContent className="p-4">
+                                  <div className="flex items-start space-x-3">
+                                    <Checkbox
+                                      checked={selectedTasks.includes(index.toString())}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setSelectedTasks([...selectedTasks, index.toString()])
+                                        } else {
+                                          setSelectedTasks(selectedTasks.filter(id => id !== index.toString()))
+                                        }
+                                      }}
+                                    />
+                                    <div>
+                                      <h5 className="font-medium">{task.title}</h5>
+                                      <p className="text-sm text-slate-600">{task.description}</p>
+                                      <div className="flex items-center space-x-2 mt-2">
+                                        <Badge variant="outline">{task.category}</Badge>
+                                        <Badge variant="outline">{task.priority}</Badge>
+                                        <span className="text-xs text-slate-500">{task.estimated_hours}h</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                          <Button
+                            onClick={createTasksFromAI}
+                            disabled={selectedTasks.length === 0}
+                          >
+                            Create {selectedTasks.length} Tasks
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="manual" className="mt-6">
+                    <SimpleCreateModal
+                      type="task"
+                      onSubmit={handleTaskCreate}
+                      stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
+                      users={users}
+                      trigger={
+                        <Card className="p-6 border-2 border-dashed cursor-pointer">
+                          <div className="text-center">
+                            <Plus size={24} className="mx-auto text-slate-400 mb-2" />
+                            <h4 className="font-medium">Create Task Manually</h4>
+                            <p className="text-sm text-slate-600">Full control over task details</p>
+                          </div>
+                        </Card>
+                      }
+                    />
+                  </TabsContent>
+                </Tabs>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -245,7 +648,10 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({ storyId, storyTitle, user
                         Duplicate
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={() => handleTaskDelete(task)}
+                      >
                         <Trash2 size={14} className="mr-2" />
                         Delete
                       </DropdownMenuItem>
@@ -859,7 +1265,14 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     )}
 
                     {/* Task Breakdown */}
-                    <TaskBreakdown storyId={story.id} storyTitle={story.name} users={users} />
+                    <TaskBreakdown 
+                      storyId={story.id} 
+                      storyTitle={story.name}
+                      storyDescription={story.description}
+                      storyPoints={story.story_points}
+                      acceptanceCriteria={story.acceptance_criteria}
+                      users={users} 
+                    />
                   </CardContent>
                 </Card>
               ))}

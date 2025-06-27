@@ -271,6 +271,37 @@ export const useCreateProject = () => {
   })
 }
 
+export const useUpdateProject = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.projects.update(id, data),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(queryKeys.project(variables.id), data)
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+    },
+    onError: (error) => {
+      console.error('Failed to update project:', error)
+    },
+  })
+}
+
+export const useDeleteProject = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: api.projects.delete,
+    onSuccess: (_, deletedId) => {
+      queryClient.removeQueries({ queryKey: queryKeys.project(deletedId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+      queryClient.invalidateQueries({ queryKey: queryKeys.epics })
+    },
+    onError: (error) => {
+      console.error('Failed to delete project:', error)
+    },
+  })
+}
+
 // Tasks hooks
 export const useTasks = () => {
   return useQuery({
@@ -307,6 +338,22 @@ export const useUpdateTask = () => {
     },
     onError: (error) => {
       console.error('Failed to update task:', error)
+    },
+  })
+}
+
+export const useDeleteTask = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: api.tasks.delete,
+    onSuccess: (_, deletedId) => {
+      queryClient.removeQueries({ queryKey: queryKeys.task(deletedId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stories })
+    },
+    onError: (error) => {
+      console.error('Failed to delete task:', error)
     },
   })
 }

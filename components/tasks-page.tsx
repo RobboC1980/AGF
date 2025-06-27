@@ -33,7 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useStories, useUsers, useTasks } from "@/hooks/useApi"
+import { useStories, useUsers, useTasks, useUpdateTask, useDeleteTask } from "@/hooks/useApi"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +86,27 @@ const TasksPage: React.FC<TasksPageProps> = ({
   const { data: stories = [], isLoading: storiesLoading, error: storiesError } = useStories()
   const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers()
   const queryClient = useQueryClient()
+
+  // CRUD operations
+  const updateTaskMutation = useUpdateTask()
+  const deleteTaskMutation = useDeleteTask()
+
+  const handleEdit = (task: any) => {
+    if (onEdit) {
+      onEdit(task)
+    }
+  }
+
+  const handleDelete = async (task: any) => {
+    try {
+      await deleteTaskMutation.mutateAsync(task.id)
+      if (onDelete) {
+        onDelete(task)
+      }
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+    }
+  }
 
   const isLoading = tasksLoading || storiesLoading || usersLoading
   const error = tasksError || storiesError || usersError
@@ -504,7 +525,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onEdit?.(task)}>
+                            <DropdownMenuItem onClick={() => handleEdit(task)}>
                               <Edit size={16} className="mr-2" />
                               Edit Task
                             </DropdownMenuItem>
@@ -518,7 +539,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
-                              onClick={() => onDelete?.(task)}
+                              onClick={() => handleDelete(task)}
                               className="text-red-600"
                             >
                               <Trash2 size={16} className="mr-2" />

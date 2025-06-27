@@ -890,6 +890,36 @@ export const api = {
       return apiClient.get<SearchResult[]>(`/api/search?${params}`)
     },
   },
+
+  // AI Services
+  ai: {
+    generateStory: (request: {
+      description: string
+      priority?: string
+      epicId?: string
+      includeAcceptanceCriteria?: boolean
+      includeTags?: boolean
+    }) => apiClient.generateStory(request),
+    
+    generateEpic: (request: {
+      description: string
+      priority?: string
+      projectId?: string
+      businessValue?: string
+      includeAcceptanceCriteria?: boolean
+      includeStoryBreakdown?: boolean
+    }) => apiClient.generateEpic(request),
+    
+    generateTasks: (request: {
+      storyTitle: string
+      storyDescription: string
+      storyPoints?: number
+      acceptanceCriteria: string
+      technicalContext?: string
+      teamSkills?: string
+      includeSubtasks?: boolean
+    }) => apiClient.generateTasks(request),
+  },
 }
 
 // Export the client for direct access if needed

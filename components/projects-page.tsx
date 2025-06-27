@@ -47,7 +47,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useProjects, useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useProjects, useUpdateProject, useDeleteProject, useStories, useEpics, useUsers } from "@/hooks/useApi"
 
 interface ProjectsPageProps {
   onCreateNew?: () => void
@@ -65,6 +65,27 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const { data: stories = [], isLoading: storiesLoading } = useStories()
   const { data: epics = [], isLoading: epicsLoading } = useEpics()
   const { data: users = [], isLoading: usersLoading } = useUsers()
+
+  // CRUD operations
+  const updateProjectMutation = useUpdateProject()
+  const deleteProjectMutation = useDeleteProject()
+
+  const handleEdit = (project: any) => {
+    if (onEdit) {
+      onEdit(project)
+    }
+  }
+
+  const handleDelete = async (project: any) => {
+    try {
+      await deleteProjectMutation.mutateAsync(project.id)
+      if (onDelete) {
+        onDelete(project)
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error)
+    }
+  }
 
   // Debug logging - TODO: Remove after fixing projects loading issue
   console.log('ProjectsPage - Raw data:', { 
@@ -632,7 +653,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => onEdit?.(project)}>
+                              <DropdownMenuItem onClick={() => handleEdit(project)}>
                                 <Edit size={16} className="mr-2" />
                                 Edit Project
                               </DropdownMenuItem>
@@ -646,7 +667,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
-                                onClick={() => onDelete?.(project)}
+                                onClick={() => handleDelete(project)}
                                 className="text-red-600"
                               >
                                 <Trash2 size={16} className="mr-2" />
