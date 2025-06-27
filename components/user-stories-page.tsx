@@ -573,7 +573,7 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
           </Tabs>
 
           {/* Enhanced Filters & Controls */}
-          <Card className="mb-6 shadow-sm border-slate-200/60">
+          <Card className="mb-8 shadow-lg border-2 border-slate-200 bg-white/90 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between space-y-4 xl:space-y-0 xl:space-x-6">
                 {/* Search */}
@@ -720,9 +720,9 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
               )}
             </div>
           ) : (
-            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" : "space-y-6"}>
               {filteredAndSortedStories.map((story) => (
-                <Card key={story.id} className="group hover:shadow-lg transition-shadow duration-200 border-slate-200/60 overflow-hidden">
+                <Card key={story.id} className="group hover:shadow-xl transition-all duration-300 border-2 border-slate-200 hover:border-blue-300 bg-white/80 backdrop-blur-sm overflow-hidden hover:bg-blue-50/20">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3 flex-1">

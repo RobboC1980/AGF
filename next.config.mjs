@@ -15,14 +15,14 @@ const nextConfig = {
       {
         source: '/api/:path*',
         destination: process.env.NODE_ENV === 'development' 
-          ? 'http://localhost:4000/api/:path*'
+          ? 'http://localhost:8000/api/:path*'
           : 'https://your-backend-url.onrender.com/api/:path*', // Update this when you deploy backend to Render
       },
     ]
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:4000'
+      ? 'http://localhost:8000'
       : 'https://your-backend-url.onrender.com', // Update this when you deploy backend to Render
   },
   onDemandEntries: {

@@ -341,7 +341,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
           </Tabs>
 
           {/* Enhanced Filters & Controls */}
-          <Card className="mb-6 shadow-sm border-slate-200/60">
+          <Card className="mb-8 shadow-lg border-2 border-slate-200 bg-white/90 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-6">
                 {/* Search */}
@@ -491,7 +491,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
               </Card>
             </motion.div>
           ) : (
-            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" : "space-y-6"}>
               <AnimatePresence>
                 {filteredAndSortedEpics.map((epic, index) => (
                   <motion.div
@@ -502,9 +502,9 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className={`group hover:shadow-lg transition-all duration-200 border-slate-200/60 overflow-hidden ${
-                        selectedEpics.includes(epic.id) ? "ring-2 ring-purple-500 border-purple-500" : ""
-                      } ${viewMode === "list" ? "hover:bg-slate-50/50" : ""}`}
+                      className={`group hover:shadow-xl transition-all duration-300 border-2 border-slate-200 hover:border-purple-300 bg-white/80 backdrop-blur-sm overflow-hidden ${
+                        selectedEpics.includes(epic.id) ? "ring-2 ring-purple-500 border-purple-500 shadow-purple-100" : ""
+                      } ${viewMode === "list" ? "hover:bg-purple-50/30" : "hover:bg-purple-50/20"}`}
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
@@ -579,9 +579,9 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                         </div>
 
                         {/* Project Info */}
-                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/60 rounded-lg p-3">
+                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-4 shadow-sm">
                           <div className="flex items-center space-x-2 min-w-0">
-                            <div className="w-3 h-3 rounded-full bg-purple-500 flex-shrink-0"></div>
+                            <div className="w-3 h-3 rounded-full bg-purple-500 flex-shrink-0 shadow-sm"></div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-purple-800 truncate break-words overflow-hidden text-ellipsis">SynqForge Platform</p>
                             </div>
@@ -598,7 +598,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                           <Progress value={epic.progress} className="h-2" />
 
                           <div className="grid grid-cols-2 gap-4 text-center">
-                            <div className="bg-slate-50 rounded-lg p-2">
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 shadow-sm">
                               <div className="text-lg font-bold text-slate-900">
                                 {epic.actual_story_points}/{epic.estimated_story_points || 0}
                               </div>
@@ -607,7 +607,7 @@ const EpicsPage: React.FC<EpicsPageProps> = ({
                                 Story Points
                               </div>
                             </div>
-                            <div className="bg-slate-50 rounded-lg p-2">
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 shadow-sm">
                               <div className="text-lg font-bold text-slate-900">
                                 {epic.progress}%
                               </div>

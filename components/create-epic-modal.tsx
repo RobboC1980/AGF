@@ -307,14 +307,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
 
               <TabsContent value="ai" className="space-y-6">
                 {/* AI Generation Tab */}
-                <Card>
-                  <CardHeader>
+                <Card className="border-2 border-slate-200 shadow-lg bg-white/90 backdrop-blur-sm">
+                  <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 border-purple-100">
                     <CardTitle className="flex items-center space-x-2">
                       <Brain size={20} className="text-purple-600" />
                       <span>AI Epic Generator</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 p-6">
                     <div>
                       <Label htmlFor="ai-description">Describe your epic</Label>
                       <Textarea
@@ -371,8 +371,8 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                     )}
 
                     {generatedEpic && (
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-2">
                             <Sparkles size={16} className="text-purple-600" />
                             <span className="text-sm font-medium text-purple-800">
@@ -380,28 +380,28 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                             </span>
                           </div>
                           {generatedEpic.epic.confidence && (
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border border-purple-300">
                               {Math.round(generatedEpic.epic.confidence * 100)}% confidence
                             </Badge>
                           )}
                         </div>
                         
-                        <div className="text-sm text-purple-700 space-y-2">
+                        <div className="text-sm text-purple-700 space-y-3">
                           <p className="font-medium">Generated epic has been applied to the form below.</p>
                           <p>Switch to Manual Entry tab to review and edit.</p>
                           
                           {generatedEpic.epic.suggested_stories.length > 0 && (
-                            <div className="mt-3 p-3 bg-white/50 rounded-lg">
-                              <p className="font-medium mb-2">Suggested User Stories:</p>
-                              <ul className="space-y-1 text-xs">
+                            <div className="mt-4 p-4 bg-white/70 border border-purple-100 rounded-lg shadow-sm">
+                              <p className="font-medium mb-3">Suggested User Stories:</p>
+                              <ul className="space-y-2 text-xs">
                                 {generatedEpic.epic.suggested_stories.slice(0, 3).map((story, index) => (
-                                  <li key={index} className="flex items-start space-x-2">
-                                    <span className="text-purple-500">•</span>
+                                  <li key={index} className="flex items-start space-x-2 p-2 bg-white/50 rounded border border-purple-100">
+                                    <span className="text-purple-500 font-bold">•</span>
                                     <span>{story.title} ({story.story_points} pts)</span>
                                   </li>
                                 ))}
                                 {generatedEpic.epic.suggested_stories.length > 3 && (
-                                  <li className="text-purple-600 font-medium">
+                                  <li className="text-purple-600 font-medium text-center p-2">
                                     +{generatedEpic.epic.suggested_stories.length - 3} more stories
                                   </li>
                                 )}
@@ -420,14 +420,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Left Column - Basic Info */}
                   <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-100">
                         <CardTitle className="flex items-center space-x-2">
                           <Target size={20} className="text-blue-600" />
                           <span>Epic Details</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div>
                           <Label htmlFor="epic-name">Epic Name *</Label>
                           <Input
@@ -463,14 +463,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                       </CardContent>
                     </Card>
 
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-100">
                         <CardTitle className="flex items-center space-x-2">
                           <CheckSquare size={20} className="text-green-600" />
                           <span>Acceptance Criteria</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div className="flex space-x-2">
                           <Input
                             placeholder="Add acceptance criteria"
@@ -484,16 +484,16 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                         </div>
 
                         {epic.acceptanceCriteria && epic.acceptanceCriteria.length > 0 && (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {epic.acceptanceCriteria.map((criteria, index) => (
-                              <div key={index} className="flex items-start space-x-2 p-3 bg-slate-50 rounded-lg border">
+                              <div key={index} className="flex items-start space-x-2 p-4 bg-gradient-to-r from-slate-50 to-slate-100 border-2 border-slate-200 rounded-lg shadow-sm">
                                 <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
                                 <span className="text-sm flex-1 text-wrap break-words text-slate-800 font-medium">{criteria}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleRemoveCriteria(criteria)}
-                                  className="text-slate-400 hover:text-red-600 p-0 h-auto"
+                                  className="text-slate-400 hover:text-red-600 p-0 h-auto hover:bg-red-50 rounded-full"
                                 >
                                   <X size={14} />
                                 </Button>
@@ -507,14 +507,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
 
                   {/* Right Column - Settings */}
                   <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b-2 border-orange-100">
                         <CardTitle className="flex items-center space-x-2">
                           <User size={20} className="text-orange-600" />
                           <span>Epic Settings</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div>
                           <Label htmlFor="project">Project</Label>
                           <Select
@@ -610,14 +610,14 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
                     </Card>
 
                     {generatedEpic && generatedEpic.epic.implementation_suggestions.length > 0 && (
-                      <Card>
-                        <CardHeader>
+                      <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                        <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b-2 border-yellow-100">
                           <CardTitle className="flex items-center space-x-2">
                             <Lightbulb size={20} className="text-yellow-600" />
                             <span>AI Suggestions</span>
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-6">
                           <ul className="space-y-2">
                             {generatedEpic.epic.implementation_suggestions.map((suggestion, index) => (
                               <li key={index} className="flex items-start space-x-2 text-sm">

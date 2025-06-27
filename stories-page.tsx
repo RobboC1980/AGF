@@ -415,7 +415,7 @@ const StoriesPage: React.FC = () => {
           </Tabs>
 
           {/* Enhanced Filters & Controls */}
-          <Card className="mb-6 shadow-sm border-slate-200/60">
+          <Card className="mb-8 shadow-lg border-2 border-slate-200 bg-white/90 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-6">
                 {/* Search */}
@@ -613,7 +613,7 @@ const StoriesPage: React.FC = () => {
               </Card>
             </motion.div>
           ) : (
-            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" : "space-y-6"}>
               <AnimatePresence>
                 {filteredAndSortedStories.map((story, index) => (
                   <motion.div
@@ -624,9 +624,9 @@ const StoriesPage: React.FC = () => {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className={`group hover:shadow-lg transition-all duration-200 border-slate-200/60 ${
-                        selectedStories.includes(story.id) ? "ring-2 ring-blue-500 border-blue-500" : ""
-                      } ${viewMode === "list" ? "hover:bg-slate-50/50" : ""}`}
+                      className={`group hover:shadow-xl transition-all duration-300 border-2 border-slate-200 hover:border-blue-300 bg-white/80 backdrop-blur-sm ${
+                        selectedStories.includes(story.id) ? "ring-2 ring-blue-500 border-blue-500 shadow-blue-100" : ""
+                      } ${viewMode === "list" ? "hover:bg-blue-50/30" : "hover:bg-blue-50/20"}`}
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
@@ -729,9 +729,9 @@ const StoriesPage: React.FC = () => {
 
                         {/* Epic/Project Info */}
                         {story.epic ? (
-                          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200/60 rounded-lg p-3">
+                          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4 shadow-sm">
                             <div className="flex items-center space-x-2">
-                              <div className={`w-3 h-3 rounded-full ${story.epic.color}`}></div>
+                              <div className={`w-3 h-3 rounded-full ${story.epic.color} shadow-sm`}></div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-purple-800 truncate">{story.epic.name}</p>
                                 <p className="text-xs text-purple-600 truncate">{story.epic.project.name}</p>
@@ -740,7 +740,7 @@ const StoriesPage: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/60 rounded-lg p-3">
+                          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-lg p-4 shadow-sm">
                             <div className="flex items-center space-x-2">
                               <Crown size={14} className="text-emerald-600" />
                               <p className="text-sm font-medium text-emerald-800">Independent Story</p>

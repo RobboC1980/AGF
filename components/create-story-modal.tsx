@@ -333,14 +333,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
 
               <TabsContent value="ai" className="space-y-6">
                 {/* AI Generation Tab */}
-                <Card>
-                  <CardHeader>
+                <Card className="border-2 border-slate-200 shadow-lg bg-white/90 backdrop-blur-sm">
+                  <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 border-b-2 border-purple-100">
                     <CardTitle className="flex items-center space-x-2">
                       <Brain size={20} className="text-purple-600" />
                       <span>AI Story Generator</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 p-6">
                     <div>
                       <Label htmlFor="ai-description">Describe your user story</Label>
                       <Textarea
@@ -386,8 +386,8 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                     )}
 
                     {generatedStory && (
-                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
+                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-2">
                             <Sparkles size={16} className="text-purple-600" />
                             <span className="text-sm font-medium text-purple-800">
@@ -395,27 +395,27 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                             </span>
                           </div>
                           {generatedStory.confidence && (
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border border-purple-300">
                               {Math.round(generatedStory.confidence * 100)}% confidence
                             </Badge>
                           )}
                         </div>
                         
-                        <div className="text-sm text-purple-700">
-                          <p className="font-medium mb-1">Generated story has been applied to the form below.</p>
+                        <div className="text-sm text-purple-700 space-y-2">
+                          <p className="font-medium">Generated story has been applied to the form below.</p>
                           <p>Switch to Manual Entry tab to review and edit.</p>
                         </div>
 
                         {generatedStory.suggestions && generatedStory.suggestions.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-purple-200">
-                            <div className="flex items-center space-x-1 mb-2">
+                          <div className="mt-4 p-4 bg-white/70 border border-purple-100 rounded-lg shadow-sm">
+                            <div className="flex items-center space-x-1 mb-3">
                               <Lightbulb size={14} className="text-purple-600" />
-                              <span className="text-xs font-medium text-purple-800">Suggestions:</span>
+                              <span className="text-sm font-medium text-purple-800">Suggestions:</span>
                             </div>
-                            <ul className="text-xs text-purple-700 space-y-1">
+                            <ul className="text-xs text-purple-700 space-y-2">
                               {generatedStory.suggestions.map((suggestion, index) => (
-                                <li key={index} className="flex items-start space-x-1">
-                                  <span>•</span>
+                                <li key={index} className="flex items-start space-x-2 p-2 bg-white/50 rounded border border-purple-100">
+                                  <span className="text-purple-500 font-bold">•</span>
                                   <span>{suggestion}</span>
                                 </li>
                               ))}
@@ -434,14 +434,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                   {/* Left Column */}
                   <div className="space-y-6">
                     {/* Basic Information */}
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-100">
                         <CardTitle className="flex items-center space-x-2">
                           <FileText size={20} className="text-blue-600" />
                           <span>Basic Information</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div>
                           <Label htmlFor="story-name">Story Name *</Label>
                           <Input
@@ -511,14 +511,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                     </Card>
 
                     {/* Assignment */}
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-100">
                         <CardTitle className="flex items-center space-x-2">
                           <User size={20} className="text-green-600" />
                           <span>Assignment</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div>
                           <Label htmlFor="epic">Epic</Label>
                           <Select
@@ -582,14 +582,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                   {/* Right Column */}
                   <div className="space-y-6">
                     {/* Tags */}
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b-2 border-orange-100">
                         <CardTitle className="flex items-center space-x-2">
                           <Tag size={20} className="text-orange-600" />
                           <span>Tags</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div className="flex space-x-2">
                           <Input
                             placeholder="Add tag..."
@@ -622,14 +622,14 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                     </Card>
 
                     {/* Acceptance Criteria */}
-                    <Card>
-                      <CardHeader>
+                    <Card className="border-2 border-slate-200 shadow-sm bg-white/80 backdrop-blur-sm">
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 border-purple-100">
                         <CardTitle className="flex items-center space-x-2">
                           <Target size={20} className="text-purple-600" />
                           <span>Acceptance Criteria</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 p-6">
                         <div className="flex space-x-2">
                           <Input
                             placeholder="Given...When...Then..."
@@ -644,11 +644,11 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                         </div>
                         
                         {story.acceptanceCriteria && story.acceptanceCriteria.length > 0 && (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {story.acceptanceCriteria.map((criteria, index) => (
                               <div
                                 key={index}
-                                className="flex items-start space-x-2 p-3 bg-slate-50 rounded-lg border"
+                                className="flex items-start space-x-2 p-4 bg-gradient-to-r from-slate-50 to-slate-100 border-2 border-slate-200 rounded-lg shadow-sm"
                               >
                                 <CheckCircle2 size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
                                 <span className="text-sm flex-1 text-wrap break-words text-slate-900 font-semibold leading-relaxed">{criteria}</span>
@@ -656,7 +656,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleRemoveCriteria(criteria)}
-                                  className="text-slate-400 hover:text-red-600 p-0 h-auto"
+                                  className="text-slate-400 hover:text-red-600 p-0 h-auto hover:bg-red-50 rounded-full"
                                 >
                                   <X size={14} />
                                 </Button>
