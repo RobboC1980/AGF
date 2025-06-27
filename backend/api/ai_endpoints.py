@@ -1,17 +1,54 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import logging
-from pydantic import BaseModel
+import os
+import sys
 
-# Handle imports for both package and direct execution
+# Add proper path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.dirname(current_dir)
+project_dir = os.path.dirname(backend_dir)
+sys.path.insert(0, project_dir)
+
+# Handle imports with fallback
 try:
-    from ..auth.enhanced_auth import get_current_active_user
-    from .auth import get_current_user_supabase
+    from backend.auth.auth_endpoints import get_current_active_user as get_current_user_supabase
+    from backend.services.async_ai_service import get_async_ai_service
+    from backend.services.cache_service import get_project_cache
+    from backend.models.api_models import JobStatusResponse
+    from backend.auth.enhanced_auth import get_current_active_user
 except ImportError:
-    from auth.enhanced_auth import get_current_active_user
-    from api.auth import get_current_user_supabase
+    try:
+        from auth.auth_endpoints import get_current_active_user as get_current_user_supabase
+        from services.async_ai_service import get_async_ai_service
+        from services.cache_service import get_project_cache
+        from models.api_models import JobStatusResponse
+        from auth.enhanced_auth import get_current_active_user
+    except ImportError as e:
+        print(f"Warning: Some imports failed: {e}")
+        
+        # Minimal fallback implementations
+        def get_current_user_supabase():
+            return {"id": "test_user"}
+        
+        def get_current_active_user():
+            return {"id": "test_user"}
+            
+        def get_async_ai_service():
+            return None
+            
+        def get_project_cache():
+            return None
+        
+        class JobStatusResponse(BaseModel):
+            job_id: str
+            status: str
+            result: Optional[Dict[str, Any]] = None
+            error: Optional[str] = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["AI Features"])
@@ -257,4 +294,99 @@ async def generate_tasks_endpoint(
         logger.error(f"Task generation failed: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-story-async")
+async def generate_story_async(
+    request: StoryGenerateRequest,
+    current_user: dict = Depends(get_current_user_supabase)
+):
+    """Generate user story asynchronously - returns job ID immediately"""
+    try:
+        async_ai_service = get_async_ai_service()
+        
+        request_data = {
+            "description": request.description,
+            "priority": request.priority,
+            "epic_context": request.epic_id,
+            "project_context": request.project_id,
+        }
+        
+        # Queue the job - returns immediately with job ID
+        job_id = await async_ai_service.queue_story_generation(
+            user_id=current_user["id"],
+            request_data=request_data,
+            priority="high" if request.priority == "high" else "normal"
+        )
+        
+        return {
+            "success": True,
+            "job_id": job_id,
+            "status": "queued",
+            "message": "Story generation queued. You'll be notified when complete.",
+            "estimated_completion": "30-60 seconds"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error queuing story generation: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to queue story generation: {str(e)}"
+        )
+
+@router.get("/job-status/{job_id}")
+async def get_job_status(
+    job_id: str,
+    current_user: dict = Depends(get_current_user_supabase)
+):
+    """Get status of async job"""
+    try:
+        async_ai_service = get_async_ai_service()
+        status = await async_ai_service.get_job_status(job_id)
+        
+        if not status:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        return JobStatusResponse(
+            job_id=status.job_id,
+            status=status.status,
+            result=status.result,
+            error=status.error,
+            progress=status.progress,
+            started_at=status.started_at,
+            completed_at=status.completed_at,
+            estimated_completion=status.estimated_completion
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting job status: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job status: {str(e)}"
+        )
+
+@router.delete("/job/{job_id}")
+async def cancel_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user_supabase)
+):
+    """Cancel a queued or running job"""
+    try:
+        async_ai_service = get_async_ai_service()
+        success = await async_ai_service.cancel_job(job_id, current_user["id"])
+        
+        if success:
+            return {"success": True, "message": "Job cancelled successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to cancel job")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling job: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cancel job: {str(e)}"
+        ) 

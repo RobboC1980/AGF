@@ -689,4 +689,14 @@ class ValidationErrorResponse(BaseModel):
     error: str = "validation_error"
     message: str
     field_errors: Dict[str, List[str]]
-    timestamp: datetime = Field(default_factory=datetime.utcnow) 
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str  # pending, started, success, failure, cancelled
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    progress: Optional[int] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    estimated_completion: Optional[datetime] = None 

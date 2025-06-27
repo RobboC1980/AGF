@@ -3,64 +3,111 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
+import sys
 import logging
+import time
 from typing import List
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
-# Import routers
+# Add parent directory to path for proper imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import routers - handle both relative and absolute imports
 try:
-    from .api.ai_endpoints import router as ai_router
-    from .api.stories import router as stories_router
-    from .api.auth import router as auth_router
-    from .api.projects import router as projects_router
-    from .api.epics import router as epics_router
-    from .api.users import router as users_router
-    from .api.tasks import router as tasks_router
-    from .api.teams import router as teams_router
-    from .api.search import router as search_router
-    from .api.sprints import router as sprints_router
-    from .api.analytics_endpoints import analytics_router
-    from .database.supabase_client import init_supabase, close_supabase, get_supabase
-    from .services.ai_service import init_ai_service
-    from .middleware.auth import AuthMiddleware
-    from .middleware.logging import LoggingMiddleware
-    from .auth.enhanced_auth import EnhancedAuthManager
-    from .auth import enhanced_auth
-except ImportError:
-    # Handle running as main module
-    import sys
-    from pathlib import Path
-    sys.path.append(str(Path(__file__).parent))
-    
-    from api.ai_endpoints import router as ai_router
-    from api.stories import router as stories_router
-    from api.auth import router as auth_router
-    from api.projects import router as projects_router
-    from api.epics import router as epics_router
-    from api.users import router as users_router
-    from api.tasks import router as tasks_router
-    from api.teams import router as teams_router
-    from api.search import router as search_router
-    from api.sprints import router as sprints_router
-    from api.analytics_endpoints import analytics_router
-    from database.supabase_client import init_supabase, close_supabase, get_supabase
-    from services.ai_service import init_ai_service
-    from middleware.auth import AuthMiddleware
-    from middleware.logging import LoggingMiddleware
-    from auth.enhanced_auth import EnhancedAuthManager
-    from auth import enhanced_auth
+    from backend.api.ai_endpoints import router as ai_router
+    from backend.api.stories import router as stories_router
+    from backend.api.auth import router as auth_router
+    from backend.api.projects import router as projects_router
+    from backend.api.epics import router as epics_router
+    from backend.api.users import router as users_router
+    from backend.api.tasks import router as tasks_router
+    from backend.api.teams import router as teams_router
+    from backend.api.search import router as search_router
+    from backend.api.sprints import router as sprints_router
+    from backend.api.analytics_endpoints import analytics_router
+    from backend.database.supabase_client import init_supabase, close_supabase, get_supabase
+    from backend.services.ai_service import init_ai_service
+    from backend.middleware.auth import AuthMiddleware
+    from backend.middleware.logging import LoggingMiddleware
+    from backend.auth.enhanced_auth import EnhancedAuthManager
+    # Phase 2 imports
+    from backend.middleware.observability import (
+        ObservabilityMiddleware, setup_telemetry, instrument_fastapi_app
+    )
+    from backend.middleware.security import (
+        SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
+    )
+    from backend.services.monitoring import health_router, get_system_monitor
+except ImportError as e:
+    # Fallback for running as script
+    try:
+        from api.ai_endpoints import router as ai_router
+        from api.stories import router as stories_router
+        from api.auth import router as auth_router
+        from api.projects import router as projects_router
+        from api.epics import router as epics_router
+        from api.users import router as users_router
+        from api.tasks import router as tasks_router
+        from api.teams import router as teams_router
+        from api.search import router as search_router
+        from api.sprints import router as sprints_router
+        from api.analytics_endpoints import analytics_router
+        from database.supabase_client import init_supabase, close_supabase, get_supabase
+        from services.ai_service import init_ai_service
+        from middleware.auth import AuthMiddleware
+        from middleware.logging import LoggingMiddleware
+        from auth.enhanced_auth import EnhancedAuthManager
+        # Phase 2 imports with fallback
+        try:
+            from middleware.observability import (
+                ObservabilityMiddleware, setup_telemetry, instrument_fastapi_app
+            )
+            from middleware.security import (
+                SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
+            )
+            from services.monitoring import health_router, get_system_monitor
+        except ImportError:
+            # Minimal fallback
+            ObservabilityMiddleware = None
+            SecurityMiddleware = None
+            RateLimitMiddleware = None
+            health_router = None
+    except ImportError as e2:
+        print(f"Import error: {e2}")
+        sys.exit(1)
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Configure logging - Enhanced with structured logging
+import structlog
+
+# Configure structured logging
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer() if os.getenv("ENVIRONMENT") == "production" 
+        else structlog.dev.ConsoleRenderer()
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
 )
-logger = logging.getLogger(__name__)
+
+logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting SynqForge API...")
+    logger.info("Starting AgileForge API with Phase 2 enhancements...")
+    
+    # Setup telemetry (OpenTelemetry)
+    if setup_telemetry:
+        setup_telemetry()
     
     # Initialize Supabase
     try:
@@ -72,7 +119,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize Analytics Service
         try:
-            from .services.analytics_service import init_analytics_service
+            from backend.services.analytics_service import init_analytics_service
             analytics_svc = init_analytics_service(supabase)
             logger.info("Analytics service initialized successfully")
         except ImportError:
@@ -80,14 +127,14 @@ async def lifespan(app: FastAPI):
             analytics_svc = init_analytics_service(supabase)
             logger.info("Analytics service initialized successfully")
         except Exception as analytics_error:
-            logger.error(f"Analytics service initialization failed: {analytics_error}")
+            logger.error("Analytics service initialization failed", error=str(analytics_error))
         
         # Initialize Enhanced Auth Manager
         try:
-            enhanced_auth.auth_manager = EnhancedAuthManager(supabase)
+            auth_manager = EnhancedAuthManager(supabase)
             logger.info("Enhanced Auth Manager initialized successfully")
         except Exception as auth_error:
-            logger.error(f"Enhanced Auth Manager initialization failed: {auth_error}")
+            logger.error("Enhanced Auth Manager initialization failed", error=str(auth_error))
         
         # Initialize AI service with Supabase
         try:
@@ -97,35 +144,69 @@ async def lifespan(app: FastAPI):
             else:
                 logger.warning("Enhanced AI service failed to initialize, basic service available")
         except Exception as ai_error:
-            logger.warning(f"AI service initialization encountered issues: {ai_error}")
+            logger.warning("AI service initialization encountered issues", error=str(ai_error))
             logger.info("Basic AI service should still be available for fallback")
+        
+        # Initialize Async AI Service & Cache
+        try:
+            from backend.services.async_ai_service import get_async_ai_service
+            from backend.services.cache_service import get_cache_service, get_project_cache
+            
+            # Initialize Redis-based services
+            async_ai_svc = get_async_ai_service()
+            cache_svc = get_cache_service()
+            project_cache = get_project_cache()
+            
+            logger.info("Async AI service and cache layer initialized successfully")
+        except ImportError:
+            from services.async_ai_service import get_async_ai_service
+            from services.cache_service import get_cache_service, get_project_cache
+            
+            async_ai_svc = get_async_ai_service()
+            cache_svc = get_cache_service()
+            project_cache = get_project_cache()
+            
+            logger.info("Async AI service and cache layer initialized successfully")
+        except Exception as async_error:
+            logger.error("Async services initialization failed", error=str(async_error))
+            logger.warning("Application will continue with synchronous AI operations")
+        
+        # Initialize monitoring
+        if get_system_monitor:
+            monitor = get_system_monitor()
+            logger.info("System monitoring initialized successfully")
             
     except Exception as supabase_error:
-        logger.error(f"Supabase initialization failed: {supabase_error}")
+        logger.error("Supabase initialization failed", error=str(supabase_error))
         logger.warning("Application will continue with limited database functionality")
     
     # Application is ready
-    logger.info("SynqForge API startup completed")
+    logger.info("AgileForge API startup completed with Phase 2 enhancements", 
+                features=["observability", "security", "monitoring", "async_ai", "caching"])
     
     yield
     
     # Shutdown
-    logger.info("Shutting down SynqForge API...")
+    logger.info("Shutting down AgileForge API...")
     try:
         close_supabase()
         logger.info("Supabase client closed")
     except Exception as e:
-        logger.error(f"Error during shutdown: {e}")
+        logger.error("Error during shutdown", error=str(e))
 
 # Create FastAPI app
 app = FastAPI(
-    title="SynqForge API",
-    description="AI-Powered Agile Project Management Platform",
-    version="1.0.0",
+    title="AgileForge API",
+    description="AI-Powered Agile Project Management Platform with Enterprise Security & Observability",
+    version="2.0.0",  # Phase 2 version
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
     lifespan=lifespan
 )
+
+# Instrument with OpenTelemetry
+if instrument_fastapi_app:
+    instrument_fastapi_app(app)
 
 # CORS configuration for deployment
 # In development, we'll allow all localhost origins
@@ -166,24 +247,66 @@ app.add_middleware(
     ]
 )
 
-# Custom middleware
+# Phase 2 Middleware Stack (order matters!)
+if ObservabilityMiddleware:
+    app.add_middleware(ObservabilityMiddleware)
+    logger.info("Observability middleware enabled")
+
+if SecurityMiddleware:
+    app.add_middleware(SecurityMiddleware)
+    logger.info("Security middleware enabled")
+
+if RateLimitMiddleware:
+    app.add_middleware(RateLimitMiddleware)
+    logger.info("Rate limiting middleware enabled")
+
+# Original middleware
 app.add_middleware(AuthMiddleware)
 app.add_middleware(LoggingMiddleware)
 
-# Health check endpoint
+# Health check endpoint (enhanced)
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
         "environment": os.getenv("ENVIRONMENT", "development"),
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "features": {
+            "observability": ObservabilityMiddleware is not None,
+            "security": SecurityMiddleware is not None,
+            "rate_limiting": RateLimitMiddleware is not None,
+            "async_ai": True,
+            "caching": True,
+            "monitoring": health_router is not None
+        }
     }
+
+# Metrics endpoint for Prometheus
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    
+    return Response(
+        generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 @app.get("/")
 async def root():
     return {
-        "message": "SynqForge API",
-        "version": "1.0.0",
+        "message": "AgileForge API v2.0 - Enterprise Ready",
+        "version": "2.0.0",
+        "features": [
+            "Async AI Operations",
+            "Redis Caching",
+            "OpenTelemetry Tracing", 
+            "Rate Limiting",
+            "Circuit Breakers",
+            "JWT Refresh",
+            "System Monitoring",
+            "Structured Logging"
+        ],
         "docs": "/docs" if os.getenv("ENVIRONMENT") != "production" else "Documentation disabled in production"
     }
 
@@ -200,25 +323,43 @@ app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 
-# Error handlers
+# Phase 2: Include monitoring router
+if health_router:
+    app.include_router(health_router, tags=["Monitoring"])
+
+# Enhanced error handlers
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     return JSONResponse(
         status_code=404,
-        content={"error": "Endpoint not found", "status_code": 404}
+        content={
+            "error": "Endpoint not found", 
+            "status_code": 404,
+            "request_id": getattr(request.state, 'request_id', 'unknown'),
+            "timestamp": time.time()
+        }
     )
 
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
-    logger.error(f"Internal server error: {exc}")
+    logger.error("Internal server error", 
+                error=str(exc),
+                request_id=getattr(request.state, 'request_id', 'unknown'))
     return JSONResponse(
         status_code=500,
-        content={"error": "Internal server error", "status_code": 500}
+        content={
+            "error": "Internal server error", 
+            "status_code": 500,
+            "request_id": getattr(request.state, 'request_id', 'unknown'),
+            "timestamp": time.time()
+        }
     )
 
 @app.exception_handler(RuntimeError)
 async def runtime_error_handler(request, exc):
-    logger.error(f"Runtime error: {exc}")
+    logger.error("Runtime error", 
+                error=str(exc),
+                request_id=getattr(request.state, 'request_id', 'unknown'))
     # Handle specific service initialization errors
     if "Analytics service not initialized" in str(exc):
         return JSONResponse(
@@ -226,16 +367,26 @@ async def runtime_error_handler(request, exc):
             content={
                 "error": "Analytics service temporarily unavailable", 
                 "status_code": 503,
-                "detail": "The analytics service is initializing. Please try again in a moment."
+                "detail": "The analytics service is initializing. Please try again in a moment.",
+                "request_id": getattr(request.state, 'request_id', 'unknown'),
+                "timestamp": time.time()
             }
         )
     return JSONResponse(
         status_code=500,
-        content={"error": "Service error", "status_code": 500, "detail": str(exc)}
+        content={
+            "error": "Service error", 
+            "status_code": 500, 
+            "detail": str(exc),
+            "request_id": getattr(request.state, 'request_id', 'unknown'),
+            "timestamp": time.time()
+        }
     )
 
 if __name__ == "__main__":
     import uvicorn
+    import time
+    
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(
         "main:app",

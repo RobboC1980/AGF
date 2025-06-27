@@ -16,6 +16,9 @@ from .enhanced_auth import (
     get_auth_manager
 )
 
+# Create alias for compatibility
+get_current_user_supabase = get_current_active_user
+
 # Response models
 class TokenResponse(BaseModel):
     access_token: str

@@ -9,6 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client
+from ..services.cache_service import get_project_cache
+from ..services.async_ai_service import get_async_ai_service
 
 # Initialize Supabase client for authentication
 supabase_url = os.getenv("SUPABASE_URL")
@@ -76,25 +78,73 @@ logger = logging.getLogger(__name__)
 # Create router
 analytics_router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
-@analytics_router.get("/dashboard/{project_id}")
-async def get_project_dashboard(
+@analytics_router.get("/analytics/dashboard/{project_id}")
+async def get_analytics_dashboard(
     project_id: str,
-    days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
-    analytics_service: AnalyticsService = Depends(get_analytics_service)
+    days: int = Query(30, ge=1, le=365),
+    current_user: dict = Depends(get_current_user)
 ):
-    """Get comprehensive project dashboard with analytics"""
+    """Get analytics dashboard with caching"""
     try:
-        dashboard_data = await analytics_service.get_project_dashboard(project_id, days)
+        project_cache = get_project_cache()
+        
+        # Define fetch function for cache
+        async def fetch_dashboard_data(proj_id: str, num_days: int):
+            analytics_service = get_analytics_service()
+            return await analytics_service.get_project_dashboard(proj_id, num_days)
+        
+        # Use cached data with read-through pattern
+        dashboard_data = await project_cache.get_analytics_dashboard(
+            project_id, days, fetch_dashboard_data
+        )
         
         return {
             "success": True,
-            "data": dashboard_data
+            "data": dashboard_data,
+            "cached": True,
+            "project_id": project_id,
+            "days": days
         }
         
     except Exception as e:
-        logger.error(f"Error getting project dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error fetching dashboard analytics: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch dashboard analytics: {str(e)}"
+        )
+
+@analytics_router.post("/analytics/generate-insights-async/{project_id}")
+async def generate_insights_async(
+    project_id: str,
+    analysis_type: str = "comprehensive",
+    current_user: dict = Depends(get_current_user)
+):
+    """Generate analytics insights asynchronously"""
+    try:
+        async_ai_service = get_async_ai_service()
+        
+        # Queue the analytics insights job
+        job_id = await async_ai_service.queue_analytics_insights(
+            user_id=current_user["id"],
+            project_id=project_id,
+            analysis_type=analysis_type,
+            priority="normal"
+        )
+        
+        return {
+            "success": True,
+            "job_id": job_id,
+            "status": "queued",
+            "message": "Analytics insights generation queued",
+            "estimated_completion": "1-2 minutes"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error queuing insights generation: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to queue insights generation: {str(e)}"
+        )
 
 @analytics_router.get("/velocity/{project_id}")
 async def get_project_velocity(
