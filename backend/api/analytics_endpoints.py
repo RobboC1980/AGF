@@ -19,7 +19,11 @@ supabase_client = None
 
 if supabase_url and supabase_key:
     try:
-        supabase_client = create_client(supabase_url, supabase_key)
+        # Use only the required parameters to avoid proxy argument error
+        supabase_client = create_client(
+            supabase_url=supabase_url, 
+            supabase_key=supabase_key
+        )
     except Exception as e:
         logging.error(f"Failed to initialize Supabase client in analytics: {e}")
 

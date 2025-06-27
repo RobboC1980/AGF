@@ -117,12 +117,11 @@ async def lifespan(app: FastAPI):
         # Get Supabase client for service initialization
         supabase = get_supabase()
         
-        # Initialize Analytics Service - TEMPORARILY DISABLED FOR DEBUGGING
+        # Initialize Analytics Service - Re-enabled after fixing proxy issue
         try:
-            logger.info("Skipping analytics service initialization for debugging")
-            # from backend.services.analytics_service import init_analytics_service
-            # analytics_svc = init_analytics_service(supabase)
-            # logger.info("Analytics service initialized successfully")
+            from backend.services.analytics_service import init_analytics_service
+            analytics_svc = init_analytics_service(supabase)
+            logger.info("Analytics service initialized successfully")
         except Exception as analytics_error:
             logger.error("Analytics service initialization failed", error=str(analytics_error))
         

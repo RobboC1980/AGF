@@ -43,10 +43,8 @@ class SystemMonitor:
         except Exception as e:
             logger.error("Failed to initialize Redis client", error=str(e))
         
-        try:
-            self.supabase_client = get_supabase()
-        except Exception as e:
-            logger.error("Failed to initialize Supabase client", error=str(e))
+        # Don't initialize Supabase client here - use the global one when needed
+        self.supabase_client = None
     
     async def get_system_health(self) -> Dict[str, Any]:
         """Get comprehensive system health status"""
@@ -128,11 +126,11 @@ class SystemMonitor:
         start_time = time.time()
         
         try:
-            if not self.supabase_client:
-                raise Exception("Supabase client not initialized")
+            # Get Supabase client from global manager
+            supabase_client = get_supabase()
             
             # Simple query to test connectivity
-            response = self.supabase_client.table("projects").select("id").limit(1).execute()
+            response = supabase_client.table("projects").select("id").limit(1).execute()
             response_time = (time.time() - start_time) * 1000
             
             status = "healthy"
