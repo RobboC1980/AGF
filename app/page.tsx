@@ -17,6 +17,7 @@ import CollaborationPanel from "../components/collaboration-panel"
 import SimpleCreateModal from "../components/simple-create-modal"
 import { CreateStoryModal } from "../components/create-story-modal"
 import { CreateEpicModal } from "../components/create-epic-modal"
+import { CreateTaskModal } from "../components/create-task-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -44,6 +45,7 @@ export default function Page() {
   const [editingStory, setEditingStory] = useState<any>(null)
   const [showEpicModal, setShowEpicModal] = useState(false)
   const [editingEpic, setEditingEpic] = useState<any>(null)
+  const [showTaskModal, setShowTaskModal] = useState(false)
   const [movingItems, setMovingItems] = useState<Set<string>>(new Set())
   
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth()
@@ -419,9 +421,19 @@ export default function Page() {
                       <BookOpen size={14} className="mr-1" />
                       Story
                     </Button>
-                    <SimpleCreateModal 
-                      type="task" 
-                      onSubmit={(data) => handleCreateSubmit(data, "task")}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowTaskModal(true)}
+                    >
+                      <CheckSquare size={14} className="mr-1" />
+                      Task
+                    </Button>
+                    
+                    <CreateTaskModal
+                      isOpen={showTaskModal}
+                      onClose={() => setShowTaskModal(false)}
+                      onSave={(data) => handleCreateSubmit(data, "task")}
                       stories={modalStories.map(story => ({ 
                         id: story.id, 
                         title: story.name, 
@@ -432,12 +444,6 @@ export default function Page() {
                         name: user.name, 
                         avatar: user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name}` 
                       }))}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <CheckSquare size={14} className="mr-1" />
-                          Task
-                        </Button>
-                      }
                     />
                     
                     {/* User Menu */}

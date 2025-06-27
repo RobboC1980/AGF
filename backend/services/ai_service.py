@@ -1047,6 +1047,95 @@ TASK TYPES:
                 variables=["story_title", "story_description", "story_points", "acceptance_criteria", "technical_context", "team_skills", "include_subtasks"]
             ),
             
+            "single_task_generator": PromptTemplate(
+                name="single_task_generator",
+                version="1.0",
+                system_prompt="""You are an expert Agile coach and technical lead specializing in individual task creation and definition.
+
+SINGLE TASK DEFINITION: A Task is a specific, actionable work item that can be completed by one person in 0.5-2 days (4-16 hours). Each task should be self-contained, testable, and directly contribute to story completion.
+
+TASK QUALITY CRITERIA:
+- **Actionable**: Clear, specific work that can be immediately started
+- **Scoped**: Well-defined boundaries and deliverables
+- **Testable**: Clear completion criteria and validation steps
+- **Valuable**: Directly contributes to user story goals
+- **Estimated**: Accurate effort estimation in hours
+- **Categorized**: Properly classified by work type
+
+TASK CATEGORIES:
+- **development**: Code implementation, API creation, database changes
+- **testing**: Unit tests, integration tests, manual testing, QA
+- **design**: UI/UX design, technical design, architecture planning
+- **research**: Technical spikes, feasibility studies, investigation
+- **devops**: Deployment, configuration, infrastructure setup
+- **documentation**: Technical docs, user guides, API documentation""",
+                user_prompt_template="""
+                Generate a comprehensive single task based on this description:
+                
+                Task Description: {task_description}
+                Story Context: {story_title}
+                Story Description: {story_description}
+                Story Points: {story_points}
+                Acceptance Criteria: {acceptance_criteria}
+                Technical Context: {technical_context}
+                Priority: {priority}
+                Estimated Hours: {estimated_hours}
+                Include Subtasks: {include_subtasks}
+                Include Acceptance Criteria: {include_acceptance_criteria}
+                
+                CREATE A SINGLE TASK THAT INCLUDES:
+                
+                1. **Clear Task Title**: Specific, actionable title describing the work
+                2. **Detailed Description**: What needs to be done, how to approach it
+                3. **Accurate Estimation**: Hours-based estimate (0.5-16 hours)
+                4. **Proper Categorization**: Work type and technical area
+                5. **Acceptance Criteria**: Specific completion criteria
+                6. **Technical Notes**: Implementation guidance and considerations
+                7. **Subtasks**: Optional breakdown into smaller steps
+                8. **Testing Requirements**: How to validate the work
+                
+                ESTIMATION GUIDELINES:
+                - 0.5-1 hours: Configuration, minor fixes, simple updates
+                - 1-2 hours: Simple features, basic testing, documentation
+                - 2-4 hours: Standard development work, moderate complexity
+                - 4-8 hours: Complex features, integration work, comprehensive testing
+                - 8-16 hours: Major implementations, significant architecture changes
+                
+                TECHNICAL CONSIDERATIONS:
+                - Focus on implementation approach and patterns
+                - Consider existing codebase and architecture
+                - Include performance and security implications
+                - Identify potential risks or dependencies
+                - Suggest testing and validation strategies
+                
+                Return ONLY this JSON structure:
+                {{
+                    "title": "Specific, actionable task title that clearly describes the work to be done",
+                    "description": "Comprehensive description including what needs to be built, technical approach, key requirements, and expected deliverables",
+                    "estimated_hours": 4.0,
+                    "priority": "high",
+                    "category": "development",
+                    "technical_notes": "Implementation guidance, patterns to use, architecture considerations, potential gotchas, and integration points",
+                    "acceptance_criteria": [
+                        "Specific, testable completion criteria",
+                        "Clear definition of done for this task",
+                        "Validation and testing requirements"
+                    ],
+                    "subtasks": [
+                        "Break down into smaller actionable steps if complex",
+                        "Each subtask should be 15-60 minutes of work"
+                    ],
+                    "tags": ["technical_area", "component", "work_type"],
+                    "skills_required": ["javascript", "react", "api_design"],
+                    "dependencies": ["Any prerequisite work or external dependencies"],
+                    "testing_requirements": "How this task should be tested, validated, and verified for completion",
+                    "risks": ["Potential technical risks or unknowns"],
+                    "confidence": 0.85
+                }}
+                """,
+                variables=["task_description", "story_title", "story_description", "story_points", "acceptance_criteria", "technical_context", "priority", "estimated_hours", "include_subtasks", "include_acceptance_criteria"]
+            ),
+            
             "story_validator": PromptTemplate(
                 name="story_validator",
                 version="1.0", 
@@ -1325,7 +1414,8 @@ TASK TYPES:
             # Try to parse as JSON if template expects it
             try:
                 if template_name in ["sprint_planning", "standup_reporter", "retrospective_summarizer", 
-                                   "epic_generator", "story_generator", "task_generator", "story_validator", "backlog_coach", "risk_radar"]:
+                                   "epic_generator", "story_generator", "task_generator", "single_task_generator", 
+                                   "story_validator", "backlog_coach", "risk_radar"]:
                     data = json.loads(content)
                 else:
                     data = content

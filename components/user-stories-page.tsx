@@ -73,7 +73,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useStories, useEpics, useUsers, useTasks, useCreateTask } from "@/hooks/useApi"
 import { type Story } from "@/services/api"
-import { SimpleCreateModal } from "@/components/simple-create-modal"
+import { CreateTaskModal } from "@/components/create-task-modal"
 import { api } from "@/services/api"
 
 interface UserStoriesPageProps {
@@ -107,6 +107,7 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
   const [selectedTasks, setSelectedTasks] = useState<string[]>([])
   const [technicalContext, setTechnicalContext] = useState("")
   const [teamSkills, setTeamSkills] = useState("")
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const { data: allTasks = [], refetch: refetchTasks } = useTasks()
   const createTaskMutation = useCreateTask()
@@ -396,22 +397,26 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
                 </TabsContent>
 
                 <TabsContent value="manual" className="mt-6">
-                  <SimpleCreateModal
-                    type="task"
-                    onSubmit={handleTaskCreate}
+                  <Card 
+                    className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <div className="text-center">
+                      <Plus size={24} className="mx-auto text-slate-400 mb-2" />
+                      <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
+                      <p className="text-sm text-slate-600">
+                        Create a task with full control over all details
+                      </p>
+                    </div>
+                  </Card>
+                  
+                  <CreateTaskModal
+                    isOpen={showCreateModal}
+                    onClose={() => setShowCreateModal(false)}
+                    onSave={handleTaskCreate}
                     stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
                     users={users}
-                    trigger={
-                      <Card className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors">
-                        <div className="text-center">
-                          <Plus size={24} className="mx-auto text-slate-400 mb-2" />
-                          <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
-                          <p className="text-sm text-slate-600">
-                            Create a task with full control over all details
-                          </p>
-                        </div>
-                      </Card>
-                    }
+                    defaultStoryId={storyId}
                   />
                 </TabsContent>
               </Tabs>
@@ -563,20 +568,24 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
                   </TabsContent>
 
                   <TabsContent value="manual" className="mt-6">
-                    <SimpleCreateModal
-                      type="task"
-                      onSubmit={handleTaskCreate}
+                    <Card 
+                      className="p-6 border-2 border-dashed cursor-pointer hover:border-slate-400 transition-colors"
+                      onClick={() => setShowCreateModal(true)}
+                    >
+                      <div className="text-center">
+                        <Plus size={24} className="mx-auto text-slate-400 mb-2" />
+                        <h4 className="font-medium">Create Task Manually</h4>
+                        <p className="text-sm text-slate-600">Full control over task details</p>
+                      </div>
+                    </Card>
+                    
+                    <CreateTaskModal
+                      isOpen={showCreateModal}
+                      onClose={() => setShowCreateModal(false)}
+                      onSave={handleTaskCreate}
                       stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
                       users={users}
-                      trigger={
-                        <Card className="p-6 border-2 border-dashed cursor-pointer">
-                          <div className="text-center">
-                            <Plus size={24} className="mx-auto text-slate-400 mb-2" />
-                            <h4 className="font-medium">Create Task Manually</h4>
-                            <p className="text-sm text-slate-600">Full control over task details</p>
-                          </div>
-                        </Card>
-                      }
+                      defaultStoryId={storyId}
                     />
                   </TabsContent>
                 </Tabs>
@@ -1138,11 +1147,11 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                           className="mt-1"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors break-words overflow-hidden text-ellipsis line-clamp-2">
+                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors break-words line-clamp-2">
                             {story.name}
                           </h3>
                           {story.description && (
-                            <p className="text-sm text-slate-600 mt-1 break-words overflow-hidden text-ellipsis line-clamp-3">{story.description}</p>
+                            <p className="text-sm text-slate-600 mt-1 break-words line-clamp-3">{story.description}</p>
                           )}
                         </div>
                       </div>

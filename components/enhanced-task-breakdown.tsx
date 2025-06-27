@@ -54,7 +54,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTasks, useCreateTask, useUpdateTask } from "@/hooks/useApi"
-import { SimpleCreateModal } from "@/components/simple-create-modal"
+import { CreateTaskModal } from "@/components/create-task-modal"
 import { api } from "@/services/api"
 
 interface EnhancedTaskBreakdownProps {
@@ -102,7 +102,7 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
   const [technicalContext, setTechnicalContext] = useState("")
   const [teamSkills, setTeamSkills] = useState("")
   const [editingTask, setEditingTask] = useState<any>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // API hooks
   const { data: allTasks = [], refetch: refetchTasks } = useTasks()
@@ -268,16 +268,16 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                 Break Down
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center space-x-2">
-                  <CheckSquare size={20} className="text-blue-600" />
-                  <span>Break Down Story into Tasks</span>
-                </DialogTitle>
-                <DialogDescription>
-                  Create tasks for "{storyTitle}" using AI assistance or manual creation
-                </DialogDescription>
-              </DialogHeader>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center space-x-2">
+                    <CheckSquare size={20} className="text-blue-600" />
+                    <span>Break Down Story into Tasks</span>
+                  </DialogTitle>
+                  <DialogDescription className="break-words">
+                    Create tasks for "{storyTitle}" using AI assistance or manual creation
+                  </DialogDescription>
+                </DialogHeader>
 
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ai" | "manual")}>
                 <TabsList className="grid w-full grid-cols-2">
@@ -378,32 +378,34 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                                     className="mt-1"
                                   />
                                   
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center space-x-2 mb-2">
-                                      <h5 className="font-medium text-slate-900">{task.title}</h5>
-                                      <Badge variant="outline" className="text-xs">
-                                        {task.category}
-                                      </Badge>
-                                      <Badge 
-                                        variant="outline" 
-                                        className={`text-xs ${
-                                          task.priority === 'high' ? 'border-orange-200 text-orange-700' :
-                                          task.priority === 'medium' ? 'border-amber-200 text-amber-700' :
-                                          'border-emerald-200 text-emerald-700'
-                                        }`}
-                                      >
-                                        {task.priority}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm text-slate-600 mb-2">{task.description}</p>
-                                    <div className="flex items-center space-x-4 text-xs text-slate-500">
+                                                                      <div className="flex-1 min-w-0">
+                                      <div className="flex flex-col gap-2 mb-2">
+                                        <h5 className="font-medium text-slate-900 break-words">{task.title}</h5>
+                                        <div className="flex items-center space-x-2 flex-wrap">
+                                          <Badge variant="outline" className="text-xs">
+                                            {task.category}
+                                          </Badge>
+                                          <Badge 
+                                            variant="outline" 
+                                            className={`text-xs ${
+                                              task.priority === 'high' ? 'border-orange-200 text-orange-700' :
+                                              task.priority === 'medium' ? 'border-amber-200 text-amber-700' :
+                                              'border-emerald-200 text-emerald-700'
+                                            }`}
+                                          >
+                                            {task.priority}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-slate-600 mb-2 break-words">{task.description}</p>
+                                    <div className="flex items-center space-x-4 text-xs text-slate-500 flex-wrap">
                                       <div className="flex items-center space-x-1">
                                         <Clock size={12} />
                                         <span>{task.estimated_hours}h</span>
                                       </div>
                                       {task.skills_required.length > 0 && (
-                                        <div className="flex items-center space-x-1">
-                                          <span>Skills: {task.skills_required.join(", ")}</span>
+                                        <div className="flex items-start space-x-1 flex-wrap">
+                                          <span className="break-words">Skills: {task.skills_required.join(", ")}</span>
                                         </div>
                                       )}
                                     </div>
@@ -438,22 +440,26 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                 </TabsContent>
 
                 <TabsContent value="manual" className="mt-6">
-                  <SimpleCreateModal
-                    type="task"
-                    onSubmit={handleManualTaskCreate}
+                  <Card 
+                    className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <div className="text-center">
+                      <Plus size={24} className="mx-auto text-slate-400 mb-2" />
+                      <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
+                      <p className="text-sm text-slate-600">
+                        Create a task with full control over all details
+                      </p>
+                    </div>
+                  </Card>
+                  
+                  <CreateTaskModal
+                    isOpen={showCreateModal}
+                    onClose={() => setShowCreateModal(false)}
+                    onSave={handleManualTaskCreate}
                     stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
                     users={users}
-                    trigger={
-                      <Card className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors">
-                        <div className="text-center">
-                          <Plus size={24} className="mx-auto text-slate-400 mb-2" />
-                          <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
-                          <p className="text-sm text-slate-600">
-                            Create a task with full control over all details
-                          </p>
-                        </div>
-                      </Card>
-                    }
+                    defaultStoryId={storyId}
                   />
                 </TabsContent>
               </Tabs>
@@ -504,13 +510,13 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                   Add Task
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full">
                 <DialogHeader>
                   <DialogTitle className="flex items-center space-x-2">
                     <CheckSquare size={20} className="text-blue-600" />
                     <span>Add Tasks to Story</span>
                   </DialogTitle>
-                  <DialogDescription>
+                  <DialogDescription className="break-words">
                     Add more tasks to "{storyTitle}" using AI assistance or manual creation
                   </DialogDescription>
                 </DialogHeader>
@@ -615,8 +621,9 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                                     />
                                     
                                     <div className="flex-1 min-w-0">
-                                      <div className="flex items-center space-x-2 mb-2">
-                                        <h5 className="font-medium text-slate-900">{task.title}</h5>
+                                    <div className="flex flex-col gap-2 mb-2">
+                                      <h5 className="font-medium text-slate-900 break-words">{task.title}</h5>
+                                      <div className="flex items-center space-x-2 flex-wrap">
                                         <Badge variant="outline" className="text-xs">
                                           {task.category}
                                         </Badge>
@@ -631,15 +638,16 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                                           {task.priority}
                                         </Badge>
                                       </div>
-                                      <p className="text-sm text-slate-600 mb-2">{task.description}</p>
-                                      <div className="flex items-center space-x-4 text-xs text-slate-500">
+                                    </div>
+                                    <p className="text-sm text-slate-600 mb-2 break-words">{task.description}</p>
+                                      <div className="flex items-center space-x-4 text-xs text-slate-500 flex-wrap">
                                         <div className="flex items-center space-x-1">
                                           <Clock size={12} />
                                           <span>{task.estimated_hours}h</span>
                                         </div>
                                         {task.skills_required.length > 0 && (
-                                          <div className="flex items-center space-x-1">
-                                            <span>Skills: {task.skills_required.join(", ")}</span>
+                                          <div className="flex items-start space-x-1 flex-wrap">
+                                            <span className="break-words">Skills: {task.skills_required.join(", ")}</span>
                                           </div>
                                         )}
                                       </div>
@@ -674,22 +682,26 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                   </TabsContent>
 
                   <TabsContent value="manual" className="mt-6">
-                    <SimpleCreateModal
-                      type="task"
-                      onSubmit={handleManualTaskCreate}
+                    <Card 
+                      className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors"
+                      onClick={() => setShowCreateModal(true)}
+                    >
+                      <div className="text-center">
+                        <Plus size={24} className="mx-auto text-slate-400 mb-2" />
+                        <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
+                        <p className="text-sm text-slate-600">
+                          Create a task with full control over all details
+                        </p>
+                      </div>
+                    </Card>
+                    
+                    <CreateTaskModal
+                      isOpen={showCreateModal}
+                      onClose={() => setShowCreateModal(false)}
+                      onSave={handleManualTaskCreate}
                       stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
                       users={users}
-                      trigger={
-                        <Card className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 cursor-pointer transition-colors">
-                          <div className="text-center">
-                            <Plus size={24} className="mx-auto text-slate-400 mb-2" />
-                            <h4 className="font-medium text-slate-900 mb-1">Create Task Manually</h4>
-                            <p className="text-sm text-slate-600">
-                              Create a task with full control over all details
-                            </p>
-                          </div>
-                        </Card>
-                      }
+                      defaultStoryId={storyId}
                     />
                   </TabsContent>
                 </Tabs>
@@ -705,27 +717,29 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
                 key={task.id}
                 className="flex items-center justify-between p-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
               >
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <div className="flex items-start space-x-3 flex-1 min-w-0">
                   {getTaskStatusIcon(task.status)}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-slate-700 truncate">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-sm font-medium text-slate-700 break-words">
                         {task.title}
                       </span>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${
-                          task.priority === 'critical' ? 'border-red-200 text-red-700' :
-                          task.priority === 'high' ? 'border-orange-200 text-orange-700' :
-                          task.priority === 'medium' ? 'border-amber-200 text-amber-700' :
-                          'border-emerald-200 text-emerald-700'
-                        }`}
-                      >
-                        {task.priority}
-                      </Badge>
+                      <div className="flex items-center flex-wrap gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${
+                            task.priority === 'critical' ? 'border-red-200 text-red-700' :
+                            task.priority === 'high' ? 'border-orange-200 text-orange-700' :
+                            task.priority === 'medium' ? 'border-amber-200 text-amber-700' :
+                            'border-emerald-200 text-emerald-700'
+                          }`}
+                        >
+                          {task.priority}
+                        </Badge>
+                      </div>
                     </div>
                     {task.description && (
-                      <p className="text-xs text-slate-500 truncate mt-1">
+                      <p className="text-xs text-slate-500 break-words mt-2">
                         {task.description}
                       </p>
                     )}
@@ -778,16 +792,15 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
       </Collapsible>
 
       {/* Edit Task Modal */}
-      {editingTask && (
-        <SimpleCreateModal
-          type="task"
-          onSubmit={handleTaskUpdate}
-          stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
-          users={users}
-          trigger={<div />}
-          // We'll need to enhance SimpleCreateModal to support editing
-        />
-      )}
+      <CreateTaskModal
+        isOpen={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        onSave={handleTaskUpdate}
+        stories={[{ id: storyId, title: storyTitle, epic: 'Current Epic' }]}
+        users={users}
+        editingTask={editingTask}
+        defaultStoryId={storyId}
+      />
     </div>
   )
 } 

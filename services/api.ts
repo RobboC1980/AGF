@@ -418,6 +418,49 @@ class ApiClient {
     })
   }
 
+  async generateSingleTask(request: {
+    taskDescription: string
+    storyTitle: string
+    storyDescription?: string
+    storyPoints?: number
+    acceptanceCriteria?: string
+    technicalContext?: string
+    priority?: string
+    estimatedHours?: number
+  }): Promise<{
+    success: boolean
+    task: {
+      title: string
+      description: string
+      estimated_hours: number
+      priority: string
+      category: string
+      technical_notes: string
+      acceptance_criteria: string[]
+      subtasks: string[]
+      tags: string[]
+      skills_required: string[]
+    }
+    provider: string
+    model: string
+    confidence?: number
+    suggestions?: string[]
+  }> {
+    return this.request("/api/ai/generate-single-task", {
+      method: "POST",
+      body: JSON.stringify({
+        task_description: request.taskDescription,
+        story_title: request.storyTitle,
+        story_description: request.storyDescription || "",
+        story_points: request.storyPoints || 5,
+        acceptance_criteria: request.acceptanceCriteria || "",
+        technical_context: request.technicalContext || "",
+        priority: request.priority || "medium",
+        estimated_hours: request.estimatedHours || 4.0
+      }),
+    })
+  }
+
   // Epics API
   async getEpics(): Promise<ApiResponse<{ epics: Epic[] }>> {
     return this.request("/api/epics")

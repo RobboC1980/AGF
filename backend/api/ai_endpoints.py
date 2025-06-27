@@ -68,6 +68,16 @@ class TaskGenerateRequest(BaseModel):
     team_skills: Optional[str] = ""
     include_subtasks: bool = True
 
+class SingleTaskGenerateRequest(BaseModel):
+    task_description: str
+    story_title: str
+    story_description: Optional[str] = ""
+    story_points: Optional[int] = 5
+    acceptance_criteria: Optional[str] = ""
+    technical_context: Optional[str] = ""
+    priority: Optional[str] = "medium"
+    estimated_hours: Optional[float] = 4.0
+
 class EpicGenerateRequest(BaseModel):
     description: str
     project_id: Optional[str] = None
@@ -292,6 +302,60 @@ async def generate_tasks_endpoint(
             
     except Exception as e:
         logger.error(f"Task generation failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-single-task")
+async def generate_single_task_endpoint(
+    request: SingleTaskGenerateRequest,
+    current_user = Depends(get_current_user_supabase)
+):
+    """Generate a single task using AI"""
+    try:
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
+        
+        ai_service = get_basic_ai_service()
+        
+        # Prepare variables for AI completion
+        variables = {
+            "task_description": request.task_description,
+            "story_title": request.story_title,
+            "story_description": request.story_description,
+            "story_points": request.story_points,
+            "acceptance_criteria": request.acceptance_criteria,
+            "technical_context": request.technical_context,
+            "priority": request.priority,
+            "estimated_hours": request.estimated_hours,
+            "include_subtasks": True,
+            "include_acceptance_criteria": True
+        }
+        
+        # Generate single task using AI
+        result = await ai_service.generate_completion("single_task_generator", variables)
+        
+        if result.success:
+            return {
+                "success": True,
+                "task": result.data,
+                "provider": result.model_used.split("/")[0] if "/" in result.model_used else "OpenAI",
+                "model": result.model_used,
+                "tokens_used": result.tokens_used,
+                "processing_time": result.processing_time,
+                "confidence": 0.85  # Default confidence score
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.error,
+                "fallback_available": True
+            }
+            
+    except Exception as e:
+        logger.error(f"Single task generation failed: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
