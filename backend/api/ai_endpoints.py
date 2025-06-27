@@ -84,6 +84,15 @@ class EpicGenerateRequest(BaseModel):
     priority: Optional[str] = "medium"
     business_value: Optional[str] = None
 
+class ProjectGenerateRequest(BaseModel):
+    description: str
+    domain: Optional[str] = ""
+    team_size: Optional[int] = 5
+    timeline: Optional[str] = ""
+    technology_stack: Optional[str] = ""
+    business_objectives: Optional[str] = ""
+    priority: Optional[str] = "medium"
+
 # Simple test endpoint without complex models
 @router.get("/health")
 async def ai_health_check():
@@ -356,6 +365,59 @@ async def generate_single_task_endpoint(
             
     except Exception as e:
         logger.error(f"Single task generation failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-project")
+async def generate_project_endpoint(
+    request: ProjectGenerateRequest,
+    current_user = Depends(get_current_user_supabase)
+):
+    """Generate a project using AI"""
+    try:
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
+        
+        ai_service = get_basic_ai_service()
+        
+        # Prepare variables for AI completion
+        variables = {
+            "user_description": request.description,
+            "domain_context": request.domain,
+            "team_size": request.team_size,
+            "timeline_context": request.timeline,
+            "technology_stack": request.technology_stack,
+            "business_objectives": request.business_objectives,
+            "priority_level": request.priority,
+            "include_epic_breakdown": True,
+            "include_success_metrics": True
+        }
+        
+        # Generate project using AI
+        result = await ai_service.generate_completion("project_generator", variables)
+        
+        if result.success:
+            return {
+                "success": True,
+                "project": result.data,
+                "provider": result.model_used.split("/")[0] if "/" in result.model_used else "OpenAI",
+                "model": result.model_used,
+                "tokens_used": result.tokens_used,
+                "processing_time": result.processing_time,
+                "confidence": 0.85  # Default confidence score
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.error,
+                "fallback_available": True
+            }
+            
+    except Exception as e:
+        logger.error(f"Project generation failed: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))

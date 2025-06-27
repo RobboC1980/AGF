@@ -1136,6 +1136,169 @@ TASK CATEGORIES:
                 variables=["task_description", "story_title", "story_description", "story_points", "acceptance_criteria", "technical_context", "priority", "estimated_hours", "include_subtasks", "include_acceptance_criteria"]
             ),
             
+            "project_generator": PromptTemplate(
+                name="project_generator",
+                version="1.0",
+                system_prompt="""You are an expert project manager and solution architect specializing in strategic project planning and organizational alignment.
+
+PROJECT DEFINITION: A Project is a strategic initiative with defined scope, timeline, and objectives that delivers business value through coordinated work. Projects contain multiple epics and represent major organizational efforts.
+
+PROJECT QUALITY CRITERIA:
+- **Strategic**: Aligns with business objectives and provides clear value
+- **Scoped**: Well-defined boundaries, deliverables, and success criteria
+- **Resourced**: Realistic in terms of team capacity and timeline
+- **Measurable**: Clear success metrics and KPIs
+- **Feasible**: Technically and organizationally achievable
+- **Impactful**: Delivers meaningful business or user outcomes
+
+PROJECT PLANNING ELEMENTS:
+- **Vision & Objectives**: Clear purpose and strategic goals
+- **Scope & Deliverables**: What will be built and delivered
+- **Success Metrics**: How success will be measured
+- **Epic Breakdown**: High-level feature groupings
+- **Resource Planning**: Team composition and skills needed
+- **Timeline & Milestones**: Key dates and deliverables
+- **Risk Assessment**: Potential challenges and mitigations""",
+                user_prompt_template="""
+                Generate a comprehensive project plan based on this description:
+                
+                Project Description: {user_description}
+                Domain/Industry: {domain_context}
+                Team Size: {team_size} people
+                Timeline Context: {timeline_context}
+                Technology Stack: {technology_stack}
+                Business Objectives: {business_objectives}
+                Priority Level: {priority_level}
+                Include Epic Breakdown: {include_epic_breakdown}
+                Include Success Metrics: {include_success_metrics}
+                
+                CREATE A PROJECT PLAN THAT INCLUDES:
+                
+                1. **Project Vision**: Clear purpose and strategic value
+                2. **Scope Definition**: What will be delivered and boundaries
+                3. **Success Metrics**: Measurable outcomes and KPIs
+                4. **Epic Breakdown**: 3-6 major feature groupings
+                5. **Resource Planning**: Team composition and skills
+                6. **Timeline & Phases**: Development phases and milestones
+                7. **Risk Assessment**: Potential challenges and mitigations
+                8. **Technology Strategy**: Technical approach and architecture
+                
+                PROJECT SCOPE GUIDELINES:
+                - Focus on delivering measurable business value
+                - Balance ambition with realistic execution
+                - Consider team capacity and technical constraints
+                - Include user experience and business process improvements
+                - Plan for iterative delivery and feedback cycles
+                
+                EPIC BREAKDOWN PRINCIPLES:
+                - Each epic should deliver standalone value
+                - 2-6 sprints per epic typically
+                - Clear user or business outcomes
+                - Logical technical and functional groupings
+                - Dependencies and integration points identified
+                
+                Return ONLY this JSON structure:
+                {{
+                    "name": "Clear, outcome-focused project name that describes business value",
+                    "description": "Comprehensive project description including business need, user value, strategic importance, and expected outcomes",
+                    "vision": "Inspiring vision statement that captures the project's strategic purpose and impact",
+                    "objectives": [
+                        "Specific, measurable business objective",
+                        "User experience improvement goal",
+                        "Operational efficiency target"
+                    ],
+                    "scope": {{
+                        "included": [
+                            "Key deliverable or feature area included in scope",
+                            "Important capability to be built"
+                        ],
+                        "excluded": [
+                            "Explicitly excluded item to avoid scope creep",
+                            "Future enhancement not in current scope"
+                        ],
+                        "assumptions": [
+                            "Key assumption about resources or constraints",
+                            "Technical or business assumption"
+                        ]
+                    }},
+                    "success_metrics": [
+                        {{
+                            "metric": "User adoption rate",
+                            "target": "80% of target users within 3 months",
+                            "measurement": "Analytics dashboard tracking"
+                        }},
+                        {{
+                            "metric": "Operational efficiency",
+                            "target": "30% reduction in manual processes",
+                            "measurement": "Process time tracking"
+                        }}
+                    ],
+                    "suggested_epics": [
+                        {{
+                            "name": "Epic name focused on user value",
+                            "description": "Brief description of epic scope and goals",
+                            "estimated_story_points": 89,
+                            "priority": "high",
+                            "business_value": "Clear business value statement"
+                        }}
+                    ],
+                    "total_estimated_points": 377,
+                    "timeline": {{
+                        "estimated_duration": "6 months",
+                        "phases": [
+                            {{
+                                "name": "Discovery & Planning",
+                                "duration": "2 weeks",
+                                "deliverables": ["Requirements analysis", "Technical design"]
+                            }},
+                            {{
+                                "name": "Core Development",
+                                "duration": "16 weeks",
+                                "deliverables": ["MVP features", "Core functionality"]
+                            }}
+                        ]
+                    }},
+                    "team_composition": {{
+                        "recommended_size": 7,
+                        "roles": [
+                            {{
+                                "role": "Product Owner",
+                                "count": 1,
+                                "key_responsibilities": ["Requirements", "Stakeholder management"]
+                            }},
+                            {{
+                                "role": "Full-stack Developer",
+                                "count": 3,
+                                "key_responsibilities": ["Feature development", "Integration"]
+                            }}
+                        ]
+                    }},
+                    "technology_strategy": {{
+                        "architecture_approach": "Modern microservices with API-first design",
+                        "key_technologies": ["React", "Node.js", "PostgreSQL", "Docker"],
+                        "technical_decisions": [
+                            "Use existing authentication system",
+                            "Implement real-time updates with WebSockets"
+                        ]
+                    }},
+                    "risks": [
+                        {{
+                            "risk": "Technical complexity in integration",
+                            "impact": "medium",
+                            "probability": "medium",
+                            "mitigation": "Early technical spikes and prototyping"
+                        }}
+                    ],
+                    "dependencies": [
+                        "External API availability",
+                        "User feedback from initial prototype"
+                    ],
+                    "confidence": 0.85
+                }}
+                """,
+                variables=["user_description", "domain_context", "team_size", "timeline_context", "technology_stack", "business_objectives", "priority_level", "include_epic_breakdown", "include_success_metrics"]
+            ),
+            
             "story_validator": PromptTemplate(
                 name="story_validator",
                 version="1.0", 
@@ -1414,8 +1577,8 @@ TASK CATEGORIES:
             # Try to parse as JSON if template expects it
             try:
                 if template_name in ["sprint_planning", "standup_reporter", "retrospective_summarizer", 
-                                   "epic_generator", "story_generator", "task_generator", "single_task_generator", 
-                                   "story_validator", "backlog_coach", "risk_radar"]:
+                                   "epic_generator", "story_generator", "task_generator", "single_task_generator",
+                                   "project_generator", "story_validator", "backlog_coach", "risk_radar"]:
                     data = json.loads(content)
                 else:
                     data = content

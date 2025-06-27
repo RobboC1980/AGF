@@ -461,6 +461,86 @@ class ApiClient {
     })
   }
 
+  async generateProject(request: {
+    description: string
+    domain?: string
+    teamSize?: number
+    timeline?: string
+    technologyStack?: string
+    businessObjectives?: string
+    priority?: string
+  }): Promise<{
+    success: boolean
+    project: {
+      name: string
+      description: string
+      vision: string
+      objectives: string[]
+      scope: {
+        included: string[]
+        excluded: string[]
+        assumptions: string[]
+      }
+      success_metrics: Array<{
+        metric: string
+        target: string
+        measurement: string
+      }>
+      suggested_epics: Array<{
+        name: string
+        description: string
+        estimated_story_points: number
+        priority: string
+        business_value: string
+      }>
+      total_estimated_points: number
+      timeline: {
+        estimated_duration: string
+        phases: Array<{
+          name: string
+          duration: string
+          deliverables: string[]
+        }>
+      }
+      team_composition: {
+        recommended_size: number
+        roles: Array<{
+          role: string
+          count: number
+          key_responsibilities: string[]
+        }>
+      }
+      technology_strategy: {
+        architecture_approach: string
+        key_technologies: string[]
+        technical_decisions: string[]
+      }
+      risks: Array<{
+        risk: string
+        impact: string
+        probability: string
+        mitigation: string
+      }>
+      dependencies: string[]
+      confidence: number
+    }
+    provider: string
+    model: string
+  }> {
+    return this.request("/api/ai/generate-project", {
+      method: "POST",
+      body: JSON.stringify({
+        description: request.description,
+        domain: request.domain || "",
+        team_size: request.teamSize || 5,
+        timeline: request.timeline || "",
+        technology_stack: request.technologyStack || "",
+        business_objectives: request.businessObjectives || "",
+        priority: request.priority || "medium"
+      }),
+    })
+  }
+
   // Epics API
   async getEpics(): Promise<ApiResponse<{ epics: Epic[] }>> {
     return this.request("/api/epics")
@@ -962,6 +1042,27 @@ export const api = {
       teamSkills?: string
       includeSubtasks?: boolean
     }) => apiClient.generateTasks(request),
+    
+    generateSingleTask: (request: {
+      taskDescription: string
+      storyTitle: string
+      storyDescription?: string
+      storyPoints?: number
+      acceptanceCriteria?: string
+      technicalContext?: string
+      priority?: string
+      estimatedHours?: number
+    }) => apiClient.generateSingleTask(request),
+    
+    generateProject: (request: {
+      description: string
+      domain?: string
+      teamSize?: number
+      timeline?: string
+      technologyStack?: string
+      businessObjectives?: string
+      priority?: string
+    }) => apiClient.generateProject(request),
   },
 }
 

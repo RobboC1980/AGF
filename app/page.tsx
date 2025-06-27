@@ -18,6 +18,7 @@ import SimpleCreateModal from "../components/simple-create-modal"
 import { CreateStoryModal } from "../components/create-story-modal"
 import { CreateEpicModal } from "../components/create-epic-modal"
 import { CreateTaskModal } from "../components/create-task-modal"
+import { CreateProjectModal } from "../components/create-project-modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -46,6 +47,8 @@ export default function Page() {
   const [showEpicModal, setShowEpicModal] = useState(false)
   const [editingEpic, setEditingEpic] = useState<any>(null)
   const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showProjectModal, setShowProjectModal] = useState(false)
+  const [editingProject, setEditingProject] = useState<any>(null)
   const [movingItems, setMovingItems] = useState<Set<string>>(new Set())
   
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth()
@@ -217,8 +220,11 @@ export default function Page() {
       setShowEpicModal(true)
       setEditingEpic(null)
     }
-    // If we're on the projects page, we handle it via the ProjectsPage component
-    // The project creation will be handled by the SimpleCreateModal in the header
+    // If we're on the projects page, open the project modal
+    if (currentPage === "projects") {
+      setShowProjectModal(true)
+      setEditingProject(null)
+    }
   }
 
   const handleCreateSubmit = async (data: any, entityType?: string) => {
@@ -389,16 +395,17 @@ export default function Page() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">SynqForge Complete Platform Demo</CardTitle>
                   <div className="flex items-center space-x-2">
-                    <SimpleCreateModal 
-                      type="project" 
-                      onSubmit={(data) => handleCreateSubmit(data, "project")}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <Target size={14} className="mr-1" />
-                          Project
-                        </Button>
-                      }
-                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setShowProjectModal(true)
+                        setEditingProject(null)
+                      }}
+                    >
+                      <Target size={14} className="mr-1" />
+                      Project
+                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -707,6 +714,52 @@ export default function Page() {
             { id: "2", name: "AgileForge Platform" }
           ]}
           editingEpic={editingEpic}
+        />
+
+        {/* AI-Enabled Project Creation Modal - Always Available */}
+        <CreateProjectModal
+          isOpen={showProjectModal}
+          onClose={() => {
+            setShowProjectModal(false)
+            setEditingProject(null)
+          }}
+          onSave={async (project) => {
+            try {
+              console.log("Saving project:", project)
+              
+              // Transform the project data to match the API format
+              const projectPayload = {
+                name: project.name,
+                description: project.description || '',
+                status: project.status || 'planning',
+                priority: project.priority || 'medium',
+                start_date: project.startDate || null,
+                end_date: project.endDate || null,
+              }
+
+              if (editingProject) {
+                // Update existing project
+                await api.projects.update(editingProject.id, projectPayload)
+              } else {
+                // Create new project
+                await api.projects.create(projectPayload)
+              }
+
+              // Invalidate React Query cache to refresh the data
+              await queryClient.invalidateQueries({ queryKey: ['projects'] })
+              
+              setShowProjectModal(false)
+              setEditingProject(null)
+              
+              console.log("Project saved successfully!")
+              toast.success(editingProject ? "Project updated successfully!" : "Project created successfully!")
+            } catch (error) {
+              console.error("Failed to save project:", error)
+              toast.error("Failed to save project. Please try again.")
+              throw error // Re-throw so the modal can show the error
+            }
+          }}
+          editingProject={editingProject}
         />
       </div>
     </QueryProvider>
