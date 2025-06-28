@@ -653,6 +653,11 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => window.location.href = `/sprint-board?projectId=${project.id}`}>
+                                <Target size={16} className="mr-2" />
+                                Sprint Board
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleEdit(project)}>
                                 <Edit size={16} className="mr-2" />
                                 Edit Project

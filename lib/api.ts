@@ -164,11 +164,16 @@ async function apiRequest<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`
   
+  // Get auth token from localStorage
+  const authToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+  
   const defaultHeaders = {
     'Content-Type': 'application/json',
+    ...(authToken && { Authorization: `Bearer ${authToken}` }),
   }
 
   try {
+    console.log(`API Request: ${options.method || 'GET'} ${url}`)
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -178,6 +183,7 @@ async function apiRequest<T>(
     })
 
     const data = await response.json()
+    console.log(`API Response: ${options.method || 'GET'} ${url} - Success`)
 
     if (!response.ok) {
       return {
@@ -306,6 +312,143 @@ export async function generateAcceptanceCriteria(storyDescription: string): Prom
   })
 }
 
+export async function generateProject(request: {
+  description: string
+  domain?: string
+  teamSize?: number
+  timeline?: string
+  technologyStack?: string
+  businessObjectives?: string
+  priority?: string
+}): Promise<ApiResponse<{
+  success: boolean
+  project: {
+    name: string
+    description: string
+    vision: string
+    objectives: string[]
+    scope: {
+      included: string[]
+      excluded: string[]
+      assumptions: string[]
+    }
+    success_metrics: Array<{
+      metric: string
+      target: string
+      measurement: string
+    }>
+    suggested_epics: Array<{
+      name: string
+      description: string
+      estimated_story_points: number
+      priority: string
+      business_value: string
+    }>
+    total_estimated_points: number
+    timeline: {
+      estimated_duration: string
+      phases: Array<{
+        name: string
+        duration: string
+        deliverables: string[]
+      }>
+    }
+    team_composition: {
+      recommended_size: number
+      roles: Array<{
+        role: string
+        count: number
+        key_responsibilities: string[]
+      }>
+    }
+    technology_strategy: {
+      architecture_approach: string
+      key_technologies: string[]
+      technical_decisions: string[]
+    }
+    risks: Array<{
+      risk: string
+      impact: string
+      probability: string
+      mitigation: string
+    }>
+    dependencies: string[]
+    confidence: number
+  }
+  provider: string
+  model: string
+}>> {
+  return apiRequest<{
+    success: boolean
+    project: {
+      name: string
+      description: string
+      vision: string
+      objectives: string[]
+      scope: {
+        included: string[]
+        excluded: string[]
+        assumptions: string[]
+      }
+      success_metrics: Array<{
+        metric: string
+        target: string
+        measurement: string
+      }>
+      suggested_epics: Array<{
+        name: string
+        description: string
+        estimated_story_points: number
+        priority: string
+        business_value: string
+      }>
+      total_estimated_points: number
+      timeline: {
+        estimated_duration: string
+        phases: Array<{
+          name: string
+          duration: string
+          deliverables: string[]
+        }>
+      }
+      team_composition: {
+        recommended_size: number
+        roles: Array<{
+          role: string
+          count: number
+          key_responsibilities: string[]
+        }>
+      }
+      technology_strategy: {
+        architecture_approach: string
+        key_technologies: string[]
+        technical_decisions: string[]
+      }
+      risks: Array<{
+        risk: string
+        impact: string
+        probability: string
+        mitigation: string
+      }>
+      dependencies: string[]
+      confidence: number
+    }
+    provider: string
+    model: string
+  }>('/api/ai/generate-project', {
+    method: 'POST',
+    body: JSON.stringify({
+      description: request.description,
+      domain: request.domain,
+      team_size: request.teamSize,
+      timeline: request.timeline,
+      technology_stack: request.technologyStack,
+      business_objectives: request.businessObjectives,
+      priority: request.priority,
+    }),
+  })
+}
+
 // Sprint API functions
 export async function getSprints(projectId?: string, status?: string): Promise<ApiResponse<Sprint[]>> {
   const params = new URLSearchParams()
@@ -360,21 +503,15 @@ export async function updateSprintStatus(
 
 export async function addStoriesToSprint(sprintId: string, storyIds: string[]): Promise<ApiResponse<any>> {
   return apiRequest<any>(`/api/sprints/${sprintId}/stories`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      story_ids: storyIds,
-      action: 'add',
-    }),
+    method: 'POST',
+    body: JSON.stringify({ story_ids: storyIds }),
   })
 }
 
 export async function removeStoriesFromSprint(sprintId: string, storyIds: string[]): Promise<ApiResponse<any>> {
   return apiRequest<any>(`/api/sprints/${sprintId}/stories`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      story_ids: storyIds,
-      action: 'remove',
-    }),
+    method: 'DELETE',
+    body: JSON.stringify({ story_ids: storyIds }),
   })
 }
 
@@ -432,4 +569,5 @@ export default {
   // AI
   generateStory,
   generateAcceptanceCriteria,
+  generateProject,
 } 

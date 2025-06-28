@@ -12,6 +12,7 @@ import UserStoriesPage from "../components/user-stories-page"
 import TasksPage from "../components/tasks-page"
 import SearchPage from "../components/search-page"
 import KanbanBoard from "../components/kanban-board"
+import SprintBoardPage from "../components/sprint-board-page"
 import AnalyticsDashboard from "../components/analytics-dashboard"
 import CollaborationPanel from "../components/collaboration-panel"
 import SimpleCreateModal from "../components/simple-create-modal"
@@ -35,7 +36,7 @@ import { api } from "@/services/api"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "analytics" | "collaboration"
+type PageType = "epics" | "projects" | "stories" | "tasks" | "search" | "kanban" | "sprint-board" | "analytics" | "collaboration"
 
 export default function Page() {
   // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL, BEFORE ANY EARLY RETURNS
@@ -378,6 +379,7 @@ export default function Page() {
     { value: "tasks", label: "Tasks", icon: CheckSquare, description: "Individual work items and deliverables" },
     { value: "search", label: "Search", icon: Search, description: "Find anything quickly" },
     { value: "kanban", label: "Kanban", icon: Columns, description: "Visual workflow management" },
+    { value: "sprint-board", label: "Sprint Board", icon: Target, description: "Sprint-focused kanban workflow" },
     { value: "analytics", label: "Analytics", icon: BarChart3, description: "Performance insights" },
     { value: "collaboration", label: "Collaboration", icon: MessageSquare, description: "Team communication" },
   ]
@@ -624,6 +626,10 @@ export default function Page() {
                 entityType="stories"
               />
             </div>
+          )}
+
+          {currentPage === "sprint-board" && (
+            <SprintBoardPage projectId="demo-project-1" />
           )}
 
           {currentPage === "analytics" && (

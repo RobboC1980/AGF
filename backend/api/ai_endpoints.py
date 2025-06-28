@@ -16,28 +16,20 @@ sys.path.insert(0, project_dir)
 
 # Handle imports with fallback
 try:
-    from backend.auth.auth_endpoints import get_current_active_user as get_current_user_supabase
+    from backend.database.supabase_client import get_supabase
     from backend.services.async_ai_service import get_async_ai_service
     from backend.services.cache_service import get_project_cache
     from backend.models.api_models import JobStatusResponse
-    from backend.auth.enhanced_auth import get_current_active_user
 except ImportError:
     try:
-        from auth.auth_endpoints import get_current_active_user as get_current_user_supabase
+        from database.supabase_client import get_supabase
         from services.async_ai_service import get_async_ai_service
         from services.cache_service import get_project_cache
         from models.api_models import JobStatusResponse
-        from auth.enhanced_auth import get_current_active_user
-    except ImportError as e:
-        print(f"Warning: Some imports failed: {e}")
+    except ImportError:
+        def get_supabase():
+            return None
         
-        # Minimal fallback implementations
-        def get_current_user_supabase():
-            return {"id": "test_user"}
-        
-        def get_current_active_user():
-            return {"id": "test_user"}
-            
         def get_async_ai_service():
             return None
             
@@ -52,6 +44,46 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["AI Features"])
+security = HTTPBearer()
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    avatar_url: Optional[str] = None
+
+async def get_current_user_supabase(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    supabase = Depends(get_supabase)
+):
+    """Get the current authenticated user from Supabase"""
+    try:
+        # Verify the JWT token with Supabase
+        user = supabase.auth.get_user(credentials.credentials)
+        
+        if not user or not user.user:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        # Get user details from the database
+        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
+        
+        if not user_data.data:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+        
+        return UserResponse(**user_data.data)
+        
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials"
+        )
 
 class StoryGenerateRequest(BaseModel):
     description: str
@@ -126,10 +158,8 @@ async def ai_status():
     try:
         try:
             from ..services.ai_service import get_basic_ai_service, get_ai_service
-            from ..database.supabase_client import get_supabase
         except ImportError:
             from services.ai_service import get_basic_ai_service, get_ai_service
-            from database.supabase_client import get_supabase
         
         status = {
             "basic_service": False,
@@ -173,7 +203,7 @@ async def ai_status():
 @router.post("/generate-epic")
 async def generate_epic_endpoint(
     request: EpicGenerateRequest,
-    current_user = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Generate an epic using AI"""
     try:
@@ -221,7 +251,7 @@ async def generate_epic_endpoint(
 @router.post("/generate-story")
 async def generate_story_endpoint(
     request: StoryGenerateRequest,
-    current_user = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Generate a user story using AI"""
     try:
@@ -269,7 +299,7 @@ async def generate_story_endpoint(
 @router.post("/generate-tasks")
 async def generate_tasks_endpoint(
     request: TaskGenerateRequest,
-    current_user = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Generate tasks for a user story using AI"""
     try:
@@ -318,7 +348,7 @@ async def generate_tasks_endpoint(
 @router.post("/generate-single-task")
 async def generate_single_task_endpoint(
     request: SingleTaskGenerateRequest,
-    current_user = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Generate a single task using AI"""
     try:
@@ -372,7 +402,7 @@ async def generate_single_task_endpoint(
 @router.post("/generate-project")
 async def generate_project_endpoint(
     request: ProjectGenerateRequest,
-    current_user = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Generate a project using AI"""
     try:
@@ -425,7 +455,7 @@ async def generate_project_endpoint(
 @router.post("/generate-story-async")
 async def generate_story_async(
     request: StoryGenerateRequest,
-    current_user: dict = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Generate user story asynchronously - returns job ID immediately"""
     try:
@@ -440,7 +470,7 @@ async def generate_story_async(
         
         # Queue the job - returns immediately with job ID
         job_id = await async_ai_service.queue_story_generation(
-            user_id=current_user["id"],
+            user_id=current_user.id,
             request_data=request_data,
             priority="high" if request.priority == "high" else "normal"
         )
@@ -463,7 +493,7 @@ async def generate_story_async(
 @router.get("/job-status/{job_id}")
 async def get_job_status(
     job_id: str,
-    current_user: dict = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Get status of async job"""
     try:
@@ -496,12 +526,12 @@ async def get_job_status(
 @router.delete("/job/{job_id}")
 async def cancel_job(
     job_id: str,
-    current_user: dict = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_supabase)
 ):
     """Cancel a queued or running job"""
     try:
         async_ai_service = get_async_ai_service()
-        success = await async_ai_service.cancel_job(job_id, current_user["id"])
+        success = await async_ai_service.cancel_job(job_id, current_user.id)
         
         if success:
             return {"success": True, "message": "Job cancelled successfully"}

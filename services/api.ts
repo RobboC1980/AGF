@@ -598,14 +598,92 @@ class ApiClient {
     return this.request("/health")
   }
 
-  // Analytics
-  analytics = {
-    getOverview: async (): Promise<AnalyticsOverview> => {
-      return this.request("/api/analytics/overview")
+  // Sprint API methods
+  sprints = {
+    getAll: async (projectId?: string, status?: string): Promise<Sprint[]> => {
+      const params = new URLSearchParams()
+      if (projectId) params.append('project_id', projectId)
+      if (status) params.append('status', status)
+      
+      const response = await this.request<{ sprints: Sprint[] }>(`/api/sprints${params.toString() ? `?${params.toString()}` : ''}`)
+      return response.sprints
     },
-    getProjectAnalytics: async (projectId: string): Promise<AnalyticsOverview> => {
-      return this.request(`/api/analytics/projects/${projectId}`)
-    }
+
+    getById: async (id: string): Promise<Sprint> => {
+      const response = await this.request<Sprint>(`/api/sprints/${id}`)
+      return response
+    },
+
+    create: async (sprintData: Partial<Sprint> & { project_id: string }): Promise<Sprint> => {
+      const response = await this.request<Sprint>('/api/sprints', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: sprintData.name,
+          goal: sprintData.goal,
+          description: sprintData.description,
+          project_id: sprintData.project_id,
+          start_date: sprintData.start_date,
+          end_date: sprintData.end_date,
+          team_capacity: sprintData.team_capacity,
+          planned_story_points: sprintData.planned_story_points,
+        }),
+      })
+      return response
+    },
+
+    update: async (id: string, sprintData: Partial<Sprint>): Promise<Sprint> => {
+      const response = await this.request<Sprint>(`/api/sprints/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(sprintData),
+      })
+      return response
+    },
+
+    updateStatus: async (
+      id: string, 
+      status: string, 
+      actualStartDate?: string, 
+      actualEndDate?: string
+    ): Promise<Sprint> => {
+      const response = await this.request<Sprint>(`/api/sprints/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status,
+          actual_start_date: actualStartDate,
+          actual_end_date: actualEndDate,
+        }),
+      })
+      return response
+    },
+
+    addStories: async (sprintId: string, storyIds: string[]): Promise<any> => {
+      return this.request(`/api/sprints/${sprintId}/stories`, {
+        method: 'POST',
+        body: JSON.stringify({ story_ids: storyIds }),
+      })
+    },
+
+    removeStories: async (sprintId: string, storyIds: string[]): Promise<any> => {
+      return this.request(`/api/sprints/${sprintId}/stories`, {
+        method: 'DELETE',
+        body: JSON.stringify({ story_ids: storyIds }),
+      })
+    },
+
+    getStories: async (sprintId: string): Promise<any[]> => {
+      const response = await this.request<{ stories: any[] }>(`/api/sprints/${sprintId}/stories`)
+      return response.stories
+    },
+
+    getBurndown: async (sprintId: string): Promise<any> => {
+      return this.request(`/api/sprints/${sprintId}/burndown`)
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await this.request(`/api/sprints/${id}`, {
+        method: 'DELETE',
+      })
+    },
   }
 }
 
