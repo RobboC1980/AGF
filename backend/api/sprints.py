@@ -12,11 +12,12 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel, Field
 
 try:
-    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    # Use Supabase auth instead of enhanced auth for consistency
+    from ..api.auth import get_current_user_supabase
     from ..database.supabase_client import get_supabase
     from ..models.api_models import SprintResponse, SprintBase, SprintUpdate
 except ImportError:
-    from auth.enhanced_auth import get_current_active_user, UserInDB
+    from api.auth import get_current_user_supabase
     from database.supabase_client import get_supabase
     from models.api_models import SprintResponse, SprintBase, SprintUpdate
 
@@ -41,7 +42,7 @@ async def get_sprint_stories(sprint_id: str, supabase):
     """Get all stories assigned to a sprint"""
     try:
         result = supabase.table('stories').select('''
-            id, name, description, status, priority, story_points,
+            id, title, description, status, priority, story_points,
             assignee:users!assignee_id(id, name, email, avatar_url),
             epic:epics(id, name, color)
         ''').eq('sprint_id', sprint_id).execute()
@@ -99,14 +100,14 @@ async def send_sprint_notification(sprint_id: str, action: str, current_user, su
         
         # Create notifications
         for user_id in team_members:
-            if user_id == current_user.id:  # Don't notify the user who made the change
+            if user_id == current_user['id']:  # Don't notify the user who made the change
                 continue
                 
             notification_data = {
                 'user_id': user_id,
                 'type': f'sprint_{action}',
                 'title': f'Sprint {action.title()}: {sprint["name"]}',
-                'message': f'{current_user.name} {action}ed sprint "{sprint["name"]}"',
+                'message': f'{current_user["name"]} {action}ed sprint "{sprint["name"]}"',
                 'entity_type': 'sprint',
                 'entity_id': sprint_id,
                 'action_url': f'/sprints/{sprint_id}',
@@ -114,7 +115,11 @@ async def send_sprint_notification(sprint_id: str, action: str, current_user, su
                 'created_at': datetime.utcnow().isoformat()
             }
             
-            supabase.table('notifications').insert(notification_data).execute()
+            # Create notifications table if it doesn't exist
+            try:
+                supabase.table('notifications').insert(notification_data).execute()
+            except Exception as e:
+                logger.warning(f"Failed to create notification: {e}")
             
     except Exception as e:
         logger.error(f"Failed to send sprint notification: {e}")
@@ -125,7 +130,7 @@ async def send_sprint_notification(sprint_id: str, action: str, current_user, su
 async def get_sprints(
     project_id: Optional[str] = None,
     status: Optional[str] = None,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Get sprints with optional filtering"""
@@ -164,7 +169,7 @@ async def get_sprints(
 @router.get("/{sprint_id}", response_model=SprintResponse)
 async def get_sprint(
     sprint_id: str,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Get a specific sprint with detailed information"""
@@ -197,7 +202,7 @@ async def get_sprint(
 @router.post("/", response_model=SprintResponse)
 async def create_sprint(
     request: SprintCreateRequest,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Create a new sprint"""
@@ -236,7 +241,7 @@ async def create_sprint(
             'scope_changes': 0,
             'created_at': now.isoformat(),
             'updated_at': now.isoformat(),
-            'created_by': current_user.id
+            'created_by': current_user['id']
         }
         
         result = supabase.table('sprints').insert(sprint_data).execute()
@@ -261,7 +266,7 @@ async def create_sprint(
 async def update_sprint(
     sprint_id: str,
     request: SprintUpdate,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Update a sprint"""
@@ -309,7 +314,7 @@ async def update_sprint_status(
     sprint_id: str,
     request: SprintStatusUpdate,
     background_tasks: BackgroundTasks,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Update sprint status (start, complete, cancel)"""
@@ -365,7 +370,7 @@ async def update_sprint_status(
 async def manage_sprint_stories(
     sprint_id: str,
     request: SprintStoryAssignment,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Add or remove stories from a sprint"""
@@ -422,7 +427,7 @@ async def manage_sprint_stories(
 @router.get("/{sprint_id}/stories")
 async def get_sprint_stories_detailed(
     sprint_id: str,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Get detailed stories for a sprint"""
@@ -447,7 +452,7 @@ async def get_sprint_stories_detailed(
 @router.get("/{sprint_id}/burndown")
 async def get_sprint_burndown(
     sprint_id: str,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Get sprint burndown chart data"""
@@ -482,7 +487,7 @@ async def get_sprint_burndown(
 @router.delete("/{sprint_id}")
 async def delete_sprint(
     sprint_id: str,
-    current_user: UserInDB = Depends(get_current_active_user),
+    current_user: dict = Depends(get_current_user_supabase),
     supabase = Depends(get_supabase)
 ):
     """Delete a sprint (only if status is planning)"""
