@@ -29,6 +29,7 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   Edit3,
   Users,
   Settings,
@@ -294,6 +295,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       if (response.success && response.project) {
         setGeneratedProject(response)
         
+        // Show warning if this is a fallback response
+        if (response.provider === "fallback") {
+          setAiError("Note: AI services are temporarily unavailable. Generated a basic project template based on your description.")
+        }
+        
         // Auto-populate the manual form with AI-generated data
         setProject(prev => ({
           ...prev,
@@ -324,7 +330,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           dependencies: response.project.dependencies,
         }))
       } else {
-        throw new Error("AI generation failed")
+        throw new Error("Project generation failed. Please try again or use manual entry.")
       }
     } catch (error) {
       console.error("Project generation failed:", error)
@@ -627,8 +633,16 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     </div>
 
                     {aiError && (
-                      <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
-                        <AlertCircle size={16} />
+                      <div className={`flex items-center space-x-2 p-3 rounded-lg ${
+                        aiError.includes("Note:") 
+                          ? "text-amber-700 bg-amber-50 border border-amber-200" 
+                          : "text-red-600 bg-red-50"
+                      }`}>
+                        {aiError.includes("Note:") ? (
+                          <AlertTriangle size={16} className="text-amber-600" />
+                        ) : (
+                          <AlertCircle size={16} />
+                        )}
                         <span className="text-sm">{aiError}</span>
                       </div>
                     )}

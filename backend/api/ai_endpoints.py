@@ -152,6 +152,38 @@ async def test_endpoint():
         logger.error(f"AI service test failed: {e}")
         return {"status": "error", "message": str(e)}
 
+@router.post("/test-fallback")
+async def test_fallback_endpoint():
+    """Test endpoint to verify fallback functionality works"""
+    try:
+        try:
+            from ..services.ai_service import get_basic_ai_service
+        except ImportError:
+            from services.ai_service import get_basic_ai_service
+        
+        ai_service = get_basic_ai_service()
+        
+        # Test the fallback response generation
+        variables = {
+            "user_description": "Test project for AI fallback",
+            "priority": "medium",
+            "team_size": 5,
+            "technology_stack": "React, Node.js, PostgreSQL"
+        }
+        
+        # Force use fallback by calling the private method
+        fallback_response = await ai_service._generate_fallback_response("project_generator", variables)
+        
+        return {
+            "status": "success",
+            "message": "Fallback response generated successfully",
+            "has_fallback": fallback_response is not None,
+            "fallback_length": len(fallback_response) if fallback_response else 0
+        }
+    except Exception as e:
+        logger.error(f"Fallback test failed: {e}")
+        return {"status": "error", "message": str(e)}
+
 @router.get("/status")
 async def ai_status():
     """Detailed AI service status"""
