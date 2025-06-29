@@ -154,7 +154,7 @@ const SprintKanbanBoard: React.FC<SprintKanbanBoardProps> = ({
             </div>
             
             <div className="flex items-center space-x-3">
-              <Select value={selectedSprintId || ""} onValueChange={onSprintChange}>
+              <Select value={selectedSprintId || undefined} onValueChange={onSprintChange}>
                 <SelectTrigger className="w-64">
                   <SelectValue placeholder="Select a sprint">
                     {selectedSprint ? (
@@ -187,7 +187,7 @@ const SprintKanbanBoard: React.FC<SprintKanbanBoardProps> = ({
                     )
                   })}
                   {activeSprints.length === 0 && (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="no-sprints" disabled>
                       No active sprints
                     </SelectItem>
                   )}

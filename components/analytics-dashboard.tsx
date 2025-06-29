@@ -370,7 +370,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
           <div className="flex items-center space-x-3">
             {projects && projects.length > 0 && (
-              <Select value={effectiveProjectId || ""} onValueChange={handleProjectChange}>
+              <Select value={effectiveProjectId || undefined} onValueChange={handleProjectChange}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Select Project" />
                 </SelectTrigger>

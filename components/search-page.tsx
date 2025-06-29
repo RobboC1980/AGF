@@ -397,7 +397,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
                     <div>
                       <label className="text-sm font-medium text-slate-700 mb-2 block">Status</label>
                       <Select
-                        value={filters.statuses[0] || ""}
+                        value={filters.statuses[0] || undefined}
                         onValueChange={(value) => {
                           if (value) {
                             setFilters((prev) => ({ ...prev, statuses: [value] }))
@@ -421,7 +421,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onSearch, isLoading = false, er
                     <div>
                       <label className="text-sm font-medium text-slate-700 mb-2 block">Priority</label>
                       <Select
-                        value={filters.priorities[0] || ""}
+                        value={filters.priorities[0] || undefined}
                         onValueChange={(value) => {
                           if (value) {
                             setFilters((prev) => ({ ...prev, priorities: [value] }))
