@@ -100,29 +100,28 @@ export function AIFeatureLibrary({ projectId, sprintId }: AIFeatureLibraryProps)
     ))
 
     try {
-      let result
-      switch (featureId) {
-        case 'resource-prediction':
-          result = await runResourcePrediction()
-          break
-        case 'story-estimation':
-          result = await runStoryEstimation()
-          break
-        case 'delay-detection':
-          result = await runDelayDetection()
-          break
-        case 'sprint-optimizer':
-          result = await runSprintOptimizer()
-          break
-        case 'team-analysis':
-          result = await runTeamAnalysis()
-          break
-        default:
-          throw new Error('Unknown feature')
+      const response = await fetch('/api/ai-analysis/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          feature_id: featureId,
+          project_id: projectId,
+          sprint_id: sprintId,
+          context: {}
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
+      const result = await response.json()
+
       setFeatures(prev => prev.map(f => 
-        f.id === featureId ? { ...f, status: 'active', result } : f
+        f.id === featureId ? { ...f, status: 'active', result: result.result } : f
       ))
 
       toast({
@@ -130,6 +129,7 @@ export function AIFeatureLibrary({ projectId, sprintId }: AIFeatureLibraryProps)
         description: `${features.find(f => f.id === featureId)?.name} analysis completed successfully.`
       })
     } catch (error) {
+      console.error('AI analysis failed:', error)
       setFeatures(prev => prev.map(f => 
         f.id === featureId ? { ...f, status: 'inactive' } : f
       ))

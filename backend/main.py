@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import routers - handle both relative and absolute imports
 try:
     from backend.api.ai_endpoints import router as ai_router
+    from backend.api.ai_analysis import router as ai_analysis_router
     from backend.api.stories import router as stories_router
     from backend.api.auth import router as auth_router
     from backend.api.projects import router as projects_router
@@ -42,6 +43,7 @@ except ImportError as e:
     # Fallback for running as script
     try:
         from api.ai_endpoints import router as ai_router
+        from api.ai_analysis import router as ai_analysis_router
         from api.stories import router as stories_router
         from api.auth import router as auth_router
         from api.projects import router as projects_router
@@ -317,6 +319,7 @@ app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
 app.include_router(search_router, prefix="/api/search", tags=["Search"])
 app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
+app.include_router(ai_analysis_router, prefix="/api/ai-analysis", tags=["AI Analysis"])
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 
 # Phase 2: Include monitoring router
