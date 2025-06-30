@@ -33,6 +33,11 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { 
+  InteractiveStoryTitle, 
+  InteractiveEpicLabel, 
+  InteractiveTag 
+} from "@/components/shared/InteractiveElements"
 
 interface KanbanItem {
   id: string
@@ -50,6 +55,11 @@ interface KanbanItem {
   storyPoints?: number
   dueDate?: string
   createdAt: string
+  epic?: {
+    id: string
+    name: string
+    color: string
+  }
 }
 
 interface KanbanColumn {
@@ -68,6 +78,9 @@ interface KanbanBoardProps {
   onAddItem?: (columnId: string) => void
   entityType?: "projects" | "epics" | "stories" | "tasks"
   movingItems?: Set<string>
+  onStoryView?: (story: any) => void
+  onEpicFilter?: (epicId: string) => void
+  onTagFilter?: (tag: string) => void
 }
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -78,9 +91,25 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onAddItem,
   entityType = "stories",
   movingItems = new Set(),
+  onStoryView,
+  onEpicFilter,
+  onTagFilter,
 }) => {
   const [columns, setColumns] = useState(initialColumns)
   const [isDragDisabled, setIsDragDisabled] = useState(false)
+
+  // Default handlers for interactive elements
+  const handleStoryView = onStoryView || ((story: any) => {
+    console.log("Viewing story:", story)
+  })
+
+  const handleEpicFilter = onEpicFilter || ((epicId: string) => {
+    console.log("Filtering by epic:", epicId)
+  })
+
+  const handleTagFilter = onTagFilter || ((tag: string) => {
+    console.log("Filtering by tag:", tag)
+  })
 
   // Update local state when props change (for real-time updates)
   useEffect(() => {
@@ -368,9 +397,26 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                                       <CardContent className="space-y-3">
                                         <div>
-                                          <h4 className="font-medium text-slate-900 text-sm line-clamp-2 leading-snug">
-                                            {item.title}
-                                          </h4>
+                                          {item.type === "story" ? (
+                                            <InteractiveStoryTitle
+                                              story={{
+                                                id: item.id,
+                                                name: item.title,
+                                                description: item.description,
+                                                status: 'backlog', // Default or derive from item
+                                                priority: item.priority,
+                                                story_points: item.storyPoints,
+                                                created_at: item.createdAt,
+                                                tags: item.tags
+                                              }}
+                                              onStoryView={handleStoryView}
+                                              className="text-sm line-clamp-2 leading-snug"
+                                            />
+                                          ) : (
+                                            <h4 className="font-medium text-slate-900 text-sm line-clamp-2 leading-snug">
+                                              {item.title}
+                                            </h4>
+                                          )}
                                           {item.description && (
                                             <p className="text-slate-600 text-xs line-clamp-2 mt-1 leading-relaxed">
                                               {item.description}
@@ -388,16 +434,23 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                           </div>
                                         )}
 
+                                        {item.epic && (
+                                          <InteractiveEpicLabel
+                                            epic={item.epic}
+                                            onEpicFilter={handleEpicFilter}
+                                            className="text-xs"
+                                          />
+                                        )}
+
                                         {item.tags && item.tags.length > 0 && (
                                           <div className="flex flex-wrap gap-1">
                                             {item.tags.slice(0, 2).map((tag) => (
-                                              <Badge
+                                              <InteractiveTag
                                                 key={tag}
-                                                variant="secondary"
-                                                className="text-xs bg-slate-100 text-slate-700"
-                                              >
-                                                {tag}
-                                              </Badge>
+                                                tag={tag}
+                                                onTagFilter={handleTagFilter}
+                                                className="text-xs"
+                                              />
                                             ))}
                                             {item.tags.length > 2 && (
                                               <Badge

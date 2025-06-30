@@ -75,6 +75,11 @@ import { useStories, useEpics, useUsers, useTasks, useCreateTask } from "@/hooks
 import { type Story } from "@/services/api"
 import { CreateTaskModal } from "@/components/create-task-modal"
 import { api } from "@/services/api"
+import { 
+  InteractiveStoryTitle, 
+  InteractiveEpicLabel, 
+  InteractiveTag 
+} from "@/components/shared/InteractiveElements"
 
 interface UserStoriesPageProps {
   onCreateNew?: () => void
@@ -702,6 +707,23 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [activeTab, setActiveTab] = useState("all")
 
+  // Interactive handlers
+  const handleStoryView = (story: any) => {
+    // Custom story view handler - you can implement navigation or custom modal here
+    console.log("Viewing story:", story)
+    // For now, we'll let the default modal handle it
+  }
+
+  const handleEpicFilter = (epicId: string) => {
+    console.log("Filtering by epic:", epicId)
+    setEpicFilter(epicId)
+  }
+
+  const handleTagFilter = (tag: string) => {
+    console.log("Filtering by tag:", tag)
+    setSearchQuery(tag) // Add tag to search query for filtering
+  }
+
   // Status and priority configurations
   const statusConfig = {
     backlog: {
@@ -1147,9 +1169,11 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                           className="mt-1"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors break-words line-clamp-2">
-                            {story.name}
-                          </h3>
+                          <InteractiveStoryTitle
+                            story={story}
+                            onStoryView={handleStoryView}
+                            className="break-words line-clamp-2"
+                          />
                           {story.description && (
                             <p className="text-sm text-slate-600 mt-1 break-words line-clamp-3">{story.description}</p>
                           )}
@@ -1211,13 +1235,11 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
 
                     {/* Epic */}
                     {story.epic_id && story.epic && (
-                      <div className="flex items-center text-sm text-slate-600 min-w-0">
-                        <div 
-                          className="w-3 h-3 rounded-full mr-2 flex-shrink-0" 
-                          style={{ backgroundColor: story.epic.color || '#6B7280' }}
-                        ></div>
-                        <span className="truncate break-words overflow-hidden text-ellipsis flex-1">{story.epic.name}</span>
-                      </div>
+                      <InteractiveEpicLabel
+                        epic={story.epic}
+                        onEpicFilter={handleEpicFilter}
+                        className="min-w-0"
+                      />
                     )}
 
                     {/* Assignee */}
@@ -1240,9 +1262,11 @@ const UserStoriesPage: React.FC<UserStoriesPageProps> = ({
                     {story.tags && story.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {story.tags.slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs truncate max-w-[80px] break-words">
-                            {tag}
-                          </Badge>
+                          <InteractiveTag
+                            key={tag}
+                            tag={tag}
+                            onTagFilter={handleTagFilter}
+                          />
                         ))}
                         {story.tags.length > 3 && (
                           <Badge variant="secondary" className="text-xs">

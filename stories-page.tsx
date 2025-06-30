@@ -60,6 +60,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
   import { useStoryStats } from "./hooks/use-story-stats"
 import type { Story } from "./services/api"
 import CreateStoryModal from "@/components/create-story-modal"
+import { 
+  InteractiveStoryTitle, 
+  InteractiveEpicLabel, 
+  InteractiveTag 
+} from "@/components/shared/InteractiveElements"
 
 const StoriesPage: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -76,6 +81,23 @@ const StoriesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<"updated" | "created" | "priority" | "points">("updated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [activeTab, setActiveTab] = useState("all")
+
+  // Interactive handlers
+  const handleStoryView = (story: any) => {
+    // Custom story view handler - you can implement navigation or custom modal here
+    console.log("Viewing story:", story)
+    // For now, we'll let the default modal handle it
+  }
+
+  const handleEpicFilter = (epicId: string) => {
+    console.log("Filtering by epic:", epicId)
+    setEpicFilter(epicId)
+  }
+
+  const handleTagFilter = (tag: string) => {
+    console.log("Filtering by tag:", tag)
+    setSearchQuery(tag) // Add tag to search query for filtering
+  }
 
   // API calls using our custom hooks
   const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
@@ -702,9 +724,11 @@ const StoriesPage: React.FC = () => {
                       <CardContent className="space-y-4">
                         {/* Story Title & Description */}
                         <div>
-                          <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
-                            {story.name}
-                          </h3>
+                          <InteractiveStoryTitle
+                            story={story}
+                            onStoryView={handleStoryView}
+                            className="mb-2 line-clamp-2 leading-snug"
+                          />
                           {story.description && (
                             <p className="text-slate-600 text-sm line-clamp-3 leading-relaxed">{story.description}</p>
                           )}
@@ -714,10 +738,11 @@ const StoriesPage: React.FC = () => {
                         {story.tags && story.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {story.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
-                                <Tag size={10} className="mr-1" />
-                                {tag}
-                              </Badge>
+                              <InteractiveTag
+                                key={tag}
+                                tag={tag}
+                                onTagFilter={handleTagFilter}
+                              />
                             ))}
                             {story.tags.length > 3 && (
                               <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
@@ -731,13 +756,16 @@ const StoriesPage: React.FC = () => {
                         {story.epic ? (
                           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4 shadow-sm">
                             <div className="flex items-center space-x-2">
-                              <div className={`w-3 h-3 rounded-full ${story.epic.color} shadow-sm`}></div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-purple-800 truncate">{story.epic.name}</p>
-                                <p className="text-xs text-purple-600 truncate">{story.epic.project.name}</p>
-                              </div>
+                              <InteractiveEpicLabel
+                                epic={story.epic}
+                                onEpicFilter={handleEpicFilter}
+                                className="flex-1 min-w-0 text-sm font-medium text-purple-800"
+                              />
                               <Rocket size={14} className="text-purple-600 flex-shrink-0" />
                             </div>
+                            {story.epic.project && (
+                              <p className="text-xs text-purple-600 truncate mt-1 ml-5">{story.epic.project.name}</p>
+                            )}
                           </div>
                         ) : (
                           <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-lg p-4 shadow-sm">
