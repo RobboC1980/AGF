@@ -295,6 +295,30 @@ app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
 app.include_router(search_router, prefix="/api/search", tags=["Search"])
 
+# Import and include AI analysis router
+try:
+    from backend.api.ai_analysis import router as ai_analysis_router
+    app.include_router(ai_analysis_router, prefix="/api/ai-analysis", tags=["AI Analysis"])
+    logger.info("AI Analysis router included successfully")
+except ImportError as e:
+    logger.warning(f"AI Analysis router not available: {e}")
+    
+    # Create a fallback endpoint for AI analysis
+    @app.post("/api/ai-analysis/analyze")
+    async def ai_analysis_fallback(request: dict, current_user: dict = Depends(get_current_user)):
+        """Fallback AI analysis endpoint"""
+        return {
+            "feature_id": request.get("feature_id", "unknown"),
+            "status": "success", 
+            "result": {
+                "message": "AI analysis is currently unavailable. Please check your configuration.",
+                "fallback": True
+            },
+            "confidence": 0.0,
+            "tokens_used": 0,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
 # Security middleware
 app.add_middleware(
     TrustedHostMiddleware,

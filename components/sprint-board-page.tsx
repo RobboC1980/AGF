@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Target, Plus, Calendar, Users, TrendingUp, Loader2, Brain } from 'lucide-react'
+import { Target, Plus, Calendar, Users, TrendingUp, Loader2, Brain, AlertCircle, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSprints } from '@/hooks/use-sprints'
 import { useStories } from '@/hooks/use-stories'
@@ -102,8 +102,6 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
     }
   }, [sprints, selectedSprintId])
 
-  // Stories are already filtered by sprint from the API
-
   // Create kanban columns
   const kanbanColumns = useMemo(() => {
     const columns = [
@@ -160,6 +158,7 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
       })
       setSelectedSprintId(newSprint.id)
       setShowCreateSprint(false)
+      toast.success(`Sprint "${newSprint.name}" created successfully!`)
     } catch (error) {
       console.error('Failed to create sprint:', error)
       throw error
@@ -218,7 +217,65 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
     toast.info('Story creation not implemented yet')
   }
 
+  // Get sprint stats
+  const selectedSprint = sprints.find(s => s.id === selectedSprintId)
+  const sprintStats = useMemo(() => {
+    if (!selectedSprint) return null
+    
+    const totalStories = stories.length
+    const completedStories = stories.filter(s => s.status === 'done').length
+    const inProgressStories = stories.filter(s => s.status === 'in_progress').length
+    const totalPoints = stories.reduce((sum, story) => sum + (story.story_points || 0), 0)
+    const completedPoints = stories.filter(s => s.status === 'done').reduce((sum, story) => sum + (story.story_points || 0), 0)
+    
+    return {
+      totalStories,
+      completedStories,
+      inProgressStories,
+      totalPoints,
+      completedPoints,
+      progressPercentage: totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0
+    }
+  }, [selectedSprint, stories])
+
   const isLoading = sprintsLoading || storiesLoading
+
+  // Show empty state if no sprints exist
+  if (!sprintsLoading && sprints.length === 0) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-6">
+            <Target size={32} className="text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Ready to Start Your First Sprint?</h2>
+          <p className="text-slate-600 mb-6 max-w-md mx-auto">
+            Sprints help you organize work into manageable time-boxed iterations. Create your first sprint to get started with agile project management.
+          </p>
+          <div className="space-y-4">
+            <Button 
+              onClick={() => setShowCreateSprint(true)}
+              size="lg"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create Your First Sprint
+            </Button>
+            <div className="text-sm text-slate-500">
+              <p>💡 <strong>Tip:</strong> A typical sprint lasts 1-4 weeks and focuses on delivering specific features.</p>
+            </div>
+          </div>
+        </div>
+
+        <CreateSprintModal
+          open={showCreateSprint}
+          onOpenChange={setShowCreateSprint}
+          projectId={projectId}
+          onSprintCreated={handleCreateSprint}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -244,6 +301,57 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
         </div>
       </div>
 
+      {/* Sprint Stats Card */}
+      {selectedSprint && sprintStats && (
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Sprint {selectedSprint.sprint_number}: {selectedSprint.name}
+                </h3>
+                <p className="text-sm text-slate-600">{selectedSprint.goal}</p>
+              </div>
+              <Badge variant={selectedSprint.status === 'active' ? 'default' : 'secondary'}>
+                {selectedSprint.status}
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{sprintStats.totalStories}</div>
+                <div className="text-sm text-slate-600">Total Stories</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{sprintStats.completedStories}</div>
+                <div className="text-sm text-slate-600">Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{sprintStats.inProgressStories}</div>
+                <div className="text-sm text-slate-600">In Progress</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{sprintStats.progressPercentage}%</div>
+                <div className="text-sm text-slate-600">Progress</div>
+              </div>
+            </div>
+            
+            {selectedSprint.start_date && selectedSprint.end_date && (
+              <div className="mt-4 flex items-center text-sm text-slate-600">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span>
+                  {new Date(selectedSprint.start_date).toLocaleDateString()} - {new Date(selectedSprint.end_date).toLocaleDateString()}
+                </span>
+                <Clock className="h-4 w-4 ml-4 mr-2" />
+                <span>
+                  {Math.ceil((new Date(selectedSprint.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days remaining
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="board" className="flex items-center space-x-2">
@@ -265,12 +373,12 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
         </TabsList>
 
         <TabsContent value="board" className="space-y-4">
-          {/* Existing sprint selector and kanban board code */}
+          {/* Sprint selector */}
           <div className="flex items-center space-x-4">
             <select
               value={selectedSprintId}
               onChange={(e) => setSelectedSprintId(e.target.value)}
-              className="px-3 py-2 border rounded-md"
+              className="px-3 py-2 border rounded-md bg-white"
             >
               <option value="">Select a sprint</option>
               {sprints.map((sprint) => (
@@ -294,17 +402,31 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Select a Sprint</CardTitle>
+                <CardTitle className="flex items-center space-x-2">
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                  <span>Select a Sprint</span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">Choose a sprint from the dropdown above to view the kanban board.</p>
+                <p className="text-gray-600 mb-4">Choose a sprint from the dropdown above to view the kanban board.</p>
+                <Button onClick={() => setShowCreateSprint(true)} variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Sprint
+                </Button>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="sprints" className="space-y-4">
-          {/* Existing all sprints view */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">All Sprints</h3>
+            <Button onClick={() => setShowCreateSprint(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Sprint
+            </Button>
+          </div>
+          
           <div className="grid gap-4">
             {sprints.map((sprint) => (
               <Card key={sprint.id} className="cursor-pointer hover:shadow-md transition-shadow">
@@ -320,6 +442,9 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
                       {new Date(sprint.start_date).toLocaleDateString()} - {new Date(sprint.end_date).toLocaleDateString()}
                     </div>
                   </div>
+                  {sprint.goal && (
+                    <p className="text-sm text-gray-600">{sprint.goal}</p>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4 text-sm">
@@ -361,7 +486,7 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
         </TabsContent>
       </Tabs>
 
-      {/* Existing modals */}
+      {/* Modals */}
       <CreateSprintModal
         open={showCreateSprint}
         onOpenChange={setShowCreateSprint}

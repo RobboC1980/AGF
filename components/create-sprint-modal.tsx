@@ -1,33 +1,20 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, Plus, Target, Clock, Users, Zap } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
+import { Calendar, Target, Users, Clock, Lightbulb } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CreateSprintModalProps {
   projectId: string
-  isOpen?: boolean
+  open?: boolean
   onOpenChange?: (open: boolean) => void
-  onCreateSprint: (sprintData: {
-    name: string
-    goal?: string
-    description?: string
-    start_date: string
-    end_date: string
-    team_capacity?: number
-    planned_story_points?: number
-  }) => Promise<void>
+  onSprintCreated: (sprintData: any) => Promise<void>
   trigger?: React.ReactNode
   defaultValues?: {
     name?: string
@@ -41,9 +28,9 @@ interface CreateSprintModalProps {
 
 const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
   projectId,
-  isOpen,
+  open: isOpen,
   onOpenChange,
-  onCreateSprint,
+  onSprintCreated,
   trigger,
   defaultValues
 }) => {
@@ -57,7 +44,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
     }
   }, [isOpen])
 
-  // Form state
+  // Form state with better defaults
   const [formData, setFormData] = useState({
     name: defaultValues?.name || '',
     goal: defaultValues?.goal || '',
@@ -70,15 +57,21 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Calculate default dates (2-week sprint starting tomorrow)
+  // Calculate default dates (2-week sprint starting next Monday)
   React.useEffect(() => {
     if (!formData.startDate && !defaultValues?.startDate) {
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const startDate = tomorrow.toISOString().split('T')[0]
+      const today = new Date()
+      const nextMonday = new Date(today)
       
-      const endDate = new Date(tomorrow)
-      endDate.setDate(endDate.getDate() + 13) // 2-week sprint
+      // Find next Monday
+      const daysUntilMonday = (8 - today.getDay()) % 7 || 7
+      nextMonday.setDate(today.getDate() + daysUntilMonday)
+      
+      const startDate = nextMonday.toISOString().split('T')[0]
+      
+      // End date is 2 weeks later (Friday)
+      const endDate = new Date(nextMonday)
+      endDate.setDate(endDate.getDate() + 11) // 2 weeks minus 3 days to end on Friday
       const endDateStr = endDate.toISOString().split('T')[0]
       
       setFormData(prev => ({
@@ -89,11 +82,29 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
     }
   }, [formData.startDate, defaultValues?.startDate])
 
+  // Generate smart sprint name
+  React.useEffect(() => {
+    if (!formData.name && formData.startDate) {
+      const startDate = new Date(formData.startDate)
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const month = monthNames[startDate.getMonth()]
+      const day = startDate.getDate()
+      
+      setFormData(prev => ({
+        ...prev,
+        name: `Sprint ${month} ${day}`
+      }))
+    }
+  }, [formData.startDate, formData.name])
+
+  // Validation function
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
       newErrors.name = 'Sprint name is required'
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = 'Sprint name must be at least 3 characters'
     }
 
     if (!formData.startDate) {
@@ -105,27 +116,29 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
     }
 
     if (formData.startDate && formData.endDate) {
-      const startDate = new Date(formData.startDate)
-      const endDate = new Date(formData.endDate)
+      const start = new Date(formData.startDate)
+      const end = new Date(formData.endDate)
       
-      if (endDate <= startDate) {
+      if (end <= start) {
         newErrors.endDate = 'End date must be after start date'
       }
-
-      // Check if start date is in the past
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      if (startDate < today) {
-        newErrors.startDate = 'Start date cannot be in the past'
+      
+      const diffTime = end.getTime() - start.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays > 28) {
+        newErrors.endDate = 'Sprint duration should not exceed 4 weeks'
+      } else if (diffDays < 3) {
+        newErrors.endDate = 'Sprint should be at least 3 days long'
       }
     }
 
-    if (formData.teamCapacity < 1) {
-      newErrors.teamCapacity = 'Team capacity must be at least 1 hour'
+    if (formData.teamCapacity < 1 || formData.teamCapacity > 100) {
+      newErrors.teamCapacity = 'Team capacity should be between 1 and 100 hours'
     }
 
-    if (formData.plannedStoryPoints < 0) {
-      newErrors.plannedStoryPoints = 'Planned story points cannot be negative'
+    if (formData.plannedStoryPoints < 0 || formData.plannedStoryPoints > 200) {
+      newErrors.plannedStoryPoints = 'Story points should be between 0 and 200'
     }
 
     setErrors(newErrors)
@@ -139,7 +152,7 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 
     setIsLoading(true)
     try {
-      await onCreateSprint({
+      await onSprintCreated({
         name: formData.name.trim(),
         goal: formData.goal.trim() || undefined,
         description: formData.description.trim() || undefined,
@@ -161,7 +174,6 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
       })
       setErrors({})
       setOpen(false)
-      toast.success('Sprint created successfully!')
     } catch (error) {
       console.error('Failed to create sprint:', error)
       toast.error('Failed to create sprint. Please try again.')
@@ -193,189 +205,207 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 
   const sprintDuration = calculateSprintDuration()
 
+  // Get sprint duration badge color
+  const getDurationBadgeVariant = () => {
+    if (sprintDuration <= 7) return 'default'
+    if (sprintDuration <= 14) return 'secondary'
+    if (sprintDuration <= 21) return 'outline'
+    return 'destructive'
+  }
+
+  const getDurationText = () => {
+    if (sprintDuration === 0) return ''
+    const weeks = Math.floor(sprintDuration / 7)
+    const days = sprintDuration % 7
+    
+    if (weeks === 0) {
+      return `${days} day${days !== 1 ? 's' : ''}`
+    } else if (days === 0) {
+      return `${weeks} week${weeks !== 1 ? 's' : ''}`
+    } else {
+      return `${weeks}w ${days}d`
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
               <Target size={16} className="text-white" />
             </div>
             <span>Create New Sprint</span>
           </DialogTitle>
         </DialogHeader>
-        
-        <div className="space-y-4 py-4">
+
+        <div className="space-y-6 py-4">
           {/* Sprint Name */}
-          <div>
-            <Label htmlFor="sprint-name">
-              Sprint Name <span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">
+              Sprint Name *
             </Label>
             <Input
-              id="sprint-name"
-              placeholder="e.g., Sprint 1, Q1 Goals Sprint"
+              id="name"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className={`mt-1 ${errors.name ? 'border-red-500' : ''}`}
+              placeholder="e.g., Sprint Mar 15, Feature Sprint, Bug Fix Sprint"
+              className={errors.name ? 'border-red-500' : ''}
             />
-            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+            {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
           </div>
 
           {/* Sprint Goal */}
-          <div>
-            <Label htmlFor="sprint-goal">Sprint Goal</Label>
-            <Textarea
-              id="sprint-goal"
-              placeholder="What do you want to achieve in this sprint?"
+          <div className="space-y-2">
+            <Label htmlFor="goal" className="text-sm font-medium">
+              Sprint Goal
+            </Label>
+            <Input
+              id="goal"
               value={formData.goal}
               onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
-              rows={2}
-              className="mt-1"
+              placeholder="What is the main objective of this sprint?"
             />
-            <p className="text-xs text-slate-500 mt-1">
-              A clear, concise statement of what the team plans to accomplish
+            <p className="text-xs text-gray-500">
+              💡 A clear goal helps the team stay focused and make decisions during the sprint
             </p>
           </div>
 
           {/* Description */}
-          <div>
-            <Label htmlFor="sprint-description">Description (Optional)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-medium">
+              Description (Optional)
+            </Label>
             <Textarea
-              id="sprint-description"
-              placeholder="Additional details about this sprint..."
+              id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              rows={2}
-              className="mt-1"
+              placeholder="Additional details about this sprint..."
+              rows={3}
             />
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="start-date">
-                Start Date <span className="text-red-500">*</span>
+          {/* Date Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate" className="text-sm font-medium flex items-center space-x-1">
+                <Calendar size={14} />
+                <span>Start Date *</span>
               </Label>
               <Input
-                id="start-date"
+                id="startDate"
                 type="date"
                 value={formData.startDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                className={`mt-1 ${errors.startDate ? 'border-red-500' : ''}`}
+                className={errors.startDate ? 'border-red-500' : ''}
               />
-              {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>}
+              {errors.startDate && <p className="text-sm text-red-500">{errors.startDate}</p>}
             </div>
-            
-            <div>
-              <Label htmlFor="end-date">
-                End Date <span className="text-red-500">*</span>
+
+            <div className="space-y-2">
+              <Label htmlFor="endDate" className="text-sm font-medium flex items-center space-x-1">
+                <Calendar size={14} />
+                <span>End Date *</span>
               </Label>
               <Input
-                id="end-date"
+                id="endDate"
                 type="date"
                 value={formData.endDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                className={`mt-1 ${errors.endDate ? 'border-red-500' : ''}`}
+                className={errors.endDate ? 'border-red-500' : ''}
               />
-              {errors.endDate && <p className="text-red-500 text-sm mt-1">{errors.endDate}</p>}
+              {errors.endDate && <p className="text-sm text-red-500">{errors.endDate}</p>}
             </div>
           </div>
 
-          {/* Sprint Duration Info */}
+          {/* Duration Display */}
           {sprintDuration > 0 && (
-            <div className="flex items-center space-x-2 text-sm text-slate-600 bg-slate-50 p-2 rounded">
-              <Clock size={14} />
-              <span>
-                Sprint duration: <strong>{sprintDuration} days</strong>
-                {sprintDuration < 7 && " (shorter than typical)"}
-                {sprintDuration > 21 && " (longer than typical)"}
-              </span>
+            <div className="flex items-center space-x-2 p-3 bg-slate-50 rounded-lg">
+              <Clock size={16} className="text-slate-600" />
+              <span className="text-sm text-slate-600">Duration:</span>
+              <Badge variant={getDurationBadgeVariant()}>
+                {getDurationText()}
+              </Badge>
+              {sprintDuration > 21 && (
+                <span className="text-xs text-amber-600">⚠️ Consider shorter sprints for better agility</span>
+              )}
             </div>
           )}
 
-          {/* Capacity & Planning */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="team-capacity">Team Capacity (Hours)</Label>
+          {/* Capacity and Story Points */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="teamCapacity" className="text-sm font-medium flex items-center space-x-1">
+                <Users size={14} />
+                <span>Team Capacity (hours)</span>
+              </Label>
               <Input
-                id="team-capacity"
+                id="teamCapacity"
                 type="number"
                 min="1"
-                max="1000"
+                max="100"
                 value={formData.teamCapacity}
-                onChange={(e) => setFormData(prev => ({ ...prev, teamCapacity: Number(e.target.value) }))}
-                className={`mt-1 ${errors.teamCapacity ? 'border-red-500' : ''}`}
+                onChange={(e) => setFormData(prev => ({ ...prev, teamCapacity: parseInt(e.target.value) || 0 }))}
+                className={errors.teamCapacity ? 'border-red-500' : ''}
               />
-              {errors.teamCapacity && <p className="text-red-500 text-sm mt-1">{errors.teamCapacity}</p>}
-              <p className="text-xs text-slate-500 mt-1">Total available hours for the sprint</p>
+              {errors.teamCapacity && <p className="text-sm text-red-500">{errors.teamCapacity}</p>}
+              <p className="text-xs text-gray-500">Total available hours for the team</p>
             </div>
-            
-            <div>
-              <Label htmlFor="planned-points">Planned Story Points</Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="plannedStoryPoints" className="text-sm font-medium flex items-center space-x-1">
+                <Target size={14} />
+                <span>Planned Story Points</span>
+              </Label>
               <Input
-                id="planned-points"
+                id="plannedStoryPoints"
                 type="number"
                 min="0"
-                max="500"
+                max="200"
                 value={formData.plannedStoryPoints}
-                onChange={(e) => setFormData(prev => ({ ...prev, plannedStoryPoints: Number(e.target.value) }))}
-                className={`mt-1 ${errors.plannedStoryPoints ? 'border-red-500' : ''}`}
+                onChange={(e) => setFormData(prev => ({ ...prev, plannedStoryPoints: parseInt(e.target.value) || 0 }))}
+                className={errors.plannedStoryPoints ? 'border-red-500' : ''}
               />
-              {errors.plannedStoryPoints && <p className="text-red-500 text-sm mt-1">{errors.plannedStoryPoints}</p>}
-              <p className="text-xs text-slate-500 mt-1">Target story points to complete</p>
+              {errors.plannedStoryPoints && <p className="text-sm text-red-500">{errors.plannedStoryPoints}</p>}
+              <p className="text-xs text-gray-500">Leave 0 to set after adding stories</p>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="bg-gradient-to-r from-blue-50 to-green-50 p-3 rounded-lg">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="flex items-center justify-center mb-1">
-                  <Calendar size={14} className="text-blue-600 mr-1" />
-                  <span className="text-xs text-slate-600">Duration</span>
-                </div>
-                <div className="font-semibold text-blue-600">
-                  {sprintDuration > 0 ? `${sprintDuration}d` : '-'}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-center mb-1">
-                  <Zap size={14} className="text-amber-600 mr-1" />
-                  <span className="text-xs text-slate-600">Capacity</span>
-                </div>
-                <div className="font-semibold text-amber-600">{formData.teamCapacity}h</div>
-              </div>
-              <div>
-                <div className="flex items-center justify-center mb-1">
-                  <Target size={14} className="text-green-600 mr-1" />
-                  <span className="text-xs text-slate-600">Points</span>
-                </div>
-                <div className="font-semibold text-green-600">{formData.plannedStoryPoints}</div>
+          {/* Sprint Planning Tips */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-2">
+              <Lightbulb size={16} className="text-blue-600 mt-0.5" />
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-blue-900">Sprint Planning Tips</h4>
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• Keep sprints 1-4 weeks long (2 weeks is most common)</li>
+                  <li>• Start sprints on Monday and end on Friday when possible</li>
+                  <li>• Set a clear, achievable goal that provides value</li>
+                  <li>• You can adjust story points after creating the sprint</li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t">
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isLoading}>
+        <div className="flex justify-end space-x-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={isLoading || !formData.name.trim()}
-            className="bg-green-600 hover:bg-green-700"
+            disabled={isLoading}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
             {isLoading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                 Creating...
               </>
             ) : (
               <>
-                <Plus size={16} className="mr-2" />
+                <Target size={16} className="mr-2" />
                 Create Sprint
               </>
             )}

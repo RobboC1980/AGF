@@ -120,6 +120,28 @@ export function AIFeatureLibrary({ projectId, sprintId }: AIFeatureLibraryProps)
 
       const result = await response.json()
 
+      // Handle fallback response
+      if (result.result?.fallback) {
+        setFeatures(prev => prev.map(f => 
+          f.id === featureId ? { 
+            ...f, 
+            status: 'inactive',
+            result: {
+              message: result.result.message,
+              fallback: true,
+              type: 'info'
+            }
+          } : f
+        ))
+
+        toast({
+          title: 'AI Analysis Unavailable',
+          description: 'AI analysis features are currently being configured. Please check back later.',
+          variant: 'default'
+        })
+        return
+      }
+
       setFeatures(prev => prev.map(f => 
         f.id === featureId ? { ...f, status: 'active', result: result.result } : f
       ))
@@ -131,12 +153,20 @@ export function AIFeatureLibrary({ projectId, sprintId }: AIFeatureLibraryProps)
     } catch (error) {
       console.error('AI analysis failed:', error)
       setFeatures(prev => prev.map(f => 
-        f.id === featureId ? { ...f, status: 'inactive' } : f
+        f.id === featureId ? { 
+          ...f, 
+          status: 'inactive',
+          result: {
+            message: 'AI analysis is temporarily unavailable. Please try again later.',
+            error: true,
+            type: 'error'
+          }
+        } : f
       ))
       
       toast({
         title: 'Analysis Failed',
-        description: 'Unable to complete AI analysis. Please try again.',
+        description: 'Unable to complete AI analysis. Please try again later.',
         variant: 'destructive'
       })
     }
@@ -155,6 +185,30 @@ export function AIFeatureLibrary({ projectId, sprintId }: AIFeatureLibraryProps)
 
   const renderFeatureResult = (feature: AIFeature) => {
     if (!feature.result) return null
+
+    // Handle fallback and error states
+    if (feature.result.fallback || feature.result.error) {
+      return (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center space-x-2">
+            {feature.result.error ? (
+              <XCircle className="h-5 w-5 text-red-500" />
+            ) : (
+              <Lightbulb className="h-5 w-5 text-blue-500" />
+            )}
+            <h4 className="font-semibold">
+              {feature.result.error ? 'Analysis Unavailable' : 'Service Configuration'}
+            </h4>
+          </div>
+          <p className="text-sm text-gray-600 mt-2">{feature.result.message}</p>
+          {!feature.result.error && (
+            <p className="text-xs text-gray-500 mt-2">
+              💡 AI features are being configured. They will be available soon!
+            </p>
+          )}
+        </div>
+      )
+    }
 
     switch (feature.id) {
       case 'resource-prediction':
