@@ -605,8 +605,8 @@ class ApiClient {
       if (projectId) params.append('project_id', projectId)
       if (status) params.append('status', status)
       
-      const response = await this.request<{ sprints: Sprint[] }>(`/api/sprints${params.toString() ? `?${params.toString()}` : ''}`)
-      return response.sprints
+      const response = await this.request<Sprint[]>(`/api/sprints${params.toString() ? `?${params.toString()}` : ''}`)
+      return response
     },
 
     getById: async (id: string): Promise<Sprint> => {

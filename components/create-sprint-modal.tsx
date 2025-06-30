@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Calendar, Plus, Target, Clock, Users, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,6 +49,13 @@ const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 }) => {
   const [open, setOpen] = useState(isOpen || false)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Sync external isOpen prop with internal state
+  useEffect(() => {
+    if (isOpen !== undefined) {
+      setOpen(isOpen)
+    }
+  }, [isOpen])
 
   // Form state
   const [formData, setFormData] = useState({

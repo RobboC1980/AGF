@@ -18,6 +18,8 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
   const [showCreateSprintModal, setShowCreateSprintModal] = useState(false)
   const [movingItems, setMovingItems] = useState<Set<string>>(new Set())
 
+
+
   // Fetch sprints for the project
   const {
     sprints,
