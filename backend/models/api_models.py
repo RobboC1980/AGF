@@ -699,4 +699,86 @@ class JobStatusResponse(BaseModel):
     progress: Optional[int] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    estimated_completion: Optional[datetime] = None 
+    estimated_completion: Optional[datetime] = None
+
+# =====================================
+# SYNQFORGE ACCESS CONTROL MODELS
+# =====================================
+
+class TeamRoleEnum(str, Enum):
+    """Team-level roles for SynqForge access control"""
+    TEAM_MEMBER = "team_member"
+    TEAM_ADMIN = "team_admin"
+
+class ProjectRoleEnum(str, Enum):
+    """Project-level roles for SynqForge access control"""
+    PROJECT_VIEWER = "project_viewer"
+    PROJECT_CONTRIBUTOR = "project_contributor"
+    PROJECT_ADMIN = "project_admin"
+
+class AccessScopeEnum(str, Enum):
+    """Access control scope"""
+    TEAM = "team"
+    PROJECT = "project"
+    ORGANIZATION = "organization"
+
+class TeamMemberRequest(BaseModel):
+    """Request to add/update team member"""
+    user_id: str = Field(..., description="User ID to add to team")
+    role: TeamRoleEnum = Field(default=TeamRoleEnum.TEAM_MEMBER, description="Team role to assign")
+
+class TeamMemberUpdateRequest(BaseModel):
+    """Request to update team member role"""
+    role: TeamRoleEnum = Field(..., description="New team role")
+
+class ProjectMemberRequest(BaseModel):
+    """Request to add/update project member"""
+    user_id: str = Field(..., description="User ID to add to project")
+    role: ProjectRoleEnum = Field(default=ProjectRoleEnum.PROJECT_VIEWER, description="Project role to assign")
+
+class ProjectMemberUpdateRequest(BaseModel):
+    """Request to update project member role"""
+    role: ProjectRoleEnum = Field(..., description="New project role")
+
+class TeamMemberResponse(BaseModel):
+    """Team member information with role"""
+    id: str
+    team_id: str
+    user_id: str
+    role: TeamRoleEnum
+    is_active: bool
+    joined_at: datetime
+    invited_by: Optional[str] = None
+    invited_at: datetime
+    user: Optional[Dict[str, Any]] = None
+
+class ProjectMemberResponse(BaseModel):
+    """Project member information with role"""
+    id: str
+    project_id: str
+    user_id: str
+    role: ProjectRoleEnum
+    is_active: bool
+    granted_at: datetime
+    granted_by: Optional[str] = None
+    user: Optional[Dict[str, Any]] = None
+
+class UserRoleInfo(BaseModel):
+    """Complete role information for a user"""
+    user_id: str
+    team_roles: List[Dict[str, Any]] = Field(default_factory=list, description="Team memberships and roles")
+    project_roles: List[Dict[str, Any]] = Field(default_factory=list, description="Direct project roles")
+    effective_project_access: List[Dict[str, Any]] = Field(default_factory=list, description="All accessible projects with effective roles")
+
+class RoleAuditEntry(BaseModel):
+    """Audit log entry for role changes"""
+    id: str
+    user_id: str
+    target_user_id: str
+    action: str  # granted, revoked, promoted, demoted
+    scope: AccessScopeEnum
+    scope_id: str  # team_id or project_id
+    role: Optional[str] = None
+    previous_role: Optional[str] = None
+    timestamp: datetime
+    reason: Optional[str] = None 

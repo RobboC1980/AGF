@@ -26,6 +26,7 @@ try:
     from backend.api.search import router as search_router
     from backend.api.sprints import router as sprints_router
     from backend.api.analytics_endpoints import analytics_router
+    from backend.api.access_control import router as access_control_router
     # Phase 2 & 3 API endpoints
     from backend.api.performance_endpoints import router as performance_router
     from backend.database.supabase_client import init_supabase, close_supabase, get_supabase
@@ -60,6 +61,7 @@ except ImportError as e:
         from api.search import router as search_router
         from api.sprints import router as sprints_router
         from api.analytics_endpoints import analytics_router
+        from api.access_control import router as access_control_router
         # Phase 2 & 3 API endpoints
         from api.performance_endpoints import router as performance_router
         from database.supabase_client import init_supabase, close_supabase, get_supabase
@@ -376,6 +378,7 @@ app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
 app.include_router(ai_analysis_router, prefix="/api/ai-analysis", tags=["AI Analysis"])
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
+app.include_router(access_control_router, tags=["Access Control"])
 
 # Phase 2 & 3: Include monitoring and performance routers
 if health_router:

@@ -18,7 +18,28 @@ import uuid
 Base = declarative_base()
 
 # =====================================
-# ENUMS
+# ENHANCED ACCESS CONTROL ENUMS
+# =====================================
+
+class TeamRole(enum.Enum):
+    """Team-level roles as specified in SynqForge access control model"""
+    TEAM_MEMBER = "team_member"
+    TEAM_ADMIN = "team_admin"
+
+class ProjectRole(enum.Enum):
+    """Project-level roles as specified in SynqForge access control model"""
+    PROJECT_VIEWER = "project_viewer"
+    PROJECT_CONTRIBUTOR = "project_contributor"
+    PROJECT_ADMIN = "project_admin"
+
+class AccessScope(enum.Enum):
+    """Scope of access control"""
+    TEAM = "team"
+    PROJECT = "project"
+    ORGANIZATION = "organization"
+
+# =====================================
+# EXISTING ENUMS (Updated)
 # =====================================
 
 class PriorityLevel(enum.Enum):
@@ -47,6 +68,7 @@ class EntityType(enum.Enum):
     BUG = "bug"
     SPIKE = "spike"
 
+# Legacy role enum - kept for backward compatibility
 class UserRole(enum.Enum):
     ADMIN = "admin"
     PROJECT_MANAGER = "project_manager"
@@ -64,6 +86,9 @@ class NotificationType(enum.Enum):
     MENTION = "mention"
     DUE_DATE = "due_date"
     OVERDUE = "overdue"
+    ROLE_GRANTED = "role_granted"
+    ROLE_REVOKED = "role_revoked"
+    TEAM_INVITATION = "team_invitation"
 
 class ActivityType(enum.Enum):
     CREATED = "created"
@@ -73,6 +98,9 @@ class ActivityType(enum.Enum):
     COMMENTED = "commented"
     STATUS_CHANGED = "status_changed"
     MOVED = "moved"
+    ROLE_GRANTED = "role_granted"
+    ROLE_REVOKED = "role_revoked"
+    INVITED = "invited"
 
 # =====================================
 # USER MANAGEMENT
@@ -120,6 +148,7 @@ class User(Base):
     assigned_stories = relationship("Story", back_populates="assignee", foreign_keys="Story.assignee_id")
     assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
     team_memberships = relationship("TeamMember", back_populates="user")
+    project_memberships = relationship("ProjectMember", back_populates="user")
     comments = relationship("Comment", back_populates="author")
     activities = relationship("ActivityLog", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
@@ -200,18 +229,20 @@ class Team(Base):
 class TeamMember(Base):
     __tablename__ = "team_members"
     
-    id = Column(String(36), primary_key=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     team_id = Column(String(36), ForeignKey("teams.id"), nullable=False)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.DEVELOPER)
+    role = Column(Enum(TeamRole), nullable=False, default=TeamRole.TEAM_MEMBER)
     
-    # Permissions
-    can_manage_team = Column(Boolean, default=False)
-    can_manage_projects = Column(Boolean, default=False)
-    can_assign_tasks = Column(Boolean, default=True)
-    
+    # Status and metadata
+    is_active = Column(Boolean, default=True, nullable=False)
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     invited_by = Column(String(36), ForeignKey("users.id"))
+    invited_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Audit trail
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     team = relationship("Team", back_populates="members")
@@ -220,11 +251,42 @@ class TeamMember(Base):
     
     __table_args__ = (
         UniqueConstraint('team_id', 'user_id', name='unique_team_member'),
+        Index('idx_team_member_role', 'role'),
+        Index('idx_team_member_active', 'is_active'),
     )
 
 # =====================================
 # PROJECT MANAGEMENT
 # =====================================
+
+class ProjectMember(Base):
+    """Project-specific role assignments for SynqForge access control"""
+    __tablename__ = "project_members"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    role = Column(Enum(ProjectRole), nullable=False, default=ProjectRole.PROJECT_VIEWER)
+    
+    # Status and metadata
+    is_active = Column(Boolean, default=True, nullable=False)
+    granted_at = Column(DateTime(timezone=True), server_default=func.now())
+    granted_by = Column(String(36), ForeignKey("users.id"))
+    
+    # Audit trail
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    project = relationship("Project", back_populates="members")
+    user = relationship("User", back_populates="project_memberships")
+    granter = relationship("User", foreign_keys=[granted_by])
+    
+    __table_args__ = (
+        UniqueConstraint('project_id', 'user_id', name='unique_project_member'),
+        Index('idx_project_member_role', 'role'),
+        Index('idx_project_member_active', 'is_active'),
+    )
 
 class Project(Base):
     __tablename__ = "projects"
@@ -281,6 +343,7 @@ class Project(Base):
     organization = relationship("Organization", back_populates="projects")
     team = relationship("Team", back_populates="projects")
     creator = relationship("User", back_populates="created_projects", foreign_keys=[created_by])
+    members = relationship("ProjectMember", back_populates="project")
     epics = relationship("Epic", back_populates="project")
     sprints = relationship("Sprint", back_populates="project")
     releases = relationship("Release", back_populates="project")

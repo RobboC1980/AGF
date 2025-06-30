@@ -51,6 +51,7 @@ from backend.api.analytics_endpoints import analytics_router
 from backend.api.ai_endpoints import router as ai_router
 from backend.api.notification_endpoints import notification_router
 from backend.api.stripe_products import router as stripe_products_router
+from backend.api.access_control import router as access_control_router
 
 # Load environment variables
 load_dotenv()
@@ -274,6 +275,7 @@ app.include_router(analytics_router, prefix="/api")
 app.include_router(ai_router, prefix="/api/ai")
 app.include_router(notification_router)
 app.include_router(stripe_products_router)
+app.include_router(access_control_router, tags=["Access Control"])
 
 # Security middleware
 app.add_middleware(
