@@ -52,6 +52,14 @@ from backend.api.ai_endpoints import router as ai_router
 from backend.api.notification_endpoints import notification_router
 from backend.api.stripe_products import router as stripe_products_router
 from backend.api.access_control import router as access_control_router
+from backend.api.sprints import router as sprints_router
+from backend.api.stories import router as stories_router
+from backend.api.projects import router as projects_router
+from backend.api.epics import router as epics_router
+from backend.api.users import router as users_router
+from backend.api.tasks import router as tasks_router
+from backend.api.teams import router as teams_router
+from backend.api.search import router as search_router
 
 # Load environment variables
 load_dotenv()
@@ -276,6 +284,16 @@ app.include_router(ai_router, prefix="/api/ai")
 app.include_router(notification_router)
 app.include_router(stripe_products_router)
 app.include_router(access_control_router, tags=["Access Control"])
+
+# Include core API routers
+app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
+app.include_router(stories_router, prefix="/api/stories", tags=["Stories"])
+app.include_router(projects_router, prefix="/api/projects", tags=["Projects"])
+app.include_router(epics_router, prefix="/api/epics", tags=["Epics"])
+app.include_router(users_router, prefix="/api/users", tags=["Users"])
+app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
+app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
+app.include_router(search_router, prefix="/api/search", tags=["Search"])
 
 # Security middleware
 app.add_middleware(
