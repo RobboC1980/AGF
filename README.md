@@ -112,9 +112,8 @@ AgileForge is a comprehensive, enterprise-grade AI-powered agile project managem
 ### Prerequisites
 - Node.js 18+ and npm
 - Python 3.9+
-- Docker and Docker Compose (optional)
 - PostgreSQL 14+ (or Supabase account)
-- Redis 6+ (for caching)
+- Redis 6+ (for caching - optional)
 
 ### Installation
 
@@ -127,61 +126,53 @@ cd agileforge
 2. **Environment Setup**
 ```bash
 # Copy environment template
-cp .env.example .env.local
+cp .env.example .env
 
-# Edit environment variables
-nano .env.local
+# Edit environment variables (add your Supabase credentials)
+nano .env
 ```
 
-3. **Automated Deployment**
+3. **Install Dependencies**
 ```bash
-# Run comprehensive deployment script
-python deploy.py --environment development
-
-# Or step by step
-python deploy.py --phases "Environment Setup" "Dependencies Installation"
-```
-
-4. **Manual Setup (Alternative)**
-```bash
-# Install dependencies
+# Install frontend dependencies
 npm install
-pip install -r backend/requirements.txt
 
-# Setup database
-python backend/database/setup_performance_schema.py
-
-# Run development servers
-npm run dev          # Frontend (port 3000)
-python backend/main.py  # Backend (port 8000)
+# Install backend dependencies
+pip install -r requirements-production.txt
 ```
 
-### Environment Variables
+4. **Start the Application**
+```bash
+# Option 1: Simple startup (recommended)
+python start.py
 
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/agileforge
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+# Option 2: Manual startup
+python start_production.py  # Backend on port 8000
+npm run dev                 # Frontend on port 3000 (separate terminal)
+```
 
-# AI Services
-OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+5. **Access the Application**
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
 
-# Security
-JWT_SECRET_KEY=your_jwt_secret
-ENCRYPTION_KEY=your_encryption_key
-SECURITY_SALT=your_security_salt
+### Demo Credentials
+```
+Email: newuser@agileforge.com
+Password: demo123
+```
 
-# Monitoring
-JAEGER_ENDPOINT=http://localhost:14268
-PROMETHEUS_ENDPOINT=http://localhost:9090
-
-# Backup & Storage
-BACKUP_LOCATION=./backups
-AWS_ACCESS_KEY_ID=your_aws_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret
-S3_BUCKET_NAME=your_backup_bucket
+### Key Files Structure
+```
+AgileForge/
+├── app/                    # Next.js frontend pages
+├── components/             # React components
+├── backend/               # Python FastAPI backend
+├── hooks/                 # React hooks
+├── lib/                   # Utility libraries
+├── start.py              # Simple startup script
+├── start_production.py   # Production backend starter
+└── package.json          # Frontend dependencies
 ```
 
 ## 🧪 Testing

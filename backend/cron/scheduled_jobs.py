@@ -15,8 +15,13 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from ..auth.enhanced_auth import require_admin, get_current_active_user, UserInDB
-from ..database.supabase_client import get_supabase
+# Handle imports for both package and direct execution
+try:
+    from ..auth.enhanced_auth import require_admin, get_current_active_user, UserInDB
+    from ..database.supabase_client import get_supabase
+except ImportError:
+    from auth.enhanced_auth import require_admin, get_current_active_user, UserInDB
+    from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 

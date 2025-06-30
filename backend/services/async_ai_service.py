@@ -13,8 +13,13 @@ from datetime import datetime, timedelta
 import redis
 from pydantic import BaseModel
 
-from .ai_service import AIService, AIResponse
-from ..database.supabase_client import get_supabase
+# Handle imports for both package and direct execution
+try:
+    from .ai_service import AIService, AIResponse
+    from ..database.supabase_client import get_supabase
+except ImportError:
+    from ai_service import AIService, AIResponse
+    from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -313,8 +318,12 @@ def generate_analytics_insights_task(
 ):
     """Celery task for analytics insights generation"""
     try:
-        from ..services.analytics_service import AnalyticsService
-        from ..database.supabase_client import get_supabase
+        try:
+            from ..services.analytics_service import AnalyticsService
+            from ..database.supabase_client import get_supabase
+        except ImportError:
+            from analytics_service import AnalyticsService
+            from database.supabase_client import get_supabase
         
         self.update_state(state='STARTED', meta={'progress': 10})
         
