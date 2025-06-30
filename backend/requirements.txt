@@ -1,55 +1,168 @@
-fastapi>=0.100.0,<0.200.0
-uvicorn>=0.20.0,<0.30.0
-python-jose[cryptography]>=3.3.0,<4.0.0
-passlib[bcrypt]>=1.7.4,<2.0.0
-python-multipart>=0.0.5,<0.1.0
-pydantic>=2.0.0,<3.0.0
-pydantic-settings>=2.0.0,<3.0.0
-python-dotenv>=0.21.0,<2.0.0
-asyncpg>=0.29.0,<0.30.0
-supabase>=2.0.0,<3.0.0
-httpx==0.27.2
-python-jose[cryptography]>=3.3.0,<4.0.0
-bcrypt>=4.0.1,<5.0.0
-email-validator>=2.0.0,<3.0.0
-openai>=1.0.0,<2.0.0
-anthropic>=0.34.0,<1.0.0
-# Async Task Queue & Caching
-celery>=5.3.0,<6.0.0
-redis>=4.5.0,<5.0.0
-flower>=2.0.0,<3.0.0
-# Monitoring & Observability 
-sentry-sdk>=1.32.0,<2.0.0
-prometheus-client>=0.17.0,<1.0.0
-# Circuit Breaker & Resilience
-tenacity>=8.2.0,<9.0.0
-# Additional utilities
-psutil>=5.9.0,<6.0.0
+# Core FastAPI and Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 
-# Phase 2: Observability & Security
-# OpenTelemetry distributed tracing
-opentelemetry-api>=1.20.0,<2.0.0
-opentelemetry-sdk>=1.20.0,<2.0.0
-opentelemetry-instrumentation-fastapi>=0.41b0,<1.0.0
-opentelemetry-instrumentation-requests>=0.41b0,<1.0.0
-opentelemetry-instrumentation-redis>=0.41b0,<1.0.0
-opentelemetry-instrumentation-sqlalchemy>=0.41b0,<1.0.0
-opentelemetry-exporter-jaeger>=1.20.0,<2.0.0
-opentelemetry-exporter-prometheus>=0.55b1,<1.0.0
+# Database and ORM
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+sqlalchemy[asyncio]==2.0.23
+alembic==1.12.1
 
-# Rate limiting & circuit breakers
-slowapi>=0.1.9,<0.2.0
-pybreaker>=1.0.0,<2.0.0
+# Supabase Integration
+supabase==2.3.0
+postgrest==0.13.0
+gotrue==2.0.0
 
-# Advanced security
-cryptography>=41.0.0,<42.0.0
-pyjwt[crypto]>=2.8.0,<3.0.0
-argon2-cffi>=23.0.0,<24.0.0
+# AI and Machine Learning
+openai==1.3.7
+anthropic==0.7.7
+tiktoken==0.5.2
+numpy==1.24.4
+scikit-learn==1.3.2
 
-# Structured logging
-structlog>=23.0.0,<24.0.0
-python-json-logger>=2.0.0,<3.0.0
+# Async and Concurrency
+asyncio-throttle==1.0.2
+aiofiles==23.2.1
+aioredis==2.0.1
+celery[redis]==5.3.4
 
-# Metrics & monitoring
-fastapi-limiter>=0.1.5,<0.2.0
-pydantic-settings>=2.0.0,<3.0.0 
+# Security and Authentication
+cryptography==41.0.8
+pyjwt==2.8.0
+bcrypt==4.1.2
+python-security==1.0.0
+
+# HTTP Client and Networking
+httpx==0.25.2
+requests==2.31.0
+aiohttp==3.9.1
+websockets==12.0
+
+# Data Processing and Validation
+pydantic==2.5.1
+marshmallow==3.20.2
+email-validator==2.1.0
+python-slugify==8.0.1
+
+# Monitoring and Observability
+prometheus-client==0.19.0
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-sqlalchemy==0.42b0
+opentelemetry-instrumentation-httpx==0.42b0
+opentelemetry-instrumentation-redis==0.42b0
+opentelemetry-exporter-jaeger==1.21.0
+opentelemetry-exporter-prometheus==1.12.0rc1
+structlog==23.2.0
+
+# Performance and Caching
+redis==5.0.1
+python-memcached==1.62
+cachetools==5.3.2
+
+# File Storage and Processing
+boto3==1.34.0
+minio==7.2.0
+Pillow==10.1.0
+python-magic==0.4.27
+
+# Environment and Configuration
+python-dotenv==1.0.0
+pydantic-settings==2.1.0
+toml==0.10.2
+configparser==6.0.0
+
+# Utilities and Helpers
+click==8.1.7
+rich==13.7.0
+tabulate==0.9.0
+python-dateutil==2.8.2
+pytz==2023.3
+tzdata==2023.3
+
+# Testing (for development/CI)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-xdist==3.5.0
+httpx==0.25.2  # For testing HTTP endpoints
+faker==20.1.0
+factory-boy==3.3.0
+
+# Security Testing and Scanning
+safety==2.3.5
+bandit==1.7.5
+semgrep==1.50.0
+
+# Code Quality and Formatting
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+pre-commit==3.6.0
+
+# Background Tasks and Scheduling
+celery[redis]==5.3.4
+flower==2.0.1
+schedule==1.2.0
+apscheduler==3.10.4
+
+# Email and Notifications
+sendgrid==6.11.0
+twilio==8.11.1
+slack-sdk==3.26.1
+
+# PDF and Document Processing
+reportlab==4.0.7
+weasyprint==60.2
+openpyxl==3.1.2
+python-docx==1.1.0
+
+# Data Analysis and Reporting
+pandas==2.1.4
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.17.0
+
+# Rate Limiting and Circuit Breakers
+slowapi==0.1.9
+pybreaker==0.7.0
+tenacity==8.2.3
+
+# Backup and Disaster Recovery
+duplicity==2.2.3
+paramiko==3.4.0
+fabric==3.2.2
+
+# Logging and Error Tracking
+sentry-sdk==1.38.0
+loguru==0.7.2
+python-json-logger==2.0.7
+
+# Development and Debugging
+ipython==8.18.1
+ipdb==0.13.13
+memory-profiler==0.61.0
+line-profiler==4.1.1
+
+# API Documentation
+sphinx==7.2.6
+sphinx-rtd-theme==1.3.0
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+
+# Deployment and Operations
+gunicorn==21.2.0
+supervisor==4.2.5
+docker==6.1.3
+kubernetes==28.1.0
+
+# Metrics and Analytics
+statsd==4.0.1
+datadog==0.48.0
+newrelic==9.2.0 

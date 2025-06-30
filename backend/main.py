@@ -26,6 +26,8 @@ try:
     from backend.api.search import router as search_router
     from backend.api.sprints import router as sprints_router
     from backend.api.analytics_endpoints import analytics_router
+    # Phase 2 & 3 API endpoints
+    from backend.api.performance_endpoints import router as performance_router
     from backend.database.supabase_client import init_supabase, close_supabase, get_supabase
     from backend.services.ai_service import init_ai_service
     from backend.middleware.auth import AuthMiddleware
@@ -39,6 +41,10 @@ try:
         SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
     )
     from backend.services.monitoring import health_router, get_system_monitor
+    # Phase 3 imports - Security and Backup
+    from backend.security.advanced_security import AdvancedEncryption, InputValidator, ThreatDetector
+    from backend.backup.backup_manager import BackupManager
+    from backend.database.query_optimizer import QueryOptimizer
 except ImportError as e:
     # Fallback for running as script
     try:
@@ -54,6 +60,8 @@ except ImportError as e:
         from api.search import router as search_router
         from api.sprints import router as sprints_router
         from api.analytics_endpoints import analytics_router
+        # Phase 2 & 3 API endpoints
+        from api.performance_endpoints import router as performance_router
         from database.supabase_client import init_supabase, close_supabase, get_supabase
         from services.ai_service import init_ai_service
         from middleware.auth import AuthMiddleware
@@ -68,12 +76,22 @@ except ImportError as e:
                 SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
             )
             from services.monitoring import health_router, get_system_monitor
+            # Phase 3 imports - Security and Backup
+            from security.advanced_security import AdvancedEncryption, InputValidator, ThreatDetector
+            from backup.backup_manager import BackupManager
+            from database.query_optimizer import QueryOptimizer
         except ImportError:
             # Minimal fallback
             ObservabilityMiddleware = None
             SecurityMiddleware = None
             RateLimitMiddleware = None
             health_router = None
+            performance_router = None
+            AdvancedEncryption = None
+            InputValidator = None
+            ThreatDetector = None
+            BackupManager = None
+            QueryOptimizer = None
     except ImportError as e2:
         print(f"Import error: {e2}")
         sys.exit(1)
@@ -105,7 +123,7 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting AgileForge API with Phase 2 enhancements...")
+    logger.info("Starting AgileForge API with Phase 2 & 3 enhancements...")
     
     # Setup telemetry (OpenTelemetry)
     if setup_telemetry:
@@ -118,6 +136,33 @@ async def lifespan(app: FastAPI):
         
         # Get Supabase client for service initialization
         supabase = get_supabase()
+        
+        # Initialize Query Optimizer
+        if QueryOptimizer:
+            try:
+                query_optimizer = QueryOptimizer(supabase)
+                logger.info("Query optimizer initialized successfully")
+            except Exception as optimizer_error:
+                logger.error("Query optimizer initialization failed", error=str(optimizer_error))
+        
+        # Initialize Security Components
+        if AdvancedEncryption and InputValidator and ThreatDetector:
+            try:
+                # Initialize security components
+                encryption = AdvancedEncryption()
+                input_validator = InputValidator()
+                threat_detector = ThreatDetector()
+                logger.info("Advanced security components initialized successfully")
+            except Exception as security_error:
+                logger.error("Advanced security initialization failed", error=str(security_error))
+        
+        # Initialize Backup Manager
+        if BackupManager:
+            try:
+                backup_manager = BackupManager(supabase)
+                logger.info("Backup manager initialized successfully")
+            except Exception as backup_error:
+                logger.error("Backup manager initialization failed", error=str(backup_error))
         
         # Initialize Analytics Service - Re-enabled after fixing proxy issue
         try:
@@ -179,8 +224,8 @@ async def lifespan(app: FastAPI):
         logger.warning("Application will continue with limited database functionality")
     
     # Application is ready
-    logger.info("AgileForge API startup completed with Phase 2 enhancements", 
-                features=["observability", "security", "monitoring", "async_ai", "caching"])
+    logger.info("AgileForge API startup completed with Phase 2 & 3 enhancements", 
+                features=["observability", "security", "monitoring", "async_ai", "caching", "performance", "backup"])
     
     yield
     
@@ -195,8 +240,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="AgileForge API",
-    description="AI-Powered Agile Project Management Platform with Enterprise Security & Observability",
-    version="2.0.0",  # Phase 2 version
+    description="AI-Powered Agile Project Management Platform with Enterprise Security, Performance Monitoring & Backup",
+    version="3.0.0",  # Phase 3 version
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
     lifespan=lifespan
@@ -268,14 +313,18 @@ async def health_check():
     return {
         "status": "healthy",
         "environment": os.getenv("ENVIRONMENT", "development"),
-        "version": "2.0.0",
+        "version": "3.0.0",
         "features": {
             "observability": ObservabilityMiddleware is not None,
             "security": SecurityMiddleware is not None,
+            "advanced_security": AdvancedEncryption is not None,
             "rate_limiting": RateLimitMiddleware is not None,
             "async_ai": True,
             "caching": True,
-            "monitoring": health_router is not None
+            "monitoring": health_router is not None,
+            "performance_monitoring": performance_router is not None,
+            "backup_system": BackupManager is not None,
+            "query_optimization": QueryOptimizer is not None
         }
     }
 
@@ -293,8 +342,8 @@ async def metrics():
 @app.get("/")
 async def root():
     return {
-        "message": "AgileForge API v2.0 - Enterprise Ready",
-        "version": "2.0.0",
+        "message": "AgileForge API v3.0 - Enterprise Ready with Advanced Security & Performance",
+        "version": "3.0.0",
         "features": [
             "Async AI Operations",
             "Redis Caching",
@@ -303,7 +352,13 @@ async def root():
             "Circuit Breakers",
             "JWT Refresh",
             "System Monitoring",
-            "Structured Logging"
+            "Structured Logging",
+            "Performance Monitoring",
+            "Query Optimization",
+            "Advanced Security",
+            "Threat Detection",
+            "Automated Backup",
+            "Disaster Recovery"
         ],
         "docs": "/docs" if os.getenv("ENVIRONMENT") != "production" else "Documentation disabled in production"
     }
@@ -322,9 +377,12 @@ app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
 app.include_router(ai_analysis_router, prefix="/api/ai-analysis", tags=["AI Analysis"])
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 
-# Phase 2: Include monitoring router
+# Phase 2 & 3: Include monitoring and performance routers
 if health_router:
     app.include_router(health_router, tags=["Monitoring"])
+
+if performance_router:
+    app.include_router(performance_router, prefix="/api/performance", tags=["Performance Monitoring"])
 
 # Enhanced error handlers
 @app.exception_handler(404)
