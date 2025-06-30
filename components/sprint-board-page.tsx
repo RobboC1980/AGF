@@ -1,24 +1,34 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Target, Plus, Calendar, Users, TrendingUp, Loader2 } from 'lucide-react'
+import { Target, Plus, Calendar, Users, TrendingUp, Loader2, Brain } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSprints } from '@/hooks/use-sprints'
 import { useStories } from '@/hooks/use-stories'
 import { api } from '@/services/api'
 import SprintKanbanBoard from './sprint-kanban-board'
 import CreateSprintModal from './create-sprint-modal'
+import { useSearchParams } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useToast } from '@/hooks/use-toast'
+import AIFeatureLibrary from './ai-features/ai-feature-library'
 
 interface SprintBoardPageProps {
   projectId: string
 }
 
 const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+  
+  const [activeTab, setActiveTab] = useState('board')
+  const [showCreateSprint, setShowCreateSprint] = useState(false)
+  const [showCreateStory, setShowCreateStory] = useState(false)
   const [selectedSprintId, setSelectedSprintId] = useState<string>('')
-  const [showCreateSprintModal, setShowCreateSprintModal] = useState(false)
   const [movingItems, setMovingItems] = useState<Set<string>>(new Set())
-
-
 
   // Fetch sprints for the project
   const {
@@ -149,7 +159,7 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
         project_id: projectId,
       })
       setSelectedSprintId(newSprint.id)
-      setShowCreateSprintModal(false)
+      setShowCreateSprint(false)
     } catch (error) {
       console.error('Failed to create sprint:', error)
       throw error
@@ -211,74 +221,155 @@ const SprintBoardPage: React.FC<SprintBoardPageProps> = ({ projectId }) => {
   const isLoading = sprintsLoading || storiesLoading
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      {/* Header */}
-      <div className="border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Target size={24} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Sprint Board</h1>
-                <p className="text-slate-600">Manage your sprint stories with kanban workflow</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-4 text-sm">
-                <div className="text-center">
-                  <div className="font-bold text-lg text-blue-600">{sprints.length}</div>
-                  <div className="text-gray-500">Total Sprints</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-bold text-lg text-green-600">
-                    {sprints.filter(s => s.status === 'active').length}
-                  </div>
-                  <div className="text-gray-500">Active</div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Sprint Board</h1>
+          <p className="text-gray-600">Manage your sprints and track progress</p>
+        </div>
+        <div className="flex space-x-2">
+          <Button 
+            onClick={() => setShowCreateStory(true)}
+            variant="outline"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Story
+          </Button>
+          <Button 
+            onClick={() => setShowCreateSprint(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Sprint
+          </Button>
         </div>
       </div>
 
-      {/* Sprint Kanban Board */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <SprintKanbanBoard
-          projectId={projectId}
-          sprints={sprints}
-          selectedSprintId={selectedSprintId}
-          onSprintChange={setSelectedSprintId}
-          onCreateSprint={() => setShowCreateSprintModal(true)}
-          columns={kanbanColumns}
-          onItemMove={handleItemMove}
-          onItemEdit={handleItemEdit}
-          onItemDelete={handleItemDelete}
-          onAddItem={handleAddItem}
-          movingItems={movingItems}
-          isLoading={isLoading}
-        />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="board" className="flex items-center space-x-2">
+            <Target className="h-4 w-4" />
+            <span>Kanban Board</span>
+          </TabsTrigger>
+          <TabsTrigger value="sprints" className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4" />
+            <span>All Sprints</span>
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Team View</span>
+          </TabsTrigger>
+          <TabsTrigger value="ai-features" className="flex items-center space-x-2">
+            <Brain className="h-4 w-4" />
+            <span>AI Features</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Create Sprint Modal */}
+        <TabsContent value="board" className="space-y-4">
+          {/* Existing sprint selector and kanban board code */}
+          <div className="flex items-center space-x-4">
+            <select
+              value={selectedSprintId}
+              onChange={(e) => setSelectedSprintId(e.target.value)}
+              className="px-3 py-2 border rounded-md"
+            >
+              <option value="">Select a sprint</option>
+              {sprints.map((sprint) => (
+                <option key={sprint.id} value={sprint.id}>
+                  Sprint {sprint.sprint_number}: {sprint.name}
+                </option>
+              ))}
+            </select>
+            {selectedSprintId && (
+              <Badge variant="outline">
+                {sprints.find(s => s.id === selectedSprintId)?.status}
+              </Badge>
+            )}
+          </div>
+
+          {selectedSprintId ? (
+            <SprintKanbanBoard 
+              sprintId={selectedSprintId}
+              projectId={projectId}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Select a Sprint</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Choose a sprint from the dropdown above to view the kanban board.</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="sprints" className="space-y-4">
+          {/* Existing all sprints view */}
+          <div className="grid gap-4">
+            {sprints.map((sprint) => (
+              <Card key={sprint.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center space-x-2">
+                      <span>Sprint {sprint.sprint_number}: {sprint.name}</span>
+                      <Badge variant={sprint.status === 'active' ? 'default' : 'secondary'}>
+                        {sprint.status}
+                      </Badge>
+                    </CardTitle>
+                    <div className="text-sm text-gray-500">
+                      {new Date(sprint.start_date).toLocaleDateString()} - {new Date(sprint.end_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">Stories</div>
+                      <div className="font-semibold">{sprint.stories_count || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Story Points</div>
+                      <div className="font-semibold">{sprint.planned_story_points || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Completed</div>
+                      <div className="font-semibold">{sprint.completed_story_points || 0}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Team performance metrics and insights coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai-features" className="space-y-4">
+          <AIFeatureLibrary 
+            projectId={projectId}
+            sprintId={selectedSprintId}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Existing modals */}
       <CreateSprintModal
+        open={showCreateSprint}
+        onOpenChange={setShowCreateSprint}
         projectId={projectId}
-        isOpen={showCreateSprintModal}
-        onOpenChange={setShowCreateSprintModal}
-        onCreateSprint={handleCreateSprint}
+        onSprintCreated={handleCreateSprint}
       />
 
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 shadow-xl flex items-center space-x-3">
-            <Loader2 size={20} className="animate-spin text-blue-600" />
-            <span className="text-slate-700">Loading sprint data...</span>
-          </div>
-        </div>
-      )}
+      {/* TODO: Add CreateStoryModal when available */}
     </div>
   )
 }
