@@ -648,7 +648,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Project options">
                                 <MoreHorizontal size={16} />
                               </Button>
                             </DropdownMenuTrigger>

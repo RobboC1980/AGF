@@ -217,10 +217,10 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
             <span>Collaboration</span>
           </CardTitle>
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" aria-label="Notifications">
               <Bell size={16} />
             </Button>
-            <Button variant="ghost" size="sm" onClick={onToggleCollapse}>
+            <Button variant="ghost" size="sm" onClick={onToggleCollapse} aria-label="Close collaboration panel">
               <X size={16} />
             </Button>
           </div>
@@ -372,6 +372,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                                         variant="ghost"
                                         size="sm"
                                         className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                        aria-label="Comment options"
                                       >
                                         <MoreHorizontal size={12} />
                                       </Button>
@@ -467,6 +468,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                             size="sm"
                             className="h-6 w-6 p-0"
                             onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
+                            aria-label="Remove attachment"
                           >
                             <X size={12} />
                           </Button>
@@ -493,6 +495,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                         size="sm"
                         className="h-8 w-8 p-0"
                         onClick={() => fileInputRef.current?.click()}
+                        aria-label="Attach file"
                       >
                         <Paperclip size={16} />
                       </Button>
@@ -501,6 +504,7 @@ const CollaborationPanel: React.FC<CollaborationPanelProps> = ({
                         size="sm"
                         className="h-8 w-8 p-0"
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        aria-label="Add emoji"
                       >
                         <Smile size={16} />
                       </Button>

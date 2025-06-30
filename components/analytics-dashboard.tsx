@@ -404,7 +404,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" aria-label="More options">
                   <MoreHorizontal size={16} />
                 </Button>
               </DropdownMenuTrigger>

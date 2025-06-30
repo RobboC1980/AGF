@@ -453,6 +453,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
                       size="sm"
                       onClick={() => setViewMode("grid")}
                       className="h-8 w-8 p-0"
+                      aria-label="Grid view"
                     >
                       <Grid3X3 size={16} />
                     </Button>
@@ -461,6 +462,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
                       size="sm"
                       onClick={() => setViewMode("list")}
                       className="h-8 w-8 p-0"
+                      aria-label="List view"
                     >
                       <List size={16} />
                     </Button>
@@ -469,6 +471,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
                       size="sm"
                       onClick={() => setViewMode("table")}
                       className="h-8 w-8 p-0"
+                      aria-label="Table view"
                     >
                       <Table2 size={16} />
                     </Button>
@@ -518,9 +521,9 @@ const TasksPage: React.FC<TasksPageProps> = ({
                           />
                           <CheckSquare size={16} className="text-orange-600" />
                         </div>
-                        <DropdownMenu>
+                                                  <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="More options">
                               <MoreHorizontal size={16} />
                             </Button>
                           </DropdownMenuTrigger>
