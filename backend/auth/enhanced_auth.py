@@ -418,21 +418,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         
-        # Development mode: Accept any token and return a mock user
-        if os.getenv("ENVIRONMENT", "development") == "development":
-            return UserInDB(
-                id="dev-user-1",
-                email="dev@example.com",
-                name="Development User",
-                avatar_url=None,
-                roles=["admin"],
-                permissions=["view_project", "edit_project", "create_story", "edit_story", "view_story"],
-                is_active=True,
-                is_verified=True,
-                created_at=datetime.utcnow(),
-                last_login=datetime.utcnow(),
-                team_id=None
-            )
+
         
         auth_mgr = get_auth_manager()
         token_data = auth_mgr.verify_token(token)

@@ -35,7 +35,7 @@ const customJestConfig = {
       statements: 70,
     },
   },
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: [
@@ -64,14 +64,7 @@ const customJestConfig = {
   detectLeaks: true,
   // Test result processor for better output
   reporters: [
-    'default',
-    [
-      'jest-junit',
-      {
-        outputDirectory: './coverage',
-        outputName: 'junit.xml',
-      },
-    ],
+    'default'
   ],
 }
 

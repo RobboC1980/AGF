@@ -62,15 +62,6 @@ async def get_current_user_supabase(
     supabase = Depends(get_supabase)
 ):
     """Get the current authenticated user from Supabase"""
-    # CRITICAL: Development mode check FIRST - before any Supabase calls
-    if os.getenv("ENVIRONMENT", "development") == "development":
-        logger.info("Development mode: Returning mock user")
-        return UserResponse(
-            id="dev-user-1",
-            email="dev@example.com",
-            name="Development User",
-            avatar_url=None
-        )
     
     try:
         # Try Clerk JWT validation first, then fall back to Supabase

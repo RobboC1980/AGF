@@ -239,6 +239,19 @@ async def generate_epic_endpoint(
 ):
     """Generate an epic using AI"""
     try:
+        # 🛡️ SECURITY: Validate project access
+        if request.project_id:
+            supabase = get_supabase()
+            access_result = supabase.rpc('has_project_access', {
+                'project_uuid': request.project_id,
+                'user_uuid': current_user.id
+            }).execute()
+            
+            if not access_result.data:
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Access denied: You don't have permission to access this project"
+                )
         try:
             from ..services.ai_service import get_basic_ai_service
         except ImportError:
@@ -287,6 +300,19 @@ async def generate_story_endpoint(
 ):
     """Generate a user story using AI"""
     try:
+        # 🛡️ SECURITY: Validate project access
+        if request.project_id:
+            supabase = get_supabase()
+            access_result = supabase.rpc('has_project_access', {
+                'project_uuid': request.project_id,
+                'user_uuid': current_user.id
+            }).execute()
+            
+            if not access_result.data:
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Access denied: You don't have permission to access this project"
+                )
         try:
             from ..services.ai_service import get_basic_ai_service
         except ImportError:
@@ -335,6 +361,8 @@ async def generate_tasks_endpoint(
 ):
     """Generate tasks for a user story using AI"""
     try:
+        # 🛡️ SECURITY: Tasks are typically project-scoped, but we validate if possible
+        # Note: TaskGenerateRequest doesn't have project_id field, but we should add it
         try:
             from ..services.ai_service import get_basic_ai_service
         except ImportError:

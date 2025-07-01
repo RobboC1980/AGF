@@ -31,13 +31,6 @@ security = HTTPBearer(auto_error=False)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Authentication dependency with Supabase JWT validation for analytics endpoints"""
-    # Development mode: Accept any token and return a mock user (check first!)
-    if os.getenv("ENVIRONMENT", "development") == "development":
-        return {
-            "id": "dev-user-1",
-            "email": "dev@example.com",
-            "name": "Development User"
-        }
     
     if not credentials:
         raise HTTPException(

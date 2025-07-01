@@ -15,6 +15,7 @@ export interface Database {
           email: string;
           name: string;
           avatar_url: string | null;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +24,7 @@ export interface Database {
           email: string;
           name: string;
           avatar_url?: string | null;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +33,7 @@ export interface Database {
           email?: string;
           name?: string;
           avatar_url?: string | null;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -42,6 +45,7 @@ export interface Database {
           description: string | null;
           status: string;
           created_by: string;
+          owner_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -51,6 +55,7 @@ export interface Database {
           description?: string | null;
           status?: string;
           created_by: string;
+          owner_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -60,6 +65,33 @@ export interface Database {
           description?: string | null;
           status?: string;
           created_by?: string;
+          owner_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      project_members: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          role: Database['public']['Enums']['project_member_role'];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id: string;
+          role?: Database['public']['Enums']['project_member_role'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string;
+          role?: Database['public']['Enums']['project_member_role'];
           created_at?: string;
           updated_at?: string;
         };
@@ -244,10 +276,31 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      has_project_access: {
+        Args: {
+          project_uuid: string;
+          user_uuid?: string;
+        };
+        Returns: boolean;
+      };
+      add_project_member: {
+        Args: {
+          p_project_id: string;
+          p_user_id: string;
+          p_role?: string;
+        };
+        Returns: boolean;
+      };
+      remove_project_member: {
+        Args: {
+          p_project_id: string;
+          p_user_id: string;
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
-      [_ in never]: never;
+      project_member_role: 'viewer' | 'editor' | 'admin';
     };
     CompositeTypes: {
       [_ in never]: never;

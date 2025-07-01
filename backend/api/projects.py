@@ -84,8 +84,8 @@ async def get_projects(current_user: UserResponse = Depends(get_current_user_sup
             # Get projects user is assigned to
             assigned_projects = supabase.table("projects").select("""
                 *,
-                project_access!inner(role, assigned_at)
-            """).eq("project_access.user_id", current_user.id).eq("project_access.is_active", True).execute()
+                project_members!inner(role, created_at)
+            """).eq("project_members.user_id", current_user.id).execute()
             
             # Combine projects (remove duplicates)
             all_projects = owned_projects.data[:]
@@ -184,7 +184,7 @@ async def get_project(project_id: str, current_user: UserResponse = Depends(get_
             can_access = True
         else:
             # Check if user has explicit project access
-            access_result = supabase.table("project_access").select("id").eq("project_id", project_id).eq("user_id", current_user.id).eq("is_active", True).execute()
+            access_result = supabase.table("project_members").select("id").eq("project_id", project_id).eq("user_id", current_user.id).execute()
             can_access = bool(access_result.data)
         
         if not can_access:
