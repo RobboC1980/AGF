@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary"
 import { QueryProvider } from "@/providers/query-provider"
-import { AuthProvider } from "@/contexts/auth-context"
+import { ClerkProvider } from '@clerk/nextjs'
 import { ThemeProvider } from "next-themes"
 
 export const metadata: Metadata = {
@@ -28,23 +28,23 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
-        <ErrorBoundary>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <QueryProvider>
-              <AuthProvider>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body className="antialiased">
+          <ErrorBoundary>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <QueryProvider>
                 {children}
-              </AuthProvider>
-            </QueryProvider>
-          </ThemeProvider>
-        </ErrorBoundary>
-      </body>
-    </html>
+              </QueryProvider>
+            </ThemeProvider>
+          </ErrorBoundary>
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

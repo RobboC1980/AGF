@@ -12,12 +12,30 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().optional(),
   PORT: z.string().transform(Number).default('8000'),
   HOST: z.string().default('0.0.0.0'),
+  // Clerk environment variables
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+  CLERK_SECRET_KEY: z.string().min(1),
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().default('/sign-in'),
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default('/sign-up'),
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: z.string().default('/'),
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().default('/'),
+  // Supabase environment variables
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 })
 
 // Client-side environment schema (only public variables)
 const clientEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   NEXT_PUBLIC_API_URL: z.string().url().optional(),
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().default('/sign-in'),
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default('/sign-up'),
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: z.string().default('/'),
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().default('/'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
 })
 
 function validateEnv() {
@@ -40,6 +58,13 @@ function validateClientEnv() {
     return clientEnvSchema.parse({
       NODE_ENV: process.env.NODE_ENV,
       NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL,
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL,
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -48,6 +73,13 @@ function validateClientEnv() {
     return {
       NODE_ENV: 'development' as const,
       NEXT_PUBLIC_API_URL: undefined,
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: '/sign-up',
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: '/',
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: '/',
+      NEXT_PUBLIC_SUPABASE_URL: '',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: '',
     }
   }
 }

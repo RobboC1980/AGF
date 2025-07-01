@@ -106,6 +106,39 @@ async def get_current_user_supabase(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Database timeout"
             )
+        except Exception as e:
+            if "not found" in str(e).lower() or "no rows" in str(e).lower():
+                # User exists in auth but not in users table - create profile
+                logger.info(f"Creating missing user profile for {user.user.email}")
+                user_profile = {
+                    "id": user.user.id,
+                    "email": user.user.email,
+                    "name": user.user.email.split('@')[0],  # Use email prefix as default name
+                    "avatar_url": None
+                }
+                
+                try:
+                    profile_response = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            lambda: supabase.table("users").insert(user_profile).execute()
+                        ),
+                        timeout=3.0
+                    )
+                    if profile_response.data:
+                        user_data = profile_response
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to create user profile"
+                        )
+                except asyncio.TimeoutError:
+                    logger.error("User profile creation timed out")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Database timeout"
+                    )
+            else:
+                raise
         
         if not user_data.data:
             raise HTTPException(
@@ -113,7 +146,7 @@ async def get_current_user_supabase(
                 detail="User not found"
             )
         
-        return UserResponse(**user_data.data)
+        return UserResponse(**user_data.data[0] if isinstance(user_data.data, list) else user_data.data)
         
     except HTTPException:
         raise
@@ -202,19 +235,54 @@ async def login(login_data: UserLogin, supabase = Depends(get_supabase)):
                 detail="Invalid email or password"
             )
         
-        # Get user profile
-        user_data = supabase.table("users").select("*").eq("id", auth_response.user.id).single().execute()
-        
-        if not user_data.data:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User profile not found"
-            )
+        # Get user profile - if it doesn't exist, create it
+        try:
+            user_data = supabase.table("users").select("*").eq("id", auth_response.user.id).single().execute()
+            
+            if not user_data.data:
+                # User exists in auth but not in users table - create profile
+                logger.info(f"Creating missing user profile for {auth_response.user.email}")
+                user_profile = {
+                    "id": auth_response.user.id,
+                    "email": auth_response.user.email,
+                    "name": auth_response.user.email.split('@')[0],  # Use email prefix as default name
+                    "avatar_url": None
+                }
+                
+                profile_response = supabase.table("users").insert(user_profile).execute()
+                if profile_response.data:
+                    user_data = profile_response
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create user profile"
+                    )
+        except Exception as e:
+            if "not found" in str(e).lower() or "no rows" in str(e).lower():
+                # User exists in auth but not in users table - create profile
+                logger.info(f"Creating missing user profile for {auth_response.user.email}")
+                user_profile = {
+                    "id": auth_response.user.id,
+                    "email": auth_response.user.email,
+                    "name": auth_response.user.email.split('@')[0],  # Use email prefix as default name
+                    "avatar_url": None
+                }
+                
+                profile_response = supabase.table("users").insert(user_profile).execute()
+                if profile_response.data:
+                    user_data = profile_response
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create user profile"
+                    )
+            else:
+                raise
         
         return TokenResponse(
             access_token=auth_response.session.access_token,
             token_type="bearer",
-            user=UserResponse(**user_data.data)
+            user=UserResponse(**user_data.data[0] if isinstance(user_data.data, list) else user_data.data)
         )
         
     except HTTPException:
@@ -295,6 +363,39 @@ async def get_current_user_info(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Database timeout"
             )
+        except Exception as e:
+            if "not found" in str(e).lower() or "no rows" in str(e).lower():
+                # User exists in auth but not in users table - create profile
+                logger.info(f"Creating missing user profile for {user.user.email}")
+                user_profile = {
+                    "id": user.user.id,
+                    "email": user.user.email,
+                    "name": user.user.email.split('@')[0],  # Use email prefix as default name
+                    "avatar_url": None
+                }
+                
+                try:
+                    profile_response = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            lambda: supabase.table("users").insert(user_profile).execute()
+                        ),
+                        timeout=3.0
+                    )
+                    if profile_response.data:
+                        user_data = profile_response
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to create user profile"
+                        )
+                except asyncio.TimeoutError:
+                    logger.error("User profile creation timed out")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Database timeout"
+                    )
+            else:
+                raise
         
         if not user_data.data:
             raise HTTPException(
@@ -302,7 +403,7 @@ async def get_current_user_info(
                 detail="User not found"
             )
         
-        return UserResponse(**user_data.data)
+        return UserResponse(**user_data.data[0] if isinstance(user_data.data, list) else user_data.data)
         
     except HTTPException:
         raise

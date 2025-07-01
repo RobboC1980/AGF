@@ -359,11 +359,45 @@ app.add_middleware(
 )
 
 # Optional authentication dependency for development
-async def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user_optional(request: Request):
     """Optional authentication - returns None if no credentials provided"""
-    if not credentials:
+    try:
+        authorization = request.headers.get("Authorization")
+        if not authorization:
+            return None
+        
+        if not authorization.startswith("Bearer "):
+            return None
+            
+        token = authorization.replace("Bearer ", "")
+        
+        # Create credentials object
+        from fastapi.security.utils import get_authorization_scheme_param
+        scheme, credentials = get_authorization_scheme_param(authorization)
+        
+        if scheme.lower() != "bearer":
+            return None
+            
+        # Use the same validation as get_current_user but return None on failure
+        if not supabase:
+            return None
+        
+        try:
+            user_response = supabase.auth.get_user(credentials)
+            if not user_response or not user_response.user:
+                return None
+            
+            user_id = user_response.user.id
+            result = supabase.table("users").select("*").eq("id", user_id).execute()
+            if not result.data:
+                return None
+            
+            return result.data[0]
+        except Exception:
+            return None
+            
+    except Exception:
         return None
-    return await get_current_user(credentials)
 
 # Authentication functions
 def verify_jwt_token(token: str) -> Dict[str, Any]:
@@ -553,6 +587,60 @@ async def general_exception_handler(request: Request, exc: Exception):
         content={"error": "Internal server error", "detail": "An unexpected error occurred"}
     )
 
+# Error logging endpoint for frontend error reporting
+@app.post("/api/errors/log")
+async def log_frontend_error(request: Request):
+    """Log frontend errors for monitoring and debugging"""
+    try:
+        # Parse request body
+        body = await request.body()
+        import json
+        error_data = json.loads(body) if body else {}
+        
+        # Extract error information
+        message = error_data.get('message', 'Unknown error')
+        stack = error_data.get('stack', '')
+        component_stack = error_data.get('componentStack', '')
+        url = error_data.get('url', '')
+        user_agent = error_data.get('userAgent', '')
+        timestamp = error_data.get('timestamp', '')
+        
+        # Try to get current user (optional)
+        current_user = None
+        try:
+            current_user = await get_current_user_optional(request)
+        except:
+            pass
+        
+        # Log the error
+        logger.error(
+            f"Frontend error: {message}",
+            extra={
+                "error_type": "frontend_error",
+                "error_message": message,
+                "stack_trace": stack[:1000] if stack else None,
+                "component_stack": component_stack[:500] if component_stack else None,
+                "page_url": url,
+                "user_agent": user_agent[:200] if user_agent else None,
+                "user_id": current_user.get('id') if current_user else 'anonymous',
+                "user_email": current_user.get('email') if current_user else 'anonymous',
+                "error_timestamp": timestamp,
+                "logged_at": datetime.utcnow().isoformat()
+            }
+        )
+        
+        return {
+            "success": True,
+            "message": "Error logged successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to log frontend error: {e}")
+        return {
+            "success": False,
+            "error": "Failed to log error"
+        }
+
 # Health check endpoint with comprehensive monitoring
 @app.get("/health")
 async def health_check():
@@ -633,6 +721,8 @@ async def root():
         "health": "/health",
         "metrics": "/metrics"
     }
+
+
 
 # Development endpoints removed - production authentication required
 

@@ -1,6 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth, useUser } from '@clerk/nextjs'
+
+// Helper hook to set up API with Clerk auth
+function useApiWithAuth() {
+  const { getToken } = useAuth()
+  
+  // Function to set token before making API calls
+  const setAuthTokenIfNeeded = async () => {
+    try {
+      const token = await getToken()
+      if (token) {
+        api.setAuthToken(token)
+      }
+    } catch (error) {
+      console.error('Failed to get auth token:', error)
+    }
+  }
+
+  return { setAuthTokenIfNeeded }
+}
 
 // Query keys for consistent caching
 export const queryKeys = {
@@ -20,13 +39,18 @@ export const queryKeys = {
 
 // Stories hooks
 export const useStories = () => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: queryKeys.stories,
-    queryFn: () => api.stories.getAll(),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.stories.getAll()
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
+    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -84,13 +108,18 @@ export const useDeleteStory = () => {
 
 // Epics hooks
 export const useEpics = () => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: queryKeys.epics,
-    queryFn: () => api.epics.getAll(),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.epics.getAll()
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
+    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -143,13 +172,18 @@ export const useDeleteEpic = () => {
 
 // Users hooks
 export const useUsers = () => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: queryKeys.users,
-    queryFn: () => api.users.getAll(),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.users.getAll()
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes - users change less frequently
-    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
+    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -169,91 +203,99 @@ export const useCreateUser = () => {
 
 // Analytics hooks
 export const useAnalytics = () => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: queryKeys.analytics,
     queryFn: () => api.analytics.getOverview(),
     staleTime: 1 * 60 * 1000, // 1 minute - analytics should be fresh
-    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
+    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
 }
 
 export const useProjectAnalytics = (projectId: string, days: number = 30) => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: ['analytics', 'project', projectId, days],
     queryFn: () => api.analytics.getProjectDashboard(projectId, days),
     staleTime: 1 * 60 * 1000, // 1 minute
-    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
 }
 
 export const useProjectVelocity = (projectId: string, days: number = 30) => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: ['analytics', 'velocity', projectId, days],
     queryFn: () => api.analytics.getProjectVelocity(projectId, days),
     staleTime: 1 * 60 * 1000,
-    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
 }
 
 export const useProjectBurndown = (projectId: string, days: number = 30) => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: ['analytics', 'burndown', projectId, days],
     queryFn: () => api.analytics.getProjectBurndown(projectId, days),
     staleTime: 1 * 60 * 1000,
-    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
 }
 
 export const useTeamPerformance = (projectId: string, days: number = 30) => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: ['analytics', 'team-performance', projectId, days],
     queryFn: () => api.analytics.getTeamPerformance(projectId, days),
     staleTime: 1 * 60 * 1000,
-    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
 }
 
 export const useProjectInsights = (projectId: string, days: number = 30) => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: ['analytics', 'insights', projectId, days],
     queryFn: () => api.analytics.getProjectInsights(projectId, days),
     staleTime: 2 * 60 * 1000, // 2 minutes for AI insights
-    enabled: !authLoading && isAuthenticated && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
 }
 
 export const useTeamAnalytics = (teamId?: string, days: number = 30) => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: ['analytics', 'team', teamId, days],
     queryFn: () => api.analytics.getTeamAnalytics(teamId, days),
     staleTime: 1 * 60 * 1000,
-    enabled: !authLoading && isAuthenticated && !!user,
+    enabled: isLoaded && isSignedIn && !!user,
   })
 }
 
 // Projects hooks
 export const useProjects = () => {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   
   return useQuery({
     queryKey: queryKeys.projects,
     queryFn: () => api.projects.getAll(),
     staleTime: 3 * 60 * 1000, // 3 minutes
-    enabled: !authLoading && isAuthenticated && !!user, // Only run when auth is complete and authenticated
+    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
 }
 

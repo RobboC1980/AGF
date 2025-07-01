@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth, useUser, SignOutButton } from "@clerk/nextjs"
 import { QueryProvider } from "../providers/query-provider"
 import { ToastProvider } from "../providers/toast-provider"
 import ErrorBoundary from "../components/error-boundary"
@@ -52,7 +52,8 @@ export default function Page() {
   const [editingProject, setEditingProject] = useState<any>(null)
   const [movingItems, setMovingItems] = useState<Set<string>>(new Set())
   
-  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   const router = useRouter()
   const queryClient = useQueryClient()
 
@@ -174,16 +175,16 @@ export default function Page() {
     },
   ], [kanbanStories])
 
-  // Redirect to login if not authenticated
+  // Redirect to sign-in if not authenticated
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login')
+    if (isLoaded && !isSignedIn) {
+      router.push('/sign-in')
     }
-  }, [isAuthenticated, authLoading, router])
+  }, [isLoaded, isSignedIn, router])
 
   // NOW we can have early returns after all hooks have been called
   // Show loading while checking authentication
-  if (authLoading) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -195,13 +196,12 @@ export default function Page() {
   }
 
   // Don't render the page if not authenticated
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return null
   }
 
   const handleLogout = () => {
-    logout()
-    router.push('/login')
+    // Clerk will handle the logout and redirect
   }
 
   const handleRefresh = () => {
@@ -384,6 +384,84 @@ export default function Page() {
     { value: "collaboration", label: "Collaboration", icon: MessageSquare, description: "Team communication" },
   ]
 
+  // Wrapper component to fetch first available project for Sprint Board
+  const SprintBoardPageWrapper = () => {
+    const [firstProjectId, setFirstProjectId] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+      // Only fetch projects when authentication is complete and user is authenticated
+      if (!isLoaded || !isSignedIn) return
+
+      const fetchFirstProject = async () => {
+        try {
+          setLoading(true)
+          setError(null)
+          const projects = await api.projects.getAll()
+          if (projects && Array.isArray(projects) && projects.length > 0) {
+            setFirstProjectId(projects[0].id)
+          } else {
+            setError('No projects found')
+          }
+        } catch (error) {
+          console.error('Failed to fetch projects for sprint board:', error)
+          setError(error instanceof Error ? error.message : 'Failed to load projects')
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      fetchFirstProject()
+    }, [isLoaded, isSignedIn])
+
+    // Show loading while auth is initializing or projects are loading
+    if (!isLoaded || loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-slate-600">Loading sprint board...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Show error state
+    if (error) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-slate-600 mb-4">{error}</p>
+            <div className="space-x-2">
+              <Button onClick={() => window.location.reload()}>
+                Refresh Page
+              </Button>
+              <Button variant="outline" onClick={() => setCurrentPage('projects')}>
+                Go to Projects
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (!firstProjectId) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-slate-600 mb-4">No projects found. Create a project first to use the sprint board.</p>
+            <Button onClick={() => setCurrentPage('projects')}>
+              Go to Projects
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
+    return <SprintBoardPage projectId={firstProjectId} />
+  }
+
   return (
     <ErrorBoundary>
       <QueryProvider>
@@ -460,12 +538,12 @@ export default function Page() {
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm" className="flex items-center space-x-2">
                           <Avatar className="w-6 h-6">
-                            <AvatarImage src={user?.avatar} />
+                            <AvatarImage src={user?.imageUrl} />
                             <AvatarFallback className="text-xs">
-                              {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                              {user?.firstName?.[0]}{user?.lastName?.[0]}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="hidden sm:block">{user?.name || 'User'}</span>
+                          <span className="hidden sm:block">{user?.fullName || 'User'}</span>
                           <ChevronDown size={12} />
                         </Button>
                       </DropdownMenuTrigger>
@@ -479,9 +557,13 @@ export default function Page() {
                           Settings
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout}>
-                          <LogOut size={16} className="mr-2" />
-                          Logout
+                        <DropdownMenuItem asChild>
+                          <SignOutButton>
+                            <div className="flex items-center w-full cursor-pointer">
+                              <LogOut size={16} className="mr-2" />
+                              Logout
+                            </div>
+                          </SignOutButton>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -629,7 +711,7 @@ export default function Page() {
           )}
 
           {currentPage === "sprint-board" && (
-            <SprintBoardPage projectId="demo-project-1" />
+            <SprintBoardPageWrapper />
           )}
 
           {currentPage === "analytics" && (

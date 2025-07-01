@@ -8,6 +8,7 @@ import logging
 import time
 from typing import List
 from fastapi.responses import JSONResponse, Response
+from datetime import datetime
 
 # Add parent directory to path for proper imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -121,6 +122,15 @@ structlog.configure(
 )
 
 logger = structlog.get_logger(__name__)
+
+# Optional authentication dependency for error logging
+async def get_current_user_optional(request):
+    """Get current user if authenticated, otherwise return None"""
+    try:
+        from backend.auth.enhanced_auth import get_current_user
+        return await get_current_user(request)
+    except:
+        return None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -442,6 +452,71 @@ async def runtime_error_handler(request, exc):
             "timestamp": time.time()
         }
     )
+
+# Add error logging endpoint
+@app.post("/api/errors/log")
+async def log_error(
+    error_data: dict,
+    current_user: dict = Depends(get_current_user_optional)
+):
+    """Log frontend errors for monitoring and debugging"""
+    try:
+        # Extract error information
+        message = error_data.get('message', 'Unknown error')
+        stack = error_data.get('stack', '')
+        component_stack = error_data.get('componentStack', '')
+        url = error_data.get('url', '')
+        user_agent = error_data.get('userAgent', '')
+        timestamp = error_data.get('timestamp', '')
+        
+        # Log the error with structured logging
+        logger.error(
+            "Frontend error logged",
+            error_message=message,
+            stack_trace=stack[:1000] if stack else None,  # Limit stack trace length
+            component_stack=component_stack[:500] if component_stack else None,
+            page_url=url,
+            user_agent=user_agent[:200] if user_agent else None,
+            user_id=current_user.get('id') if current_user else None,
+            user_email=current_user.get('email') if current_user else None,
+            error_timestamp=timestamp,
+            logged_at=time.time()
+        )
+        
+        # Store in database for analytics (optional)
+        try:
+            error_record = {
+                'message': message,
+                'stack_trace': stack,
+                'component_stack': component_stack,
+                'page_url': url,
+                'user_agent': user_agent,
+                'user_id': current_user.get('id') if current_user else None,
+                'error_timestamp': timestamp,
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+            # Only store if we have a database table for errors
+            # For now, just log to file/console
+            logger.info(f"Error logged for analysis: {error_record}")
+            
+        except Exception as db_error:
+            logger.warning(f"Failed to store error in database: {db_error}")
+        
+        return {
+            "success": True,
+            "message": "Error logged successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to log frontend error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": "Failed to log error"
+            }
+        )
 
 if __name__ == "__main__":
     import uvicorn

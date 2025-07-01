@@ -24,14 +24,14 @@ const SprintBoard = () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await api.projects.getAll()
+        const projects = await api.projects.getAll()
         
-        if (response.success && response.data) {
-          setProjects(response.data)
+        if (projects && Array.isArray(projects)) {
+          setProjects(projects)
           
           // If no project is selected but we have projects, select the first one
-          if (!selectedProjectId && response.data.length > 0) {
-            setSelectedProjectId(response.data[0].id)
+          if (!selectedProjectId && projects.length > 0) {
+            setSelectedProjectId(projects[0].id)
           }
         } else {
           throw new Error('Failed to load projects')
