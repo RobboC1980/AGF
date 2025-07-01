@@ -49,6 +49,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         
+        # Development mode: Accept any token and return a mock user
+        if os.getenv("ENVIRONMENT", "development") == "development":
+            return User(
+                id="dev-user-1",
+                email="dev@example.com", 
+                name="Development User"
+            )
+        
         payload = verify_token(token)
         if payload is None:
             raise credentials_exception

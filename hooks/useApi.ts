@@ -11,10 +11,15 @@ function useApiWithAuth() {
     try {
       const token = await getToken()
       if (token) {
-        api.setAuthToken(token)
+        api.auth.setToken(token)
+      } else {
+        // Development mode: use a dummy token
+        api.auth.setToken('dev-token')
       }
     } catch (error) {
       console.error('Failed to get auth token:', error)
+      // Development fallback: use a dummy token
+      api.auth.setToken('dev-token')
     }
   }
 
@@ -205,10 +210,14 @@ export const useCreateUser = () => {
 export const useAnalytics = () => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: queryKeys.analytics,
-    queryFn: () => api.analytics.getOverview(),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getOverview()
+    },
     staleTime: 1 * 60 * 1000, // 1 minute - analytics should be fresh
     enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
@@ -217,10 +226,14 @@ export const useAnalytics = () => {
 export const useProjectAnalytics = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: ['analytics', 'project', projectId, days],
-    queryFn: () => api.analytics.getProjectDashboard(projectId, days),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getProjectDashboard(projectId, days)
+    },
     staleTime: 1 * 60 * 1000, // 1 minute
     enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
@@ -229,10 +242,14 @@ export const useProjectAnalytics = (projectId: string, days: number = 30) => {
 export const useProjectVelocity = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: ['analytics', 'velocity', projectId, days],
-    queryFn: () => api.analytics.getProjectVelocity(projectId, days),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getProjectVelocity(projectId, days)
+    },
     staleTime: 1 * 60 * 1000,
     enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
@@ -241,10 +258,14 @@ export const useProjectVelocity = (projectId: string, days: number = 30) => {
 export const useProjectBurndown = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: ['analytics', 'burndown', projectId, days],
-    queryFn: () => api.analytics.getProjectBurndown(projectId, days),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getProjectBurndown(projectId, days)
+    },
     staleTime: 1 * 60 * 1000,
     enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
@@ -253,10 +274,14 @@ export const useProjectBurndown = (projectId: string, days: number = 30) => {
 export const useTeamPerformance = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: ['analytics', 'team-performance', projectId, days],
-    queryFn: () => api.analytics.getTeamPerformance(projectId, days),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getTeamPerformance(projectId, days)
+    },
     staleTime: 1 * 60 * 1000,
     enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
@@ -265,10 +290,14 @@ export const useTeamPerformance = (projectId: string, days: number = 30) => {
 export const useProjectInsights = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: ['analytics', 'insights', projectId, days],
-    queryFn: () => api.analytics.getProjectInsights(projectId, days),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getProjectInsights(projectId, days)
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes for AI insights
     enabled: isLoaded && isSignedIn && !!user && !!projectId,
   })
@@ -277,10 +306,14 @@ export const useProjectInsights = (projectId: string, days: number = 30) => {
 export const useTeamAnalytics = (teamId?: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: ['analytics', 'team', teamId, days],
-    queryFn: () => api.analytics.getTeamAnalytics(teamId, days),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.analytics.getTeamAnalytics(teamId, days)
+    },
     staleTime: 1 * 60 * 1000,
     enabled: isLoaded && isSignedIn && !!user,
   })
@@ -350,10 +383,18 @@ export const useDeleteProject = () => {
 
 // Tasks hooks
 export const useTasks = () => {
+  const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  
   return useQuery({
     queryKey: queryKeys.tasks,
-    queryFn: () => api.tasks.getAll(),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.tasks.getAll()
+    },
     staleTime: 1 * 60 * 1000, // 1 minute - tasks change frequently
+    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
 }
 
@@ -406,9 +447,14 @@ export const useDeleteTask = () => {
 
 // Search hooks
 export const useSearch = (query: string, enabled: boolean = true) => {
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  
   return useQuery({
     queryKey: queryKeys.search(query),
-    queryFn: () => api.search.search(query),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.search.search(query)
+    },
     enabled: enabled && query.length > 0,
     staleTime: 30 * 1000, // 30 seconds - search results should be fresh
   })

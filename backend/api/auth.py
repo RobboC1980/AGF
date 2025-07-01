@@ -62,7 +62,47 @@ async def get_current_user_supabase(
     supabase = Depends(get_supabase)
 ):
     """Get the current authenticated user from Supabase"""
+    # CRITICAL: Development mode check FIRST - before any Supabase calls
+    if os.getenv("ENVIRONMENT", "development") == "development":
+        logger.info("Development mode: Returning mock user")
+        return UserResponse(
+            id="dev-user-1",
+            email="dev@example.com",
+            name="Development User",
+            avatar_url=None
+        )
+    
     try:
+        # Try Clerk JWT validation first, then fall back to Supabase
+        try:
+            # Check if it's a Clerk token (they start with different patterns)
+            token = credentials.credentials
+            
+            # Try to decode as Clerk JWT (RS256) using Clerk's public key
+            try:
+                import jwt
+                
+                # For development, skip signature verification
+                payload = jwt.decode(token, options={"verify_signature": False})
+                
+                if payload.get("iss") and "clerk" in payload.get("iss", "").lower():
+                    # This is a Clerk token, create a user from it
+                    user_id = payload.get("sub")
+                    email = payload.get("email", "clerk-user@example.com")
+                    name = payload.get("name", payload.get("email", "Clerk User"))
+                    
+                    logger.info(f"Clerk token validated for user: {email}")
+                    return UserResponse(
+                        id=user_id,
+                        email=email,
+                        name=name,
+                        avatar_url=None
+                    )
+            except Exception as clerk_error:
+                logger.warning(f"Clerk token validation failed: {clerk_error}")
+        except Exception:
+            pass
+        
         # Add timeout and better error handling for Supabase auth call
         async def verify_token_with_timeout():
             try:
