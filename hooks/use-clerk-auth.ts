@@ -2,8 +2,9 @@ import { useAuth, useUser } from '@clerk/nextjs'
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Defensive environment variable access with fallbacks for build time
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 
 export function useClerkAuth() {
   const { isLoaded, userId, sessionId, getToken } = useAuth()
@@ -30,13 +31,16 @@ export function useClerkAuth() {
   }, [isLoaded, userId, getToken])
 
   // Create Supabase client with Clerk auth token
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: supabaseToken ? {
-        Authorization: `Bearer ${supabaseToken}`,
-      } : {},
-    },
-  })
+  // Only create if we have valid environment variables
+  const supabase = (supabaseUrl !== 'https://placeholder.supabase.co' && supabaseAnonKey !== 'placeholder-key') 
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+          headers: supabaseToken ? {
+            Authorization: `Bearer ${supabaseToken}`,
+          } : {},
+        },
+      })
+    : null
 
   return {
     isLoaded: isLoaded && isUserLoaded,

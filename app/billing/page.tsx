@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CreditCard, Package, Receipt } from 'lucide-react'
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic'
+
 // Mock data - replace with actual API calls
 const mockSubscription = {
   id: 'sub_1234567890',
