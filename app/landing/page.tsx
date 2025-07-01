@@ -33,14 +33,14 @@ const testimonials = [
     name: "Sarah Chen",
     role: "Product Manager at TechCorp",
     avatar: "/placeholder-user.jpg",
-    content: "AgileForge transformed how our team manages projects. The AI-powered story generation saves us hours every sprint.",
+              content: "SynqForge transformed how our team manages projects. The AI-powered story generation saves us hours every sprint.",
     rating: 5
   },
   {
     name: "Marcus Rodriguez", 
     role: "Engineering Lead at StartupXYZ",
     avatar: "/placeholder-user.jpg",
-    content: "The real-time collaboration features and intuitive interface make AgileForge our go-to project management tool.",
+              content: "The real-time collaboration features and intuitive interface make SynqForge our go-to project management tool.",
     rating: 5
   },
   {
@@ -106,7 +106,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-xl font-bold text-slate-900">AgileForge</h1>
+                <h1 className="text-xl font-bold text-slate-900">SynqForge</h1>
               </Link>
               
               <div className="hidden md:flex items-center space-x-6">
@@ -231,7 +231,7 @@ export default function LandingPage() {
               Everything you need to manage agile projects
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              From planning to delivery, AgileForge provides all the tools your team needs to succeed.
+              From planning to delivery, SynqForge provides all the tools your team needs to succeed.
             </p>
           </div>
           
@@ -272,7 +272,7 @@ export default function LandingPage() {
               Trusted by teams worldwide
             </h2>
             <p className="text-xl text-slate-600">
-              See what our customers are saying about AgileForge
+              See what our customers are saying about SynqForge
             </p>
           </div>
           
@@ -331,7 +331,7 @@ export default function LandingPage() {
               Ready to transform your project management?
             </h2>
             <p className="text-xl text-blue-100 mb-8">
-              Join thousands of teams already using AgileForge to deliver better software faster.
+              Join thousands of teams already using SynqForge to deliver better software faster.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
@@ -360,7 +360,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-xl font-bold">AgileForge</h3>
+                <h3 className="text-xl font-bold">SynqForge</h3>
               </Link>
               <p className="text-slate-400 mb-4">
                 The most powerful agile project management platform for modern teams.
@@ -399,7 +399,7 @@ export default function LandingPage() {
           </div>
           
           <div className="border-t border-slate-800 mt-8 pt-8 text-center text-slate-400">
-            <p>&copy; 2024 AgileForge. All rights reserved.</p>
+            <p>&copy; 2024 SynqForge. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -33,7 +33,7 @@ export default function BillingSuccessPage() {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-slate-900 mb-2">
-              Welcome to AgileForge Pro! 🎉
+              Welcome to SynqForge Pro! 🎉
             </CardTitle>
             <p className="text-slate-600">
               Your subscription has been activated successfully. You now have access to all Pro features.
@@ -57,7 +57,7 @@ export default function BillingSuccessPage() {
             <div className="space-y-3">
               <Link href="/" className="block">
                 <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  Start Using AgileForge
+                  Start Using SynqForge
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
