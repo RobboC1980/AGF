@@ -390,6 +390,28 @@ app.include_router(ai_analysis_router, prefix="/api/ai-analysis", tags=["AI Anal
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 app.include_router(access_control_router, tags=["Access Control"])
 
+# RBAC Project Assignment endpoints
+try:
+    from backend.api.project_assignments import router as project_assignments_router
+    app.include_router(project_assignments_router, tags=["Project Assignments"])
+except ImportError:
+    try:
+        from api.project_assignments import router as project_assignments_router
+        app.include_router(project_assignments_router, tags=["Project Assignments"])
+    except ImportError:
+        logger.warning("Project assignments router not available")
+
+# RBAC User Permissions endpoints
+try:
+    from backend.api.user_permissions import router as user_permissions_router
+    app.include_router(user_permissions_router, tags=["User Permissions"])
+except ImportError:
+    try:
+        from api.user_permissions import router as user_permissions_router
+        app.include_router(user_permissions_router, tags=["User Permissions"])
+    except ImportError:
+        logger.warning("User permissions router not available")
+
 # Phase 2 & 3: Include monitoring and performance routers
 if health_router:
     app.include_router(health_router, tags=["Monitoring"])

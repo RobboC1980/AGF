@@ -66,10 +66,36 @@ class ProjectUpdate(BaseModel):
 
 @router.get("/")
 async def get_projects(current_user: UserResponse = Depends(get_current_user_supabase)):
-    """Get all projects for the current user"""
+    """Get all projects accessible to the current user (RBAC filtered)"""
     try:
         supabase = get_supabase()
-        result = supabase.table("projects").select("*").eq("created_by", current_user.id).execute()
+        
+        # Check user's role
+        user_result = supabase.table("users").select("role").eq("id", current_user.id).execute()
+        user_role = user_result.data[0]["role"] if user_result.data else "member"
+        
+        if user_role == "admin":
+            # Admins can see all projects
+            result = supabase.table("projects").select("*").execute()
+        else:
+            # Get projects user owns
+            owned_projects = supabase.table("projects").select("*").eq("created_by", current_user.id).execute()
+            
+            # Get projects user is assigned to
+            assigned_projects = supabase.table("projects").select("""
+                *,
+                project_access!inner(role, assigned_at)
+            """).eq("project_access.user_id", current_user.id).eq("project_access.is_active", True).execute()
+            
+            # Combine projects (remove duplicates)
+            all_projects = owned_projects.data[:]
+            owned_ids = {p["id"] for p in owned_projects.data}
+            
+            for project in assigned_projects.data:
+                if project["id"] not in owned_ids:
+                    all_projects.append(project)
+            
+            result = type('Result', (), {'data': all_projects})()
         
         projects = []
         for project in result.data:
@@ -78,9 +104,9 @@ async def get_projects(current_user: UserResponse = Depends(get_current_user_sup
                 "name": project["name"],
                 "description": project.get("description"),
                 "status": project["status"],
-                "key": project["name"][:10].upper().replace(" ", "_"),  # Generate key from name
-                "priority": "medium",  # Default priority since not in DB
-                "progress": 0,  # TODO: Calculate from epics/stories
+                "key": project.get("key") or project["name"][:10].upper().replace(" ", "_"),
+                "priority": project.get("priority", "medium"),
+                "progress": project.get("progress", 0),
                 "created_by": project["created_by"],
                 "created_at": project["created_at"],
                 "updated_at": project.get("updated_at")
@@ -134,15 +160,36 @@ async def create_project(project_data: ProjectCreate, current_user: UserResponse
 
 @router.get("/{project_id}")
 async def get_project(project_id: str, current_user: UserResponse = Depends(get_current_user_supabase)):
-    """Get a specific project"""
+    """Get a specific project (RBAC checked)"""
     try:
         supabase = get_supabase()
-        result = supabase.table("projects").select("*").eq("id", project_id).eq("created_by", current_user.id).execute()
         
-        if not result.data:
+        # Check if user can access this project
+        user_result = supabase.table("users").select("role").eq("id", current_user.id).execute()
+        user_role = user_result.data[0]["role"] if user_result.data else "member"
+        
+        # First try to get the project
+        project_result = supabase.table("projects").select("*").eq("id", project_id).execute()
+        if not project_result.data:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        project = result.data[0]
+        project = project_result.data[0]
+        
+        # Check access permissions
+        can_access = False
+        
+        if user_role == "admin":
+            can_access = True
+        elif project["created_by"] == current_user.id:
+            can_access = True
+        else:
+            # Check if user has explicit project access
+            access_result = supabase.table("project_access").select("id").eq("project_id", project_id).eq("user_id", current_user.id).eq("is_active", True).execute()
+            can_access = bool(access_result.data)
+        
+        if not can_access:
+            raise HTTPException(status_code=403, detail="Access denied to this project")
+        
         return {
             "success": True,
             "data": {
@@ -150,9 +197,9 @@ async def get_project(project_id: str, current_user: UserResponse = Depends(get_
                 "name": project["name"],
                 "description": project.get("description"),
                 "status": project["status"],
-                "key": project["name"][:10].upper().replace(" ", "_"),
-                "priority": "medium",
-                "progress": 0,  # TODO: Calculate from epics/stories
+                "key": project.get("key") or project["name"][:10].upper().replace(" ", "_"),
+                "priority": project.get("priority", "medium"),
+                "progress": project.get("progress", 0),
                 "created_by": project["created_by"],
                 "created_at": project["created_at"],
                 "updated_at": project.get("updated_at")

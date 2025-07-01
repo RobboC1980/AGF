@@ -48,6 +48,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useProjects, useUpdateProject, useDeleteProject, useStories, useEpics, useUsers } from "@/hooks/useApi"
+import { useSecureData, useRBAC, usePermission } from "@/hooks/use-rbac"
+import { Permission } from "@/lib/rbac"
+import { useUser } from '@clerk/nextjs'
 
 interface ProjectsPageProps {
   onCreateNew?: () => void
@@ -60,11 +63,24 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   onEdit,
   onDelete,
 }) => {
-  // Use the proper projects API hook
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError, refetch: refetchProjects } = useProjects()
+  // Use the proper projects API hook and get current user
+  const { user } = useUser()
+  const { data: allProjects = [], isLoading: projectsLoading, error: projectsError, refetch: refetchProjects } = useProjects()
   const { data: stories = [], isLoading: storiesLoading } = useStories()
   const { data: epics = [], isLoading: epicsLoading } = useEpics()
   const { data: users = [], isLoading: usersLoading } = useUsers()
+
+  // RBAC filtering
+  const { filterProjects, canAssignUsers, isLoading: rbacLoading } = useSecureData()
+  const { hasPermission: canCreateProject } = usePermission(Permission.CREATE_PROJECT)
+  const { hasPermission: canDeleteProject } = usePermission(Permission.DELETE_PROJECT)
+  const { hasPermission: canUpdateProject } = usePermission(Permission.UPDATE_PROJECT)
+
+  // Filter projects based on user access
+  const projects = useMemo(() => {
+    if (rbacLoading || projectsLoading) return []
+    return filterProjects(allProjects)
+  }, [allProjects, filterProjects, rbacLoading, projectsLoading])
 
   // CRUD operations
   const updateProjectMutation = useUpdateProject()
@@ -99,7 +115,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
   })
 
   // Combine loading and error states
-  const isLoading = projectsLoading || storiesLoading || epicsLoading || usersLoading
+  const isLoading = projectsLoading || storiesLoading || epicsLoading || usersLoading || rbacLoading
   const error = projectsError
 
   // State for filters and UI
@@ -216,14 +232,14 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
           completedTasks,
         },
         progress,
-        // Add some mock data for display
+        // Real data from project
         team: {
-          lead: users[0] || { id: '1', name: 'Project Lead', avatar: '' },
-          members: users.slice(0, 3) || [],
+          lead: users.find(u => u.id === project.created_by) || { id: project.created_by, name: 'Project Owner', avatar: '' },
+          members: users.filter(u => projectStories.some(s => s.assignee_id === u.id)).slice(0, 5),
         },
-        tags: ['agile', 'development'],
-        startDate: project.created_at,
-        endDate: project.target_end_date,
+        tags: project.tags || [],
+        startDate: project.start_date || project.created_at,
+        endDate: project.target_end_date || project.actual_end_date,
         dueDate: project.target_end_date,
         updatedAt: project.updated_at || project.created_at,
       }
@@ -263,11 +279,11 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
       filtered = filtered.filter((project) => {
         switch (activeTab) {
           case "my-projects":
-            return project.created_by === "current-user-id" // Replace with actual user ID
+            return project.created_by === user?.id
           case "active":
-            return project.status === "in-progress"
+            return project.status === "in-progress" || project.status === "active"
           case "completed":
-            return project.status === "done"
+            return project.status === "done" || project.status === "completed"
           default:
             return true
         }
@@ -418,13 +434,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                   )}
                 </div>
 
-                <Button
-                  onClick={onCreateNew}
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Create Project
-                </Button>
+                {canCreateProject && (
+                  <Button
+                    onClick={onCreateNew}
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Create Project
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -657,27 +675,44 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({
                                 <Target size={16} className="mr-2" />
                                 Sprint Board
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleEdit(project)}>
-                                <Edit size={16} className="mr-2" />
-                                Edit Project
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Copy size={16} className="mr-2" />
-                                Duplicate
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Archive size={16} className="mr-2" />
-                                Archive
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => handleDelete(project)}
-                                className="text-red-600"
-                              >
-                                <Trash2 size={16} className="mr-2" />
-                                Delete
-                              </DropdownMenuItem>
+                              {canAssignUsers && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => window.location.href = `/projects/${project.id}/assignments`}>
+                                    <Users size={16} className="mr-2" />
+                                    Manage Access
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {canUpdateProject && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleEdit(project)}>
+                                    <Edit size={16} className="mr-2" />
+                                    Edit Project
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Copy size={16} className="mr-2" />
+                                    Duplicate
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Archive size={16} className="mr-2" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {canDeleteProject && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDelete(project)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 size={16} className="mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

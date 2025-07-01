@@ -290,10 +290,14 @@ export const useTeamAnalytics = (teamId?: string, days: number = 30) => {
 export const useProjects = () => {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useQuery({
     queryKey: queryKeys.projects,
-    queryFn: () => api.projects.getAll(),
+    queryFn: async () => {
+      await setAuthTokenIfNeeded()
+      return api.projects.getAll()
+    },
     staleTime: 3 * 60 * 1000, // 3 minutes
     enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
   })
