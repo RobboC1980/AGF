@@ -131,8 +131,19 @@ function getUserRoleFromClerk(user: any): UserRole {
 // API functions for fetching user permissions
 async function fetchUserProjectAccess(userId: string): Promise<ProjectAccess[]> {
   try {
-    const token = await window.Clerk?.session?.getToken()
-    if (!token) throw new Error('No authentication token')
+    // Try to get the Supabase-compatible token first, then fallback to regular token
+    let token;
+    try {
+      token = await window.Clerk?.session?.getToken({ template: 'supabase' })
+    } catch (error) {
+      console.warn('Supabase template not available, trying regular token')
+      token = await window.Clerk?.session?.getToken()
+    }
+    
+    if (!token) {
+      console.warn('No authentication token available')
+      return []
+    }
     
     const response = await fetch(`/api/users/${userId}/project-access`, {
       headers: {
@@ -140,6 +151,17 @@ async function fetchUserProjectAccess(userId: string): Promise<ProjectAccess[]> 
         'Content-Type': 'application/json'
       }
     })
+    
+    if (response.status === 401) {
+      console.warn('Authentication failed - user may need to sign in again')
+      return []
+    }
+    
+    if (response.status === 404) {
+      // User not found or no project access - return empty array
+      console.log('No project access found for user, returning empty array')
+      return []
+    }
     
     if (!response.ok) {
       throw new Error(`Failed to fetch project access: ${response.statusText}`)
@@ -155,14 +177,26 @@ async function fetchUserProjectAccess(userId: string): Promise<ProjectAccess[]> 
     }))
   } catch (error) {
     console.error('Failed to fetch user project access:', error)
-    throw error
+    // Return empty array instead of throwing to prevent UI crashes
+    return []
   }
 }
 
 async function fetchUserTeamMemberships(userId: string): Promise<TeamMembership[]> {
   try {
-    const token = await window.Clerk?.session?.getToken()
-    if (!token) throw new Error('No authentication token')
+    // Try to get the Supabase-compatible token first, then fallback to regular token
+    let token;
+    try {
+      token = await window.Clerk?.session?.getToken({ template: 'supabase' })
+    } catch (error) {
+      console.warn('Supabase template not available, trying regular token')
+      token = await window.Clerk?.session?.getToken()
+    }
+    
+    if (!token) {
+      console.warn('No authentication token available')
+      return []
+    }
     
     const response = await fetch(`/api/users/${userId}/team-memberships`, {
       headers: {
@@ -170,6 +204,17 @@ async function fetchUserTeamMemberships(userId: string): Promise<TeamMembership[
         'Content-Type': 'application/json'
       }
     })
+    
+    if (response.status === 401) {
+      console.warn('Authentication failed - user may need to sign in again')
+      return []
+    }
+    
+    if (response.status === 404) {
+      // User not found or no team memberships - return empty array
+      console.log('No team memberships found for user, returning empty array')
+      return []
+    }
     
     if (!response.ok) {
       throw new Error(`Failed to fetch team memberships: ${response.statusText}`)
@@ -183,7 +228,8 @@ async function fetchUserTeamMemberships(userId: string): Promise<TeamMembership[
     }))
   } catch (error) {
     console.error('Failed to fetch user team memberships:', error)
-    throw error
+    // Return empty array instead of throwing to prevent UI crashes
+    return []
   }
 }
 

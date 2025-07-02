@@ -13,6 +13,10 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: '/api/users/:path*',
+        destination: '/api/users/:path*', // Keep user API routes in Next.js
+      },
+      {
         source: '/api/:path*',
         destination: process.env.NODE_ENV === 'development' 
           ? 'http://localhost:8000/api/:path*'

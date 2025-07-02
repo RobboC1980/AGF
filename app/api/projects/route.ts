@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
     // Create Supabase client with Clerk token
     const supabase = createClerkSupabaseClient(supabaseAccessToken);
 
-    // 🛡️ SECURITY: Set owner_id and created_by to current user
-    const { data: project, error } = await supabase
+    // Start a transaction to create project and add creator as admin
+    const { data: project, error: projectError } = await supabase
       .from('projects')
       .insert({
         name: projectData.name,
@@ -114,10 +114,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating project:', error);
+    if (projectError) {
+      console.error('Error creating project:', projectError);
       
-      if (error.code === '23505') {
+      if (projectError.code === '23505') {
         return NextResponse.json(
           { error: 'Project with this name already exists' },
           { status: 400 }
@@ -130,9 +130,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Automatically add the creator as a project admin
+    const { error: memberError } = await supabase
+      .from('project_members')
+      .insert({
+        project_id: project.id,
+        user_id: userId,
+        role: 'admin',
+        created_at: new Date().toISOString()
+      });
+
+    if (memberError) {
+      console.error('Error adding creator as project admin:', memberError);
+      // Don't fail the project creation if this fails, just log it
+      console.warn(`Project ${project.id} created but creator not added as admin member`);
+    } else {
+      console.log(`Project creator ${userId} automatically added as admin for project ${project.id}`);
+    }
+
     return NextResponse.json({
       success: true,
-      data: project
+      data: {
+        ...project,
+        creator_is_admin: !memberError // Indicate if the creator was successfully added as admin
+      }
     }, { status: 201 });
 
   } catch (error) {

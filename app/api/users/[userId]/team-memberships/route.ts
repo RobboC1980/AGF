@@ -19,31 +19,37 @@ export async function GET(
 
     const { userId: targetUserId } = params;
 
-    // Get Supabase access token from Clerk
-    const supabaseAccessToken = await getToken({
-      template: 'supabase',
-    });
-
-    if (!supabaseAccessToken) {
-      return NextResponse.json(
-        { error: 'Failed to get access token' },
-        { status: 401 }
-      );
+    // Try to get Supabase access token from Clerk, with fallback
+    let supabaseAccessToken;
+    try {
+      supabaseAccessToken = await getToken({
+        template: 'supabase',
+      });
+    } catch (error) {
+      console.warn('Supabase template not configured, proceeding without RLS');
     }
 
-    // Create Supabase client with Clerk token
-    const supabase = createClerkSupabaseClient(supabaseAccessToken);
+    // Create Supabase client with Clerk token (if available)
+    const supabase = supabaseAccessToken ? createClerkSupabaseClient(supabaseAccessToken) : null;
 
     // Check if the current user can access this data
     // Users can only see their own memberships unless they're admin
     if (currentUserId !== targetUserId) {
-      const { data: currentUser } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', currentUserId)
-        .single();
+      if (supabase) {
+        const { data: currentUser } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', currentUserId)
+          .single();
 
-      if (!currentUser?.is_admin) {
+        if (!currentUser?.is_admin) {
+          return NextResponse.json(
+            { error: 'Access denied' },
+            { status: 403 }
+          );
+        }
+      } else {
+        // Without Supabase RLS, only allow users to see their own data
         return NextResponse.json(
           { error: 'Access denied' },
           { status: 403 }
@@ -51,8 +57,8 @@ export async function GET(
       }
     }
 
-    // For now, return empty array since teams functionality isn't implemented yet
-    // This prevents the RBAC hook from failing while we focus on project-level access
+    // For now, return empty array since we don't have teams implemented yet
+    // In the future, this would fetch from a teams table
     const teamMemberships: any[] = [];
 
     return NextResponse.json(teamMemberships);

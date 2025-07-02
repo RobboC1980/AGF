@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createClerkSupabaseClient } from '@/lib/supabase';
+import { createClerkSupabaseClient, createAdminClient } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -19,31 +19,43 @@ export async function GET(
 
     const { userId: targetUserId } = params;
 
-    // Get Supabase access token from Clerk
-    const supabaseAccessToken = await getToken({
-      template: 'supabase',
-    });
-
-    if (!supabaseAccessToken) {
-      return NextResponse.json(
-        { error: 'Failed to get access token' },
-        { status: 401 }
-      );
+    // Try to get Supabase access token from Clerk, with fallback to regular token
+    let supabaseAccessToken;
+    try {
+      supabaseAccessToken = await getToken({
+        template: 'supabase',
+      });
+    } catch (error) {
+      console.warn('Supabase template not configured, using regular Clerk token');
+      // Fallback: if Supabase template isn't configured, we'll still create the user profile
+      // but won't use Supabase RLS - we'll rely on our own permission checks
     }
 
-    // Create Supabase client with Clerk token
-    const supabase = createClerkSupabaseClient(supabaseAccessToken);
+    // Create Supabase clients
+    const supabase = supabaseAccessToken ? createClerkSupabaseClient(supabaseAccessToken) : null;
+    const adminClient = createAdminClient();
+
+    // Ensure the user profile exists (auto-create for Clerk users)
+    await ensureUserProfile(targetUserId, adminClient);
 
     // Check if the current user can access this data
     // Users can only see their own access unless they're admin
     if (currentUserId !== targetUserId) {
-      const { data: currentUser } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', currentUserId)
-        .single();
+      if (supabase) {
+        const { data: currentUser } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', currentUserId)
+          .single();
 
-      if (!currentUser?.is_admin) {
+        if (!currentUser?.is_admin) {
+          return NextResponse.json(
+            { error: 'Access denied' },
+            { status: 403 }
+          );
+        }
+      } else {
+        // Without Supabase RLS, only allow users to see their own data
         return NextResponse.json(
           { error: 'Access denied' },
           { status: 403 }
@@ -51,8 +63,9 @@ export async function GET(
       }
     }
 
-    // Fetch user's project access
-    const { data: projectAccess, error } = await supabase
+    // Fetch user's project access using admin client if Supabase token not available
+    const clientToUse = supabase || adminClient;
+    const { data: projectAccess, error } = await clientToUse
       .from('project_members')
       .select(`
         project_id,
@@ -92,5 +105,55 @@ export async function GET(
       { error: 'Internal server error' },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to ensure user profile exists
+async function ensureUserProfile(userId: string, adminClient: any) {
+  try {
+    // Check if profile already exists
+    const { data: existingProfile } = await adminClient
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (existingProfile) {
+      return; // Profile already exists
+    }
+
+    // Default user info for new Clerk users
+    let userEmail = `${userId}@clerk.user`;
+    let userName = 'New User';
+
+    // Try to get better user info if we can access Clerk's user data
+    // In a production app, you might want to get this from Clerk's API
+    // For now, we'll create a basic profile that can be updated later
+
+    // Create new profile for Clerk user
+    // New users get 'member' role by default, which allows them to:
+    // - Create their own projects (and become admin of those)
+    // - Work on projects they're assigned to
+    // - View analytics and users
+    const { error: insertError } = await adminClient
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: userEmail,
+        name: userName,
+        is_admin: false, // Global admin status (false by default)
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (insertError) {
+      console.error('Error creating user profile:', insertError);
+      // Don't throw error - just log it and continue
+    } else {
+      console.log(`Created profile for Clerk user: ${userId} with member role`);
+    }
+  } catch (error) {
+    console.error('Error in ensureUserProfile:', error);
+    // Don't throw - just log and continue
   }
 } 

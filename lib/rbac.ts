@@ -188,7 +188,17 @@ export class RBACService {
       return false
     }
 
-    // Then check if they have the required permission
+    // Project owners have full admin permissions for their projects
+    const projectAccess = userPermissions.projectAccess.find(
+      access => access.projectId === projectId
+    )
+    
+    if (projectAccess && projectAccess.role === UserRole.ADMIN) {
+      // Project admins have all permissions for the project
+      return ROLE_PERMISSIONS[UserRole.ADMIN].includes(permission)
+    }
+
+    // Then check if they have the required permission based on their role
     return this.hasPermission(userPermissions, permission)
   }
 
@@ -196,15 +206,28 @@ export class RBACService {
    * Check if user owns a project (created it)
    */
   static ownsProject(userPermissions: UserPermissions, project: any): boolean {
-    return project.created_by === userPermissions.userId
+    return project.created_by === userPermissions.userId || project.owner_id === userPermissions.userId
   }
 
   /**
-   * Check if user can assign others to project (admin only)
+   * Check if user can assign others to project (project admins and global admins)
    */
-  static canAssignToProject(userPermissions: UserPermissions): boolean {
-    return userPermissions.role === UserRole.ADMIN && 
-           this.hasPermission(userPermissions, Permission.ASSIGN_USERS)
+  static canAssignToProject(userPermissions: UserPermissions, projectId?: string): boolean {
+    // Global admins can assign to any project
+    if (userPermissions.role === UserRole.ADMIN && 
+        this.hasPermission(userPermissions, Permission.ASSIGN_USERS)) {
+      return true
+    }
+
+    // Project admins can assign to their specific project
+    if (projectId) {
+      const projectAccess = userPermissions.projectAccess.find(
+        access => access.projectId === projectId
+      )
+      return projectAccess?.role === UserRole.ADMIN
+    }
+
+    return false
   }
 
   /**
@@ -223,7 +246,8 @@ export class RBACService {
     )
 
     if (projectAccess) {
-      return projectAccess.permissions
+      // Return permissions based on project-specific role
+      return ROLE_PERMISSIONS[projectAccess.role]
     }
 
     // Default to role-based permissions
@@ -238,7 +262,7 @@ export class RBACService {
     projects: any[]
   ): any[] {
     if (userPermissions.role === UserRole.ADMIN) {
-      return projects // Admins see all
+      return projects // Global admins see all
     }
 
     return projects.filter(project => 
