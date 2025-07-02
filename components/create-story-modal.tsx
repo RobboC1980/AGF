@@ -183,7 +183,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
     setAiError(null)
 
     try {
-      const data: GeneratedStoryResponse = await api.generateStory({
+      const data: GeneratedStoryResponse = await api.ai.generateStory({
         description: aiDescription,
         priority: story.priority,
         epicId: story.epicId,

@@ -52,6 +52,9 @@ except ImportError as e:
     try:
         from api.ai_endpoints import router as ai_router
         from api.ai_analysis import router as ai_analysis_router
+        from api.ai_kanban_endpoints import router as ai_kanban_router
+        from api.ai_sprint_endpoints import router as ai_sprint_router
+        from api.ai_analytics_endpoints import router as ai_analytics_router
         from api.stories import router as stories_router
         from api.auth import router as auth_router
         from api.projects import router as projects_router
@@ -387,6 +390,9 @@ app.include_router(search_router, prefix="/api/search", tags=["Search"])
 app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI Features"])
 app.include_router(ai_analysis_router, prefix="/api/ai-analysis", tags=["AI Analysis"])
+app.include_router(ai_kanban_router, tags=["AI Kanban Features"])
+app.include_router(ai_sprint_router, tags=["AI Sprint Planning"])
+app.include_router(ai_analytics_router, tags=["AI Analytics & Insights"])
 app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 app.include_router(access_control_router, tags=["Access Control"])
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import logging
 import os
 import sys
+import jwt
 
 # Add proper path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,12 +21,16 @@ try:
     from backend.services.async_ai_service import get_async_ai_service
     from backend.services.cache_service import get_project_cache
     from backend.models.api_models import JobStatusResponse
+    from backend.auth.dependencies import UserResponse, get_current_user_clerk
+    from backend.auth.project_access import get_project_validator
 except ImportError:
     try:
         from database.supabase_client import get_supabase
         from services.async_ai_service import get_async_ai_service
         from services.cache_service import get_project_cache
         from models.api_models import JobStatusResponse
+        from auth.dependencies import UserResponse, get_current_user_clerk
+        from auth.project_access import get_project_validator
     except ImportError:
         def get_supabase():
             return None
@@ -36,54 +41,21 @@ except ImportError:
         def get_project_cache():
             return None
         
+        def get_project_validator():
+            return None
+        
         class JobStatusResponse(BaseModel):
             job_id: str
             status: str
             result: Optional[Dict[str, Any]] = None
             error: Optional[str] = None
+            
+        # Import auth dependencies directly
+        from auth.dependencies import UserResponse, get_current_user_clerk
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["AI Features"])
 security = HTTPBearer()
-
-class UserResponse(BaseModel):
-    id: str
-    email: str
-    name: str
-    avatar_url: Optional[str] = None
-
-async def get_current_user_supabase(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    supabase = Depends(get_supabase)
-):
-    """Get the current authenticated user from Supabase"""
-    try:
-        # Verify the JWT token with Supabase
-        user = supabase.auth.get_user(credentials.credentials)
-        
-        if not user or not user.user:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
-        # Get user details from the database
-        user_data = supabase.table("users").select("*").eq("id", user.user.id).single().execute()
-        
-        if not user_data.data:
-            raise HTTPException(
-                status_code=401,
-                detail="User not found"
-            )
-        
-        return UserResponse(**user_data.data)
-        
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials"
-        )
 
 class StoryGenerateRequest(BaseModel):
     description: str
@@ -99,6 +71,7 @@ class TaskGenerateRequest(BaseModel):
     technical_context: Optional[str] = ""
     team_skills: Optional[str] = ""
     include_subtasks: bool = True
+    project_id: Optional[str] = None  # Added for project access validation
 
 class SingleTaskGenerateRequest(BaseModel):
     task_description: str
@@ -130,6 +103,45 @@ class ProjectGenerateRequest(BaseModel):
 async def ai_health_check():
     """Simple health check for AI endpoints"""
     return {"status": "ok", "message": "AI endpoints are working"}
+
+@router.post("/test-auth")
+async def test_auth_endpoint(request: dict):
+    """Test authentication manually"""
+    print("DEBUG: Test auth endpoint called")
+    print(f"DEBUG: Request: {request}")
+    return {"status": "success", "message": "Auth test endpoint working", "request": request}
+
+@router.post("/test-auth-with-header")
+async def test_auth_with_header_endpoint(
+    request: dict,
+    authorization: Optional[str] = Header(None)
+):
+    """Test authentication with manual header extraction"""
+    print("DEBUG: Test auth with header endpoint called")
+    print(f"DEBUG: Authorization header: {authorization}")
+    print(f"DEBUG: Request: {request}")
+    
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # Remove "Bearer " prefix
+        print(f"DEBUG: Extracted token: {token[:50]}...")
+        
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            print(f"DEBUG: Token payload: {payload}")
+            user_id = payload.get("sub")
+            email = payload.get("email", f"user_{user_id}@clerk.dev")
+            return {
+                "status": "success", 
+                "message": "Authentication successful",
+                "user_id": user_id,
+                "email": email,
+                "request": request
+            }
+        except Exception as e:
+            print(f"DEBUG: Token decode failed: {e}")
+            return {"status": "error", "message": f"Token decode failed: {e}"}
+    else:
+        return {"status": "error", "message": "No authorization header or invalid format"}
 
 @router.get("/test")
 async def test_endpoint():
@@ -235,23 +247,24 @@ async def ai_status():
 @router.post("/generate-epic")
 async def generate_epic_endpoint(
     request: EpicGenerateRequest,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
-    """Generate an epic using AI"""
+    """Generate an epic using AI with proper project access validation"""
     try:
-        # 🛡️ SECURITY: Validate project access
+        # Validate project access if project_id is provided
         if request.project_id:
-            supabase = get_supabase()
-            access_result = supabase.rpc('has_project_access', {
-                'project_uuid': request.project_id,
-                'user_uuid': current_user.id
-            }).execute()
-            
-            if not access_result.data:
-                raise HTTPException(
-                    status_code=403, 
-                    detail="Access denied: You don't have permission to access this project"
+            validator = get_project_validator()
+            if validator:
+                has_access = await validator.validate_project_access(
+                    current_user, 
+                    request.project_id, 
+                    "write"  # Require write permission to create epics
                 )
+                if not has_access:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Access denied: You don't have permission to create epics in this project"
+                    )
         try:
             from ..services.ai_service import get_basic_ai_service
         except ImportError:
@@ -296,23 +309,24 @@ async def generate_epic_endpoint(
 @router.post("/generate-story")
 async def generate_story_endpoint(
     request: StoryGenerateRequest,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
-    """Generate a user story using AI"""
+    """Generate a user story using AI with proper project access validation"""
     try:
-        # 🛡️ SECURITY: Validate project access
+        # Validate project access if project_id is provided
         if request.project_id:
-            supabase = get_supabase()
-            access_result = supabase.rpc('has_project_access', {
-                'project_uuid': request.project_id,
-                'user_uuid': current_user.id
-            }).execute()
-            
-            if not access_result.data:
-                raise HTTPException(
-                    status_code=403, 
-                    detail="Access denied: You don't have permission to access this project"
+            validator = get_project_validator()
+            if validator:
+                has_access = await validator.validate_project_access(
+                    current_user, 
+                    request.project_id, 
+                    "write"  # Require write permission to create stories
                 )
+                if not has_access:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Access denied: You don't have permission to create stories in this project"
+                    )
         try:
             from ..services.ai_service import get_basic_ai_service
         except ImportError:
@@ -334,10 +348,21 @@ async def generate_story_endpoint(
         result = await ai_service.generate_completion("story_generator", variables)
         
         if result.success:
+            # Map AI response to frontend expected format
+            ai_data = result.data
             return {
                 "success": True,
-                "story": result.data,
-                "model_used": result.model_used,
+                "story": {
+                    "name": ai_data.get("title", "Generated Story"),
+                    "description": ai_data.get("description", ""),
+                    "acceptanceCriteria": ai_data.get("acceptance_criteria", []),
+                    "tags": ai_data.get("tags", []),
+                    "storyPoints": ai_data.get("story_points")
+                },
+                "provider": result.model_used.split("/")[0] if "/" in result.model_used else "AI",
+                "model": result.model_used,
+                "confidence": ai_data.get("confidence"),
+                "suggestions": ai_data.get("improvement_suggestions", []),
                 "tokens_used": result.tokens_used,
                 "processing_time": result.processing_time
             }
@@ -357,12 +382,24 @@ async def generate_story_endpoint(
 @router.post("/generate-tasks")
 async def generate_tasks_endpoint(
     request: TaskGenerateRequest,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
-    """Generate tasks for a user story using AI"""
+    """Generate tasks for a user story using AI with project access validation"""
     try:
-        # 🛡️ SECURITY: Tasks are typically project-scoped, but we validate if possible
-        # Note: TaskGenerateRequest doesn't have project_id field, but we should add it
+        # Validate project access if project_id is provided
+        if request.project_id:
+            validator = get_project_validator()
+            if validator:
+                has_access = await validator.validate_project_access(
+                    current_user, 
+                    request.project_id, 
+                    "write"  # Require write permission to create tasks
+                )
+                if not has_access:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Access denied: You don't have permission to create tasks in this project"
+                    )
         try:
             from ..services.ai_service import get_basic_ai_service
         except ImportError:
@@ -408,7 +445,7 @@ async def generate_tasks_endpoint(
 @router.post("/generate-single-task")
 async def generate_single_task_endpoint(
     request: SingleTaskGenerateRequest,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Generate a single task using AI"""
     try:
@@ -462,7 +499,7 @@ async def generate_single_task_endpoint(
 @router.post("/generate-project")
 async def generate_project_endpoint(
     request: ProjectGenerateRequest,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Generate a project using AI"""
     try:
@@ -515,7 +552,7 @@ async def generate_project_endpoint(
 @router.post("/generate-story-async")
 async def generate_story_async(
     request: StoryGenerateRequest,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Generate user story asynchronously - returns job ID immediately"""
     try:
@@ -553,7 +590,7 @@ async def generate_story_async(
 @router.get("/job-status/{job_id}")
 async def get_job_status(
     job_id: str,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Get status of async job"""
     try:
@@ -586,7 +623,7 @@ async def get_job_status(
 @router.delete("/job/{job_id}")
 async def cancel_job(
     job_id: str,
-    current_user: UserResponse = Depends(get_current_user_supabase)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Cancel a queued or running job"""
     try:

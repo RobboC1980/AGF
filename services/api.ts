@@ -348,6 +348,7 @@ class ApiClient {
     description: string
     priority?: string
     epicId?: string
+    projectId?: string
     includeAcceptanceCriteria?: boolean
     includeTags?: boolean
   }): Promise<{
@@ -364,9 +365,14 @@ class ApiClient {
     confidence?: number
     suggestions?: string[]
   }> {
-    return this.request("/api/stories/generate", {
+    return this.request("/api/ai/generate-story", {
       method: "POST",
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        description: request.description,
+        priority: request.priority || "medium",
+        epic_id: request.epicId,
+        project_id: request.projectId,
+      }),
     })
   }
 
@@ -1231,10 +1237,13 @@ export const legacyApiClient = {
 // Function to create API client with Clerk authentication
 export function createAuthenticatedApi(getToken?: () => Promise<string | null>) {
   // Create an authenticated version of the apiClient
-  const authenticatedClient = {
-    ...apiClient,
-    // Override request method to include Clerk token
-    async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const authenticatedClient = Object.create(Object.getPrototypeOf(apiClient))
+  
+  // Copy all properties and methods from apiClient
+  Object.assign(authenticatedClient, apiClient)
+  
+  // Override request method to include Clerk token
+  authenticatedClient.request = async function<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
       let token = null
       
       // Try to get token from provided function (Clerk's getToken)
@@ -1312,7 +1321,6 @@ export function createAuthenticatedApi(getToken?: () => Promise<string | null>) 
         throw error
       }
     }
-  }
 
   // Return the full API structure with authenticated client
   return {
