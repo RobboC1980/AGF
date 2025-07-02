@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "@clerk/nextjs"
 import {
   X,
   Plus,
@@ -31,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
+import { createAuthenticatedApi } from "@/services/api"
 
 interface User {
   id: string
@@ -94,6 +96,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
   users = [],
   editingStory = null
 }) => {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState<"manual" | "ai">("manual")
   const [story, setStory] = useState<Story>({
     name: "",
@@ -104,6 +107,9 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
     acceptanceCriteria: [],
     dueDate: ""
   })
+  
+  // Create authenticated API client
+  const api = createAuthenticatedApi(getToken)
   
   // AI Generation states
   const [aiDescription, setAiDescription] = useState("")
@@ -177,10 +183,7 @@ export const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
     setAiError(null)
 
     try {
-      // Use the API client instead of direct fetch to get proper authentication
-      const { apiClient } = await import("@/services/api")
-      
-      const data: GeneratedStoryResponse = await apiClient.generateStory({
+      const data: GeneratedStoryResponse = await api.generateStory({
         description: aiDescription,
         priority: story.priority,
         epicId: story.epicId,

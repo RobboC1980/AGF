@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "@clerk/nextjs"
 import {
   Dialog,
   DialogContent,
@@ -38,7 +39,7 @@ import {
   Zap,
 } from "lucide-react"
 import { format } from "date-fns"
-import { api } from "@/services/api"
+import { createAuthenticatedApi } from "@/services/api"
 
 interface Task {
   id?: string
@@ -110,6 +111,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   editingTask = null,
   defaultStoryId = "",
 }) => {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState<"manual" | "ai">("manual")
   const [task, setTask] = useState<Task>({
     title: "",
@@ -122,6 +124,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     subtasks: [],
     acceptanceCriteria: [],
   })
+  
+  // Create authenticated API client
+  const api = createAuthenticatedApi(getToken)
   
   // AI Generation states
   const [aiDescription, setAiDescription] = useState("")

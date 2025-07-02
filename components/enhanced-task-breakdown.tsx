@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "@clerk/nextjs"
 import {
   Plus,
   ChevronDown,
@@ -55,7 +56,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTasks, useCreateTask, useUpdateTask } from "@/hooks/useApi"
 import { CreateTaskModal } from "@/components/create-task-modal"
-import { api } from "@/services/api"
+import { createAuthenticatedApi } from "@/services/api"
 
 interface EnhancedTaskBreakdownProps {
   storyId: string
@@ -93,6 +94,7 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
   onTaskUpdated,
   onTaskDeleted,
 }) => {
+  const { getToken } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [showBreakdownModal, setShowBreakdownModal] = useState(false)
   const [activeTab, setActiveTab] = useState<"ai" | "manual">("ai")
@@ -104,6 +106,9 @@ export const EnhancedTaskBreakdown: React.FC<EnhancedTaskBreakdownProps> = ({
   const [editingTask, setEditingTask] = useState<any>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
 
+  // Create authenticated API client
+  const api = createAuthenticatedApi(getToken)
+  
   // API hooks
   const { data: allTasks = [], refetch: refetchTasks } = useTasks()
   const createTaskMutation = useCreateTask()

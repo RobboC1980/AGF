@@ -1,3 +1,14 @@
+// TypeScript declarations for Clerk global object
+declare global {
+  interface Window {
+    __clerk?: {
+      session?: {
+        getToken: () => Promise<string | null>
+      }
+    }
+  }
+}
+
 interface ApiResponse<T> {
   data: T
   success: boolean
@@ -88,6 +99,22 @@ class ApiClient {
     }
   }
 
+  // Get Clerk token if available
+  private async getClerkToken(): Promise<string | null> {
+    try {
+      // Check if we're in a browser environment and Clerk is available
+      if (typeof window !== 'undefined' && window.__clerk) {
+        const clerk = window.__clerk
+        if (clerk.session) {
+          return await clerk.session.getToken()
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to get Clerk token:', error)
+    }
+    return null
+  }
+
   // Make authenticated request
   async request<T>(
     endpoint: string,
@@ -95,12 +122,18 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
+    // Try to get Clerk token first, then fall back to stored token
+    let token = await this.getClerkToken()
+    if (!token) {
+      token = this.authToken
+    }
+    
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
-        ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
       },
     }
 
@@ -1192,5 +1225,370 @@ export const legacyApiClient = {
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
+  }
+}
+
+// Function to create API client with Clerk authentication
+export function createAuthenticatedApi(getToken?: () => Promise<string | null>) {
+  // Create an authenticated version of the apiClient
+  const authenticatedClient = {
+    ...apiClient,
+    // Override request method to include Clerk token
+    async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+      let token = null
+      
+      // Try to get token from provided function (Clerk's getToken)
+      if (getToken) {
+        try {
+          token = await getToken()
+        } catch (error) {
+          console.warn('Failed to get auth token:', error)
+        }
+      }
+      
+      // Fall back to stored token
+      if (!token) {
+        token = apiClient['authToken']
+      }
+      
+      const url = `${apiClient['baseURL']}${endpoint}`
+      
+      const config: RequestInit = {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+
+      try {
+        console.log(`API Request: ${config.method || 'GET'} ${url}`)
+        const response = await fetch(url, config)
+        
+        if (!response.ok) {
+          let errorMessage = `HTTP ${response.status}`
+          try {
+            const errorData = await response.text()
+            errorMessage += `: ${errorData}`
+          } catch {
+            errorMessage += ': Unknown error'
+          }
+          throw new Error(errorMessage)
+        }
+
+        const data = await response.json()
+        console.log(`API Response: ${config.method || 'GET'} ${url} - Success`)
+        return data
+      } catch (error) {
+        console.error(`API request failed for ${endpoint}:`, error)
+        
+        // Provide user-friendly error messages
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Network error: Unable to connect to server. Please check your internet connection.')
+        }
+        
+        if (error instanceof Error && error.message.includes('HTTP 401')) {
+          apiClient.clearAuth()
+          // Check if it's a token expiration issue
+          if (error.message.includes('Could not validate credentials') || error.message.includes('Signature has expired')) {
+            throw new Error('Your session has expired. Please log in again.')
+          }
+          throw new Error('Authentication failed. Please log in again.')
+        }
+        
+        if (error instanceof Error && error.message.includes('HTTP 403')) {
+          throw new Error('Access denied. You do not have permission to perform this action.')
+        }
+        
+        if (error instanceof Error && error.message.includes('HTTP 404')) {
+          throw new Error('Resource not found.')
+        }
+        
+        if (error instanceof Error && error.message.includes('HTTP 5')) {
+          throw new Error('Server error. Please try again later.')
+        }
+        
+        throw error
+      }
+    }
+  }
+
+  // Return the full API structure with authenticated client
+  return {
+    // Authentication
+    auth: {
+      setToken: (token: string) => authenticatedClient.setAuthToken(token),
+      clearToken: () => authenticatedClient.clearAuth(),
+    },
+
+    // Health check
+    health: {
+      check: () => authenticatedClient.get<{ status: string; timestamp: string }>('/health'),
+      status: () => authenticatedClient.get<{ status: string; entities: Record<string, number> }>('/api/status'),
+    },
+
+    // Users
+    users: {
+      getAll: async () => {
+        const response = await authenticatedClient.get<{data: {users: User[]}, success: boolean}>('/api/users');
+        return response.data.users;
+      },
+      getById: (id: string) => authenticatedClient.get<User>(`/api/users/${id}`),
+      create: (data: Omit<User, 'id' | 'created_at'>) => authenticatedClient.post<User>('/api/users', data),
+      update: (id: string, data: Partial<User>) => authenticatedClient.put<User>(`/api/users/${id}`, data),
+      delete: (id: string) => authenticatedClient.delete(`/api/users/${id}`),
+    },
+
+    // Projects
+    projects: {
+      getAll: async () => {
+        const response = await authenticatedClient.get<{data: {projects: Project[]}, success: boolean}>('/api/projects');
+        return response.data.projects;
+      },
+      getById: (id: string) => authenticatedClient.get<Project>(`/api/projects/${id}`),
+      create: (data: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => 
+        authenticatedClient.post<Project>('/api/projects', data),
+      update: (id: string, data: Partial<Project>) => authenticatedClient.put<Project>(`/api/projects/${id}`, data),
+      delete: (id: string) => authenticatedClient.delete(`/api/projects/${id}`),
+    },
+
+    // Epics
+    epics: {
+      getAll: async (projectId?: string) => {
+        const validProjectId = projectId && typeof projectId === 'string' ? projectId : undefined;
+        const response = await authenticatedClient.get<{data: {epics: Epic[]}, success: boolean}>(`/api/epics${validProjectId ? `?project_id=${validProjectId}` : ''}`);
+        return response.data.epics;
+      },
+      getById: (id: string) => authenticatedClient.get<Epic>(`/api/epics/${id}`),
+      create: (data: Omit<Epic, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'epic_key' | 'actual_story_points' | 'progress'>) => 
+        authenticatedClient.post<Epic>('/api/epics', data),
+      update: (id: string, data: Partial<Epic>) => authenticatedClient.put<Epic>(`/api/epics/${id}`, data),
+      delete: (id: string) => authenticatedClient.delete(`/api/epics/${id}`),
+    },
+
+    // Stories
+    stories: {
+      getAll: async (epicId?: string) => {
+        const validEpicId = epicId && typeof epicId === 'string' ? epicId : undefined;
+        const response = await authenticatedClient.get<{data: {stories: Story[]}, success: boolean}>(`/api/stories${validEpicId ? `?epic_id=${validEpicId}` : ''}`);
+        return response.data.stories;
+      },
+      getById: (id: string) => authenticatedClient.get<Story>(`/api/stories/${id}`),
+      create: (data: Omit<Story, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'story_key'>) => 
+        authenticatedClient.post<Story>('/api/stories', data),
+      update: (id: string, data: Partial<Story>) => authenticatedClient.put<Story>(`/api/stories/${id}`, data),
+      delete: (id: string) => authenticatedClient.delete(`/api/stories/${id}`),
+    },
+
+    // Tasks
+    tasks: {
+      getAll: async (storyId?: string) => {
+        const validStoryId = storyId && typeof storyId === 'string' ? storyId : undefined;
+        const response = await authenticatedClient.get<{data: {tasks: Task[]}, success: boolean}>(`/api/tasks${validStoryId ? `?story_id=${validStoryId}` : ''}`);
+        return response.data.tasks;
+      },
+      getById: async (id: string) => {
+        const response = await authenticatedClient.get<{data: Task, success: boolean}>(`/api/tasks/${id}`);
+        return response.data;
+      },
+      create: async (data: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'task_key' | 'actual_hours'>) => {
+        const response = await authenticatedClient.post<{data: Task, success: boolean}>('/api/tasks', data);
+        return response.data;
+      },
+      update: async (id: string, data: Partial<Task>) => {
+        const response = await authenticatedClient.put<{data: Task, success: boolean}>(`/api/tasks/${id}`, data);
+        return response.data;
+      },
+      assign: async (id: string, data: { assignee_id: string | null; notify_assignee?: boolean }) => {
+        const response = await authenticatedClient.patch<{data: Task, success: boolean}>(`/api/tasks/${id}/assign`, data);
+        return response.data;
+      },
+      delete: (id: string) => authenticatedClient.delete(`/api/tasks/${id}`),
+    },
+
+    // Teams
+    teams: {
+      getAll: async (userId?: string, includeMembers: boolean = true) => {
+        const params = new URLSearchParams()
+        if (userId) params.append('user_id', userId)
+        params.append('include_members', includeMembers.toString())
+        const response = await authenticatedClient.get<{data: {teams: Team[]}, success: boolean}>(`/api/teams?${params}`)
+        return response.data.teams
+      },
+      getById: async (id: string) => {
+        const response = await authenticatedClient.get<Team>(`/api/teams/${id}`)
+        return response
+      },
+      create: async (data: { name: string; description?: string; color?: string; is_private?: boolean }) => {
+        const response = await authenticatedClient.post<Team>('/api/teams', data)
+        return response
+      },
+      update: async (id: string, data: Partial<Team>) => {
+        const response = await authenticatedClient.put<Team>(`/api/teams/${id}`, data)
+        return response
+      },
+      delete: (id: string) => authenticatedClient.delete(`/api/teams/${id}`),
+      
+      // Team member management
+      addMember: async (teamId: string, data: { user_id: string; role?: string; can_manage_team?: boolean; can_manage_projects?: boolean; can_assign_tasks?: boolean }) => {
+        const response = await authenticatedClient.post<TeamMember>(`/api/teams/${teamId}/members`, data)
+        return response
+      },
+      updateMember: async (teamId: string, userId: string, data: { role?: string; can_manage_team?: boolean; can_manage_projects?: boolean; can_assign_tasks?: boolean }) => {
+        const response = await authenticatedClient.patch<TeamMember>(`/api/teams/${teamId}/members/${userId}`, data)
+        return response
+      },
+      removeMember: (teamId: string, userId: string) => authenticatedClient.delete(`/api/teams/${teamId}/members/${userId}`),
+      
+      getProjects: async (teamId: string) => {
+        const response = await authenticatedClient.get<{data: {projects: Project[]}, success: boolean}>(`/api/teams/${teamId}/projects`)
+        return response.data.projects
+      },
+    },
+
+    // Analytics
+    analytics: {
+      getOverview: () => authenticatedClient.get<AnalyticsOverview>('/api/analytics/overview'),
+      getProjectAnalytics: (projectId: string) => 
+        authenticatedClient.get<AnalyticsOverview>(`/api/analytics/project/${projectId}`),
+      getProjectDashboard: (projectId: string, days: number = 30) =>
+        authenticatedClient.get(`/api/analytics/dashboard/${projectId}?days=${days}`),
+      getProjectVelocity: (projectId: string, days: number = 30) =>
+        authenticatedClient.get(`/api/analytics/velocity/${projectId}?days=${days}`),
+      getProjectBurndown: (projectId: string, days: number = 30) =>
+        authenticatedClient.get(`/api/analytics/burndown/${projectId}?days=${days}`),
+      getTeamPerformance: (projectId: string, days: number = 30) =>
+        authenticatedClient.get(`/api/analytics/team-performance/${projectId}?days=${days}`),
+      getProjectInsights: (projectId: string, days: number = 30) =>
+        authenticatedClient.get(`/api/analytics/insights/${projectId}?days=${days}`),
+      getTeamAnalytics: (teamId?: string, days: number = 30) =>
+        authenticatedClient.get(`/api/analytics/team${teamId ? `?team_id=${teamId}` : ''}${teamId ? '&' : '?'}days=${days}`),
+    },
+
+    // Sprints
+    sprints: {
+      getAll: async (projectId?: string, status?: string) => {
+        const params = new URLSearchParams()
+        if (projectId) params.append('project_id', projectId)
+        if (status) params.append('status', status)
+        const queryString = params.toString() ? `?${params.toString()}` : ''
+        
+        const response = await authenticatedClient.get<Sprint[]>(`/api/sprints${queryString}`)
+        return response
+      },
+      getById: async (id: string) => {
+        const response = await authenticatedClient.get<Sprint>(`/api/sprints/${id}`)
+        return response
+      },
+      create: async (data: Omit<Sprint, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'sprint_number' | 'completed_story_points' | 'scope_changes' | 'stories_count'> & { project_id: string }) => {
+        const response = await authenticatedClient.post<Sprint>('/api/sprints', {
+          name: data.name,
+          goal: data.goal,
+          description: data.description,
+          project_id: data.project_id,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          team_capacity: data.team_capacity,
+          planned_story_points: data.planned_story_points,
+        })
+        return response
+      },
+      update: async (id: string, data: Partial<Sprint>) => {
+        const response = await authenticatedClient.put<Sprint>(`/api/sprints/${id}`, data)
+        return response
+      },
+      updateStatus: async (id: string, status: string, actualStartDate?: string, actualEndDate?: string) => {
+        const response = await authenticatedClient.patch<Sprint>(`/api/sprints/${id}/status`, {
+          status,
+          actual_start_date: actualStartDate,
+          actual_end_date: actualEndDate,
+        })
+        return response
+      },
+      addStories: async (sprintId: string, storyIds: string[]) => {
+        const response = await authenticatedClient.patch<any>(`/api/sprints/${sprintId}/stories`, {
+          story_ids: storyIds,
+          action: 'add',
+        })
+        return response
+      },
+      removeStories: async (sprintId: string, storyIds: string[]) => {
+        const response = await authenticatedClient.patch<any>(`/api/sprints/${sprintId}/stories`, {
+          story_ids: storyIds,
+          action: 'remove',
+        })
+        return response
+      },
+      getStories: async (sprintId: string) => {
+        const response = await authenticatedClient.get<{stories: Story[]}>(`/api/sprints/${sprintId}/stories`)
+        return response.stories
+      },
+      getBurndown: async (sprintId: string) => {
+        const response = await authenticatedClient.get<any>(`/api/sprints/${sprintId}/burndown`)
+        return response
+      },
+      delete: (id: string) => authenticatedClient.delete(`/api/sprints/${id}`),
+    },
+
+    // Search
+    search: {
+      search: (query: string, entityType?: string, limit: number = 20) => {
+        const params = new URLSearchParams({ q: query, limit: limit.toString() })
+        if (entityType) params.append('entity_type', entityType)
+        return authenticatedClient.get<SearchResult[]>(`/api/search?${params}`)
+      },
+    },
+
+    // AI Services
+    ai: {
+      generateStory: (request: {
+        description: string
+        priority?: string
+        epicId?: string
+        includeAcceptanceCriteria?: boolean
+        includeTags?: boolean
+      }) => authenticatedClient.generateStory(request),
+      
+      generateEpic: (request: {
+        description: string
+        priority?: string
+        projectId?: string
+        businessValue?: string
+        includeAcceptanceCriteria?: boolean
+        includeStoryBreakdown?: boolean
+      }) => authenticatedClient.generateEpic(request),
+      
+      generateTasks: (request: {
+        storyTitle: string
+        storyDescription: string
+        storyPoints?: number
+        acceptanceCriteria: string
+        technicalContext?: string
+        teamSkills?: string
+        includeSubtasks?: boolean
+      }) => authenticatedClient.generateTasks(request),
+      
+      generateSingleTask: (request: {
+        taskDescription: string
+        storyTitle: string
+        storyDescription?: string
+        storyPoints?: number
+        acceptanceCriteria?: string
+        technicalContext?: string
+        priority?: string
+        estimatedHours?: number
+      }) => authenticatedClient.generateSingleTask(request),
+      
+      generateProject: (request: {
+        description: string
+        domain?: string
+        teamSize?: number
+        timeline?: string
+        technologyStack?: string
+        businessObjectives?: string
+        priority?: string
+      }) => authenticatedClient.generateProject(request),
+    },
   }
 }

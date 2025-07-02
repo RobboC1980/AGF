@@ -1,7 +1,7 @@
 "use client"
 
-import React from "react"
-import { useState, useMemo } from "react"
+import React, { useState, useRef, useEffect } from "react"
+import { useAuth } from "@clerk/nextjs"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   BookOpen,
@@ -80,6 +80,9 @@ import {
   InteractiveEpicLabel, 
   InteractiveTag 
 } from "@/components/shared/InteractiveElements"
+import { useAuth as useClerkAuth } from "@clerk/nextjs"
+import { createAuthenticatedApi } from "@/services/api"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 interface UserStoriesPageProps {
   onCreateNew?: () => void
@@ -104,6 +107,7 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
   acceptanceCriteria = "",
   users 
 }) => {
+  const { getToken } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [showBreakdownModal, setShowBreakdownModal] = useState(false)
   const [activeTab, setActiveTab] = useState<"ai" | "manual">("ai")
@@ -114,6 +118,8 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
   const [teamSkills, setTeamSkills] = useState("")
   const [showCreateModal, setShowCreateModal] = useState(false)
 
+  // Create authenticated API client
+  const api = createAuthenticatedApi(getToken)
   const { data: allTasks = [], refetch: refetchTasks } = useTasks()
   const createTaskMutation = useCreateTask()
   
@@ -275,7 +281,7 @@ const TaskBreakdown: React.FC<TaskBreakdownProps> = ({
                         <Label htmlFor="team-skills">Team Skills</Label>
                         <Textarea
                           id="team-skills"
-                          placeholder="e.g., Frontend: React/TypeScript, Backend: Python/FastAPI..."
+                          placeholder="e.g., Frontend: React/TypeScript..."
                           value={teamSkills}
                           onChange={(e) => setTeamSkills(e.target.value)}
                           className="mt-1"

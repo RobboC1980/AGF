@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "@clerk/nextjs"
 import {
   Plus,
   X,
@@ -31,6 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { createAuthenticatedApi } from "@/services/api"
 
 interface Project {
   id: string
@@ -87,6 +89,7 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
   projects = [],
   editingEpic = null
 }) => {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState<"manual" | "ai">("manual")
   const [epic, setEpic] = useState<Epic>({
     name: "",
@@ -167,10 +170,10 @@ export const CreateEpicModal: React.FC<CreateEpicModalProps> = ({
     setAiError(null)
 
     try {
-      // Use the API client instead of direct fetch to get proper authentication
-      const { apiClient } = await import("@/services/api")
+      // Create authenticated API client
+      const api = createAuthenticatedApi(getToken)
       
-      const data: GeneratedEpicResponse = await apiClient.generateEpic({
+      const data: GeneratedEpicResponse = await api.ai.generateEpic({
         description: aiDescription,
         priority: epic.priority,
         projectId: epic.projectId,

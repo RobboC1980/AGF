@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "@clerk/nextjs"
 import {
   Dialog,
   DialogContent,
@@ -40,7 +41,7 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { format } from "date-fns"
-import { api } from "@/services/api"
+import { createAuthenticatedApi } from "@/services/api"
 
 interface Project {
   id?: string
@@ -155,6 +156,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   onSave,
   editingProject = null,
 }) => {
+  const { getToken } = useAuth()
   const [activeTab, setActiveTab] = useState<"manual" | "ai">("manual")
   const [project, setProject] = useState<Project>({
     name: "",
@@ -176,6 +178,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     risks: [],
     dependencies: [],
   })
+  
+  // Create authenticated API client
+  const api = createAuthenticatedApi(getToken)
   
   // AI Generation states
   const [aiDescription, setAiDescription] = useState("")
