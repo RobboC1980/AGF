@@ -138,6 +138,86 @@ async def create_project(request: Request):
         logger.error(f"Error creating project: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Epics endpoints
+@app.get("/api/epics")
+async def get_epics():
+    """Get all epics"""
+    return {
+        "epics": [
+            {
+                "id": "1",
+                "title": "User Authentication Epic",
+                "description": "Implement user authentication system",
+                "status": "active",
+                "project_id": "1",
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "id": "2",
+                "title": "Dashboard Epic",
+                "description": "Create main dashboard interface",
+                "status": "planning",
+                "project_id": "1",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ],
+        "total": 2
+    }
+
+# Stories endpoints
+@app.get("/api/stories")
+async def get_stories():
+    """Get all user stories"""
+    return {
+        "stories": [
+            {
+                "id": "1",
+                "title": "User Login Story",
+                "description": "As a user, I want to login to access my account",
+                "status": "todo",
+                "points": 5,
+                "epic_id": "1",
+                "project_id": "1",
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "id": "2",
+                "title": "Dashboard View Story",
+                "description": "As a user, I want to view my project dashboard",
+                "status": "in_progress",
+                "points": 8,
+                "epic_id": "2",
+                "project_id": "1",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ],
+        "total": 2
+    }
+
+# Users endpoints
+@app.get("/api/users")
+async def get_users():
+    """Get all users"""
+    return {
+        "users": [
+            {
+                "id": "1",
+                "name": "John Doe",
+                "email": "john@example.com",
+                "role": "admin",
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "id": "2",
+                "name": "Jane Smith", 
+                "email": "jane@example.com",
+                "role": "developer",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ],
+        "total": 2
+    }
+
 # Error handlers
 @app.exception_handler(404)
 async def not_found_handler(request, exc):

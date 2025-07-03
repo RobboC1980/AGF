@@ -1,0 +1,103 @@
+---
+description: description: Enforces production-ready builds—no mocks, real integrations only, strict CI/CD and security.
+alwaysApply: false
+---
+### Cursor Build Guidelines
+
+**Deliver production-ready code at all times—never rely on mocks or simulated functionality.**
+
+---
+
+#### 1. Core Principle
+
+* Every line of code must be suitable for a live environment.  
+* Do not introduce shortcuts, stubs, or mocks unless you have explicit written approval.
+
+---
+
+#### 2. Integrations
+
+* **Authentication**  
+  * Configure the real provider (e.g., Supabase Auth, Clerk).  
+  * Remove all hard-coded users and test tokens from the repository.
+
+* **Database**  
+  * Connect to the production database or a dedicated staging database.  
+  * Do not use in-memory or file-based storage.  
+  * Apply migrations via an automated script before every deployment.
+
+* **External APIs and AI Services**  
+  * Call live endpoints with real keys.  
+  * Do not scaffold fake responses.  
+  * Store secrets only in CI-managed environment variables.
+
+---
+
+#### 3. Code Quality
+
+* **Environment Configuration**  
+  * Default `.env` files to production values.  
+  * Place development overrides in `.env.dev`; never the other way around.
+
+* **Error Handling**  
+  * Catch and log every error with its stack trace and request context.  
+  * Fail fast on unhandled promise rejections.
+
+* **Logging and Monitoring**  
+  * Use a centralized logging service.  
+  * Emit structured JSON logs for automated parsing.  
+  * Provide health and readiness probes compatible with orchestration platforms.
+
+* **Security**  
+  * Enforce HTTPS everywhere.  
+  * Sanitize all inputs and use prepared statements.  
+  * Run dependency scans during CI and block outdated or vulnerable packages.
+
+---
+
+#### 4. CI / CD Pipeline
+
+* Run linting, type checks, and tests on every commit.  
+* Block merges if any unit test relies on mock data other than isolated pure functions.  
+* Build with the production bundle command (`npm run build` or equivalent).  
+* Push artifacts automatically to the production registry.  
+* Deploy only from the `main` branch after all checks pass.
+
+---
+
+#### 5. Testing Strategy
+
+* **Unit tests** cover pure logic with deterministic inputs.  
+* **Integration tests** target real databases and services in a sandbox environment that mirrors production.  
+* **End-to-end tests** run against a staging stack built from the same artifacts as production.
+
+---
+
+#### 6. Branching and Review
+
+* Work in short-lived feature branches.  
+* Open pull requests early, assign at least one reviewer, and require approval.  
+* Reject changes that introduce mocks, fixtures, or “temporary” shortcuts into production code paths.
+
+---
+
+#### 7. Deployment Readiness Checklist
+
+* Migrations are applied and repeatable.  
+* Secrets are stored in the CI vault, not in the repository.  
+* Monitoring dashboards are updated for every new service or endpoint.  
+* A documented rollback plan is in place.
+
+---
+
+#### 8. Documentation
+
+* Update the README and infrastructure docs with each new integration.  
+* List required environment variables and explain their purpose.  
+* Provide sample `curl` commands for every public endpoint that demonstrate real-world use.
+
+---
+
+**Summary**
+
+Treat every build as the live version. Use real services, real data, and production settings only. Any deviation requires explicit, written approval.

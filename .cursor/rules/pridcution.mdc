@@ -1,0 +1,95 @@
+---
+alwaysApply: true
+---
+#### 2. Integrations
+
+* **Authentication**
+
+  * Configure the real provider (Supabase Auth, Clerk, or equivalent).
+  * Remove hard-coded users and test tokens from committed code.
+
+* **Database**
+
+  * Point to the actual production or dedicated staging database.
+  * No in-memory or file-based storage.
+  * Apply migrations through an automated script before each deploy.
+
+* **External APIs and AI Services**
+
+  * Call the live endpoints with real keys.
+  * Do not scaffold fake responses.
+  * Store secrets only in environment variables managed by the CI system.
+
+---
+
+#### 3. Code Quality
+
+* **Environment Configuration**
+
+  * Default `.env` files to production values.
+  * Provide explicit dev overrides in `.env.dev`; never the other way around.
+
+* **Error Handling**
+
+  * Catch and log every error with stack trace and request context.
+  * Fail fast on unhandled rejections.
+
+* **Logging and Monitoring**
+
+  * Use a centralised logging service.
+  * Emit structured JSON logs for automated parsing.
+  * Add basic health and readiness probes for orchestration platforms.
+
+* **Security**
+
+  * Enforce HTTPS everywhere.
+  * Sanitize all inputs and use prepared statements.
+  * Run dependency scans during CI; block outdated or vulnerable packages.
+
+---
+
+#### 4. CI / CD Pipeline
+
+* Run linting, type checks, and tests on every commit.
+* Block the merge if any unit test relies on mock data beyond isolated pure functions.
+* Build using the production bundle command (`npm run build` or equivalent).
+* Push artifacts automatically to the production registry.
+* Deploy only from the main branch after all checks pass.
+
+---
+
+#### 5. Testing Strategy
+
+* Unit tests cover pure logic with deterministic inputs.
+* Integration tests hit real databases and services in a sandbox environment configured to mirror production.
+* End-to-end tests run against a staging stack built from the same artifacts as production.
+
+---
+
+#### 6. Branching and Review
+
+* Work in short-lived feature branches.
+* Open pull requests early, assign at least one reviewer, and require approval.
+* Reject changes that add mocks, fixtures, or “temporary” shortcuts to production code paths.
+
+---
+
+#### 7. Deployment Readiness Checklist
+
+* Migrations applied and repeatable.
+* Secrets stored in the CI vault, not in the repository.
+* Monitoring dashboards updated for any new service or endpoint.
+* Rollback plan documented.
+
+---
+
+#### 8. Documentation
+
+* Update README and infrastructure docs with each new integration.
+* List required environment variables and their purpose.
+* Provide sample `curl` commands for every public endpoint that demonstrate real-world use.
+
+---
+
+**Summary**
+Cursor must treat every build as the live version. Real services, real data, production settings only. Any deviation requires explicit approval, recorded in writing.
