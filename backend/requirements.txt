@@ -163,4 +163,4 @@ kubernetes==28.1.0
 # Metrics and Analytics
 statsd==4.0.1
 datadog==0.48.0
-newrelic==9.2.0 
+newrelic==9.2.0 redis

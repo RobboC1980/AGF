@@ -1,0 +1,20 @@
+{
+  "generated": "2025-07-03T17:03:15.945Z",
+  "optimized": [
+    {
+      "original": "public/placeholder-logo.png",
+      "optimized": "public/optimized/placeholder-logo.png",
+      "savings": "Optimization pending - using copies for now"
+    },
+    {
+      "original": "public/placeholder-user.jpg",
+      "optimized": "public/optimized/placeholder-user.jpg",
+      "savings": "Optimization pending - using copies for now"
+    },
+    {
+      "original": "public/placeholder.jpg",
+      "optimized": "public/optimized/placeholder.jpg",
+      "savings": "Optimization pending - using copies for now"
+    }
+  ]
+}

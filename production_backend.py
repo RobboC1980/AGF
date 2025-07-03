@@ -66,7 +66,7 @@ load_dotenv()
 
 # Initialize Sentry for error tracking
 if os.getenv("SENTRY_DSN"):
-    integrations = [FastApiIntegration(auto_enabling=True)]
+    integrations = [FastApiIntegration()]
     
     # Only add SQLAlchemy integration if SQLAlchemy is available
     try:
@@ -285,6 +285,24 @@ app.include_router(notification_router)
 app.include_router(stripe_products_router)
 app.include_router(access_control_router, tags=["Access Control"])
 
+# Include AI Cost Optimization router
+try:
+    from backend.api.ai_cost_optimization import router as ai_cost_router
+    app.include_router(ai_cost_router, prefix="/api/ai-cost", tags=["AI Cost Optimization"])
+    logger.info("AI Cost Optimization router included successfully")
+except ImportError as e:
+    logger.warning(f"AI Cost Optimization router not available: {e}")
+    
+    # Create fallback endpoint for cost optimization
+    @app.get("/api/ai-cost/optimization-status")
+    async def ai_cost_status_fallback():
+        """Fallback AI cost optimization status endpoint"""
+        return {
+            "status": "not_available",
+            "message": "AI cost optimization service is not available",
+            "fallback": True
+        }
+
 # Include core API routers
 app.include_router(sprints_router, prefix="/api/sprints", tags=["Sprints"])
 app.include_router(stories_router, prefix="/api/stories", tags=["Stories"])
@@ -426,8 +444,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     """Authentication dependency with Supabase JWT validation"""
     # Development mode: Accept any token and return a mock user (check first!)
     if os.getenv("ENVIRONMENT", "development") == "development":
+        import uuid
         return {
-            "id": "dev-user-1",
+            "id": str(uuid.uuid4()),  # Use a proper UUID for development
             "email": "dev@example.com",
             "name": "Development User",
             "avatar_url": None,
@@ -823,6 +842,10 @@ async def create_user(user_data: UserCreate, current_user: dict = Depends(get_cu
 async def get_user(user_id: str, current_user: dict = Depends(get_current_user)):
     """Get a specific user"""
     try:
+        # Handle special case for "me" - resolve to current user
+        if user_id == "me":
+            user_id = current_user["id"]
+        
         result = supabase.table("users").select("*").eq("id", user_id).execute()
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
