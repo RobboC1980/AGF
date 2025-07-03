@@ -11,7 +11,7 @@ import logging
 
 try:
     from .dependencies import UserResponse, get_current_user_clerk
-    from ..database.supabase_client import get_supabase
+    from database.supabase_client import get_supabase
 except ImportError:
     from auth.dependencies import UserResponse, get_current_user_clerk
     from database.supabase_client import get_supabase

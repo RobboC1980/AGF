@@ -9,9 +9,9 @@ import asyncio
 
 # Handle imports for both package and direct execution
 try:
-    from ..database.supabase_client import get_supabase
-    from ..auth.unified_auth import get_current_user, get_current_user_optional, UnifiedUser
-    from ..auth.dependencies import User
+    from database.supabase_client import get_supabase
+    from auth.unified_auth import get_current_user, get_current_user_optional, UnifiedUser
+    from auth.dependencies import User
 except ImportError:
     from database.supabase_client import get_supabase
     from auth.unified_auth import get_current_user, get_current_user_optional, UnifiedUser

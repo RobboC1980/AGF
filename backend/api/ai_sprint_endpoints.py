@@ -16,9 +16,9 @@ from datetime import datetime, timedelta
 import logging
 
 try:
-    from ..auth.dependencies import UserResponse, get_current_user_clerk
-    from ..auth.project_access import get_project_validator
-    from ..database.supabase_client import get_supabase
+    from auth.dependencies import UserResponse, get_current_user_clerk
+    from auth.project_access import get_project_validator
+    from database.supabase_client import get_supabase
 except ImportError:
     from auth.dependencies import UserResponse, get_current_user_clerk
     from auth.project_access import get_project_validator
@@ -171,7 +171,7 @@ async def analyze_team_capacity(
         
         # Import AI service for advanced analysis
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -262,7 +262,7 @@ async def predict_velocity(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -349,7 +349,7 @@ async def estimate_stories(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -435,7 +435,7 @@ async def optimize_sprint_plan(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -511,7 +511,7 @@ async def check_sprint_health(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         

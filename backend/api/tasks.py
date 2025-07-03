@@ -7,9 +7,9 @@ import uuid
 
 # Handle imports for both package and direct execution
 try:
-    from ..services.ai_service import get_basic_ai_service, AIResponse
-    from ..database.supabase_client import get_supabase
-    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from services.ai_service import get_basic_ai_service, AIResponse
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
     from .auth import get_current_user_supabase
 except ImportError:
     from services.ai_service import get_basic_ai_service, AIResponse

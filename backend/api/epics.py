@@ -5,7 +5,7 @@ from supabase import Client
 
 # Handle imports for both package and direct execution
 try:
-    from ..database.supabase_client import get_supabase
+    from database.supabase_client import get_supabase
 except ImportError:
     from database.supabase_client import get_supabase
 

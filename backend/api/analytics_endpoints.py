@@ -9,8 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client
-from ..services.cache_service import get_project_cache
-from ..services.async_ai_service import get_async_ai_service
+from services.cache_service import get_project_cache
+from services.async_ai_service import get_async_ai_service
 
 # Initialize Supabase client for authentication
 supabase_url = os.getenv("SUPABASE_URL")
@@ -31,7 +31,7 @@ security = HTTPBearer(auto_error=False)
 
 # Import unified auth
 try:
-    from ..auth.unified_auth import get_current_user, UnifiedUser
+    from auth.unified_auth import get_current_user, UnifiedUser
 except ImportError:
     from auth.unified_auth import get_current_user, UnifiedUser
 
@@ -60,7 +60,7 @@ async def get_current_user_analytics(credentials: HTTPAuthorizationCredentials =
 
 # Handle imports for both package and direct execution
 try:
-    from ..services.analytics_service import AnalyticsService, get_analytics_service
+    from services.analytics_service import AnalyticsService, get_analytics_service
 except ImportError:
     from services.analytics_service import AnalyticsService, get_analytics_service
 

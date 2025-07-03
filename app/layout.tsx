@@ -1,10 +1,13 @@
 import type { Metadata } from 'next'
+import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
+import { QueryProvider } from '@/providers/query-provider'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
-  title: 'SynqForge - AI-Powered Project Management',
+  title: 'AgileForge - AI-Powered Project Management',
   description: 'Comprehensive Agile project management platform with AI assistance',
-  keywords: 'agile, project management, scrum, kanban, AI, collaboration, synqforge',
+  keywords: 'agile, project management, scrum, kanban, AI, collaboration, agileforge',
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
@@ -18,10 +21,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body className="antialiased">
+          <QueryProvider>
+            {children}
+            <Toaster />
+          </QueryProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

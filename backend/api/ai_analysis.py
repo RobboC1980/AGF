@@ -15,8 +15,8 @@ import openai
 import os
 
 try:
-    from ..api.auth import get_current_user_supabase, UserResponse
-    from ..database.supabase_client import get_supabase
+    from api.auth import get_current_user_supabase, UserResponse
+    from database.supabase_client import get_supabase
 except ImportError:
     from api.auth import get_current_user_supabase, UserResponse
     from database.supabase_client import get_supabase

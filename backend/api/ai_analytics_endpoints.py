@@ -17,9 +17,9 @@ from datetime import datetime, timedelta
 import logging
 
 try:
-    from ..auth.dependencies import UserResponse, get_current_user_clerk
-    from ..auth.project_access import get_project_validator
-    from ..database.supabase_client import get_supabase
+    from auth.dependencies import UserResponse, get_current_user_clerk
+    from auth.project_access import get_project_validator
+    from database.supabase_client import get_supabase
 except ImportError:
     from auth.dependencies import UserResponse, get_current_user_clerk
     from auth.project_access import get_project_validator
@@ -154,7 +154,7 @@ async def analyze_project_insights(
         
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -325,7 +325,7 @@ async def analyze_team_performance(
         
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -443,7 +443,7 @@ async def assess_project_risks(
         
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -566,7 +566,7 @@ async def generate_predictive_analysis(
         
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         

@@ -11,9 +11,9 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel, Field
 
 try:
-    from ..services.ai_cost_optimizer import get_cost_optimized_ai_service
-    from ..auth.enhanced_auth import get_current_user_clerk, UserResponse
-    from ..services.ai_service import get_basic_ai_service
+    from services.ai_cost_optimizer import get_cost_optimized_ai_service
+    from auth.enhanced_auth import get_current_user_clerk, UserResponse
+    from services.ai_service import get_basic_ai_service
 except ImportError:
     from services.ai_cost_optimizer import get_cost_optimized_ai_service
     from auth.enhanced_auth import get_current_user_clerk, UserResponse

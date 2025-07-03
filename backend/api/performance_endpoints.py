@@ -12,10 +12,10 @@ import psutil
 import structlog
 from pydantic import BaseModel
 
-from ..database.supabase_client import get_supabase
-from ..database.query_optimizer import get_query_optimizer, ConnectionPoolOptimizer, connection_pool_optimizer
-from ..auth.dependencies import get_current_user
-from ..services.monitoring import get_system_monitor
+from database.supabase_client import get_supabase
+from database.query_optimizer import get_query_optimizer, ConnectionPoolOptimizer, connection_pool_optimizer
+from auth.dependencies import get_current_user
+from services.monitoring import get_system_monitor
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()

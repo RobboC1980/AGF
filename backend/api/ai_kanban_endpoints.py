@@ -16,9 +16,9 @@ from datetime import datetime, timedelta
 import logging
 
 try:
-    from ..auth.dependencies import UserResponse, get_current_user_clerk
-    from ..auth.project_access import get_project_validator
-    from ..database.supabase_client import get_supabase
+    from auth.dependencies import UserResponse, get_current_user_clerk
+    from auth.project_access import get_project_validator
+    from database.supabase_client import get_supabase
 except ImportError:
     from auth.dependencies import UserResponse, get_current_user_clerk
     from auth.project_access import get_project_validator
@@ -116,7 +116,7 @@ async def analyze_kanban_board(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -232,7 +232,7 @@ async def optimize_task(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -314,7 +314,7 @@ async def detect_bottlenecks(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -417,7 +417,7 @@ async def optimize_workflow(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -509,7 +509,7 @@ async def smart_task_assignment(
     try:
         # Import AI service
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         

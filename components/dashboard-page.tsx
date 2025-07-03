@@ -167,7 +167,7 @@ interface DashboardPageProps {
   onRefresh?: () => void
 }
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
   // Use real API data instead of props
   const { data: stories = [], isLoading: storiesLoading, error: storiesError, refetch: refetchStories } = useStories()
   const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics()
@@ -335,7 +335,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
               <CardContent className="p-8">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold mb-2">Welcome back to SynqForge! 🚀</h2>
+                    <h2 className="text-2xl font-bold mb-2">Welcome back to AgileForge! 🚀</h2>
                     <p className="text-blue-100 mb-4">
                       You have {activeWorkload} active work items across {stats.projects} projects
                     </p>

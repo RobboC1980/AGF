@@ -149,7 +149,7 @@ async def test_endpoint():
     try:
         # Test basic AI service import
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -169,7 +169,7 @@ async def test_fallback_endpoint():
     """Test endpoint to verify fallback functionality works"""
     try:
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -201,7 +201,7 @@ async def ai_status():
     """Detailed AI service status"""
     try:
         try:
-            from ..services.ai_service import get_basic_ai_service, get_ai_service
+            from services.ai_service import get_basic_ai_service, get_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service, get_ai_service
         
@@ -266,7 +266,7 @@ async def generate_epic_endpoint(
                         detail="Access denied: You don't have permission to create epics in this project"
                     )
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -328,7 +328,7 @@ async def generate_story_endpoint(
                         detail="Access denied: You don't have permission to create stories in this project"
                     )
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -401,7 +401,7 @@ async def generate_tasks_endpoint(
                         detail="Access denied: You don't have permission to create tasks in this project"
                     )
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -450,7 +450,7 @@ async def generate_single_task_endpoint(
     """Generate a single task using AI"""
     try:
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         
@@ -504,7 +504,7 @@ async def generate_project_endpoint(
     """Generate a project using AI"""
     try:
         try:
-            from ..services.ai_service import get_basic_ai_service
+            from services.ai_service import get_basic_ai_service
         except ImportError:
             from services.ai_service import get_basic_ai_service
         

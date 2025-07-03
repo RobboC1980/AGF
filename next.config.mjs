@@ -28,6 +28,10 @@ const nextConfig = {
   distDir: '.next',
   compress: true,
   poweredByHeader: false,
+  // Force Next.js to use port 3000 only
+  serverRuntimeConfig: {
+    port: 3000
+  },
   async headers() {
     return [
       {

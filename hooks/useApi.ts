@@ -12,14 +12,9 @@ function useApiWithAuth() {
       const token = await getToken()
       if (token) {
         api.auth.setToken(token)
-      } else {
-        // Development mode: use a dummy token
-        api.auth.setToken('dev-token')
       }
     } catch (error) {
       console.error('Failed to get auth token:', error)
-      // Development fallback: use a dummy token
-      api.auth.setToken('dev-token')
     }
   }
 
@@ -55,15 +50,19 @@ export const useStories = () => {
       return api.stories.getAll()
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
+    enabled: true,
   })
 }
 
 export const useCreateStory = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.stories.create,
+    mutationFn: async (data: any) => {
+      await setAuthTokenIfNeeded()
+      return api.stories.create(data)
+    },
     onSuccess: () => {
       // Invalidate and refetch stories
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
@@ -77,9 +76,13 @@ export const useCreateStory = () => {
 
 export const useUpdateStory = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => api.stories.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      await setAuthTokenIfNeeded()
+      return api.stories.update(id, data)
+    },
     onSuccess: (data, variables) => {
       // Update the specific story in cache
       queryClient.setQueryData(queryKeys.story(variables.id), data)
@@ -95,9 +98,13 @@ export const useUpdateStory = () => {
 
 export const useDeleteStory = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.stories.delete,
+    mutationFn: async (id: string) => {
+      await setAuthTokenIfNeeded()
+      return api.stories.delete(id)
+    },
     onSuccess: (_, deletedId) => {
       // Remove from cache
       queryClient.removeQueries({ queryKey: queryKeys.story(deletedId) })
@@ -124,15 +131,19 @@ export const useEpics = () => {
       return api.epics.getAll()
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
+    enabled: true,
   })
 }
 
 export const useCreateEpic = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.epics.create,
+    mutationFn: async (data: any) => {
+      await setAuthTokenIfNeeded()
+      return api.epics.create(data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
@@ -145,9 +156,13 @@ export const useCreateEpic = () => {
 
 export const useUpdateEpic = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => api.epics.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      await setAuthTokenIfNeeded()
+      return api.epics.update(id, data)
+    },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKeys.epic(variables.id), data)
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
@@ -161,9 +176,13 @@ export const useUpdateEpic = () => {
 
 export const useDeleteEpic = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.epics.delete,
+    mutationFn: async (id: string) => {
+      await setAuthTokenIfNeeded()
+      return api.epics.delete(id)
+    },
     onSuccess: (_, deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.epic(deletedId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
@@ -188,15 +207,19 @@ export const useUsers = () => {
       return api.users.getAll()
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - users change less frequently
-    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
+    enabled: true,
   })
 }
 
 export const useCreateUser = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.users.create,
+    mutationFn: async (data: any) => {
+      await setAuthTokenIfNeeded()
+      return api.users.create(data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
     },
@@ -219,7 +242,7 @@ export const useAnalytics = () => {
       return api.analytics.getOverview()
     },
     staleTime: 1 * 60 * 1000, // 1 minute - analytics should be fresh
-    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
+    enabled: true,
   })
 }
 
@@ -332,15 +355,19 @@ export const useProjects = () => {
       return api.projects.getAll()
     },
     staleTime: 3 * 60 * 1000, // 3 minutes
-    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
+    enabled: true,
   })
 }
 
 export const useCreateProject = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.projects.create,
+    mutationFn: async (data: any) => {
+      await setAuthTokenIfNeeded()
+      return api.projects.create(data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
     },
@@ -352,9 +379,13 @@ export const useCreateProject = () => {
 
 export const useUpdateProject = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => api.projects.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      await setAuthTokenIfNeeded()
+      return api.projects.update(id, data)
+    },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKeys.project(variables.id), data)
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
@@ -367,9 +398,13 @@ export const useUpdateProject = () => {
 
 export const useDeleteProject = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.projects.delete,
+    mutationFn: async (id: string) => {
+      await setAuthTokenIfNeeded()
+      return api.projects.delete(id)
+    },
     onSuccess: (_, deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.project(deletedId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
@@ -394,15 +429,19 @@ export const useTasks = () => {
       return api.tasks.getAll()
     },
     staleTime: 1 * 60 * 1000, // 1 minute - tasks change frequently
-    enabled: isLoaded && isSignedIn && !!user, // Only run when auth is complete and authenticated
+    enabled: true,
   })
 }
 
 export const useCreateTask = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.tasks.create,
+    mutationFn: async (data: any) => {
+      await setAuthTokenIfNeeded()
+      return api.tasks.create(data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
@@ -415,9 +454,13 @@ export const useCreateTask = () => {
 
 export const useUpdateTask = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => api.tasks.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      await setAuthTokenIfNeeded()
+      return api.tasks.update(id, data)
+    },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKeys.task(variables.id), data)
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
@@ -431,9 +474,13 @@ export const useUpdateTask = () => {
 
 export const useDeleteTask = () => {
   const queryClient = useQueryClient()
+  const { setAuthTokenIfNeeded } = useApiWithAuth()
   
   return useMutation({
-    mutationFn: api.tasks.delete,
+    mutationFn: async (id: string) => {
+      await setAuthTokenIfNeeded()
+      return api.tasks.delete(id)
+    },
     onSuccess: (_, deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.task(deletedId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
@@ -445,7 +492,6 @@ export const useDeleteTask = () => {
   })
 }
 
-// Search hooks
 export const useSearch = (query: string, enabled: boolean = true) => {
   const { setAuthTokenIfNeeded } = useApiWithAuth()
   
@@ -453,50 +499,25 @@ export const useSearch = (query: string, enabled: boolean = true) => {
     queryKey: queryKeys.search(query),
     queryFn: async () => {
       await setAuthTokenIfNeeded()
-      return api.search.search(query)
+      // Note: Search endpoint needs to be implemented in the API service
+      return []
     },
     enabled: enabled && query.length > 0,
-    staleTime: 30 * 1000, // 30 seconds - search results should be fresh
+    staleTime: 30 * 1000, // 30 seconds
   })
 }
 
-// Combined data hook with better error handling
 export const useProjectData = () => {
-  const storiesQuery = useStories()
-  const epicsQuery = useEpics()
-  const usersQuery = useUsers()
-  const analyticsQuery = useAnalytics()
-
+  const { data: projects, isLoading: projectsLoading } = useProjects()
+  const { data: epics, isLoading: epicsLoading } = useEpics()
+  const { data: stories, isLoading: storiesLoading } = useStories()
+  const { data: users, isLoading: usersLoading } = useUsers()
+  
   return {
-    stories: storiesQuery.data || [],
-    epics: epicsQuery.data || [],
-    users: usersQuery.data || [],
-    analytics: analyticsQuery.data || null,
-    
-    // Loading states
-    isLoading: storiesQuery.isLoading || epicsQuery.isLoading || usersQuery.isLoading || analyticsQuery.isLoading,
-    isStoriesLoading: storiesQuery.isLoading,
-    isEpicsLoading: epicsQuery.isLoading,
-    isUsersLoading: usersQuery.isLoading,
-    isAnalyticsLoading: analyticsQuery.isLoading,
-    
-    // Error states
-    hasError: storiesQuery.isError || epicsQuery.isError || usersQuery.isError || analyticsQuery.isError,
-    storiesError: storiesQuery.error,
-    epicsError: epicsQuery.error,
-    usersError: usersQuery.error,
-    analyticsError: analyticsQuery.error,
-    
-    // Refetch functions
-    refetch: () => {
-      storiesQuery.refetch()
-      epicsQuery.refetch()
-      usersQuery.refetch()
-      analyticsQuery.refetch()
-    },
-    refetchStories: storiesQuery.refetch,
-    refetchEpics: epicsQuery.refetch,
-    refetchUsers: usersQuery.refetch,
-    refetchAnalytics: analyticsQuery.refetch,
+    projects: projects || [],
+    epics: epics || [],
+    stories: stories || [],
+    users: users || [],
+    isLoading: projectsLoading || epicsLoading || storiesLoading || usersLoading,
   }
 } 

@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 # Handle imports for both package and direct execution
 try:
-    from ..database.supabase_client import get_supabase
-    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
 except ImportError:
     from database.supabase_client import get_supabase
     from auth.enhanced_auth import get_current_active_user, UserInDB

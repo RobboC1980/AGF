@@ -13,9 +13,9 @@ from pydantic import BaseModel, Field
 
 try:
     # Use Supabase auth instead of enhanced auth for consistency
-    from ..api.auth import get_current_user_supabase, UserResponse
-    from ..database.supabase_client import get_supabase
-    from ..models.api_models import SprintResponse, SprintBase, SprintUpdate
+    from api.auth import get_current_user_supabase, UserResponse
+    from database.supabase_client import get_supabase
+    from models.api_models import SprintResponse, SprintBase, SprintUpdate
 except ImportError:
     from api.auth import get_current_user_supabase, UserResponse
     from database.supabase_client import get_supabase

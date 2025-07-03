@@ -10,8 +10,8 @@ from typing import List, Set, Dict, Any, Optional
 from datetime import datetime
 from fastapi import HTTPException
 try:
-    from ..database.supabase_client import get_supabase
-    from ..services.notification_service import NotificationService, Notification, NotificationType, NotificationPriority, NotificationChannel
+    from database.supabase_client import get_supabase
+    from services.notification_service import NotificationService, Notification, NotificationType, NotificationPriority, NotificationChannel
 except ImportError:
     from database.supabase_client import get_supabase
     from services.notification_service import NotificationService, Notification, NotificationType, NotificationPriority, NotificationChannel

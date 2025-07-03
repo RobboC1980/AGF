@@ -18,8 +18,8 @@ import jwt
 import json
 
 try:
-    from ..database.supabase_client import get_supabase
-    from ..auth.dependencies import get_current_user
+    from database.supabase_client import get_supabase
+    from auth.dependencies import get_current_user
 except ImportError:
     from database.supabase_client import get_supabase
     from auth.dependencies import get_current_user

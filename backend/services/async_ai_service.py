@@ -16,9 +16,9 @@ from pydantic import BaseModel
 # Handle imports for both package and direct execution
 try:
     from .ai_service import AIService, AIResponse
-    from ..database.supabase_client import get_supabase
+    from database.supabase_client import get_supabase
 except ImportError:
-    from ai_service import AIService, AIResponse
+    from services.ai_service import AIService, AIResponse
     from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
@@ -319,8 +319,8 @@ def generate_analytics_insights_task(
     """Celery task for analytics insights generation"""
     try:
         try:
-            from ..services.analytics_service import AnalyticsService
-            from ..database.supabase_client import get_supabase
+            from services.analytics_service import AnalyticsService
+            from database.supabase_client import get_supabase
         except ImportError:
             from analytics_service import AnalyticsService
             from database.supabase_client import get_supabase

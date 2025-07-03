@@ -104,10 +104,11 @@ if [ -f "production_backend.py" ] && [ "$1" = "production" ]; then
     BACKEND_PID=$!
 elif [ -f "backend/main.py" ]; then
     echo "📍 Starting development backend..."
-    cd backend
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload &
+    # Run from root directory to fix import issues
+    echo "📂 Current directory: $(pwd)"
+    # Use module path to run from root directory
+    python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload &
     BACKEND_PID=$!
-    cd ..
 else
     echo "❌ No backend file found"
     exit 1
@@ -143,8 +144,22 @@ check_service() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -s "http://localhost:$port" >/dev/null 2>&1 || curl -s "http://localhost:$port/health" >/dev/null 2>&1; then
-            echo "✅ $service_name is running on port $port"
+        # Check if port is responding
+        if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port" | grep -q "200\|404"; then
+            echo "✅ $service_name is responding on port $port"
+            
+            # For backend, do additional validation to ensure it's FastAPI
+            if [ "$port" = "8000" ]; then
+                # Check if it's actually FastAPI by looking for docs endpoint
+                if curl -s "http://localhost:$port/docs" | grep -q "swagger\|openapi\|FastAPI" 2>/dev/null; then
+                    echo "🐍 Confirmed: FastAPI backend detected"
+                elif curl -s "http://localhost:$port/" | grep -q "AgileForge API\|FastAPI\|uvicorn" 2>/dev/null; then
+                    echo "🐍 Confirmed: Backend API detected"
+                else
+                    echo "⚠️  Warning: Port $port is responding but may not be the FastAPI backend"
+                    echo "    This might be Next.js content. Backend may have startup issues."
+                fi
+            fi
             return 0
         fi
         
@@ -197,4 +212,10 @@ echo "   or run: pkill -f 'uvicorn|next'"
 echo ""
 echo "💡 Usage:"
 echo "   ./agileforge-restart.sh          # Development mode"
-echo "   ./agileforge-restart.sh production  # Production mode" 
+echo "   ./agileforge-restart.sh production  # Production mode"
+echo ""
+echo "🔧 Troubleshooting:"
+echo "   If backend shows warnings:"
+echo "   - Check backend logs: python -m uvicorn backend.main:app --host 0.0.0.0 --port 8001"
+echo "   - Test backend directly: curl http://localhost:8000/"
+echo "   - Check import errors: python -c 'import backend.main'" 

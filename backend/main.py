@@ -10,100 +10,67 @@ from typing import List
 from fastapi.responses import JSONResponse, Response
 from datetime import datetime
 
-# Add parent directory to path for proper imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the parent directory to Python path to enable proper imports
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
-# Import routers - handle both relative and absolute imports
+# Now we can use consistent imports
+from api.ai_endpoints import router as ai_router
+from api.ai_analysis import router as ai_analysis_router
+from api.ai_kanban_endpoints import router as ai_kanban_router
+from api.ai_sprint_endpoints import router as ai_sprint_router
+from api.ai_analytics_endpoints import router as ai_analytics_router
+from api.stories import router as stories_router
+from api.auth import router as auth_router
+from api.projects import router as projects_router
+from api.epics import router as epics_router
+from api.users import router as users_router
+from api.tasks import router as tasks_router
+from api.teams import router as teams_router
+from api.search import router as search_router
+from api.sprints import router as sprints_router
+from api.analytics_endpoints import analytics_router
+from api.access_control import router as access_control_router
+from database.supabase_client import init_supabase, close_supabase, get_supabase
+from services.ai_service import init_ai_service
+from middleware.auth import AuthMiddleware
+from middleware.logging import LoggingMiddleware
+from auth.enhanced_auth import EnhancedAuthManager
+
+# Phase 2 imports with error handling
 try:
-    from backend.api.ai_endpoints import router as ai_router
-    from backend.api.ai_analysis import router as ai_analysis_router
-    from backend.api.ai_kanban_endpoints import router as ai_kanban_router
-    from backend.api.ai_sprint_endpoints import router as ai_sprint_router
-    from backend.api.ai_analytics_endpoints import router as ai_analytics_router
-    from backend.api.stories import router as stories_router
-    from backend.api.auth import router as auth_router
-    from backend.api.projects import router as projects_router
-    from backend.api.epics import router as epics_router
-    from backend.api.users import router as users_router
-    from backend.api.tasks import router as tasks_router
-    from backend.api.teams import router as teams_router
-    from backend.api.search import router as search_router
-    from backend.api.sprints import router as sprints_router
-    from backend.api.analytics_endpoints import analytics_router
-    from backend.api.access_control import router as access_control_router
-    # Phase 2 & 3 API endpoints
-    from backend.api.performance_endpoints import router as performance_router
-    from backend.database.supabase_client import init_supabase, close_supabase, get_supabase
-    from backend.services.ai_service import init_ai_service
-    from backend.middleware.auth import AuthMiddleware
-    from backend.middleware.logging import LoggingMiddleware
-    from backend.auth.enhanced_auth import EnhancedAuthManager
-    # Phase 2 imports
-    from backend.middleware.observability import (
+    from middleware.observability import (
         ObservabilityMiddleware, setup_telemetry, instrument_fastapi_app
     )
-    from backend.middleware.security import (
+    from middleware.security import (
         SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
     )
-    from backend.services.monitoring import health_router, get_system_monitor
-    # Phase 3 imports - Security and Backup
-    from backend.security.advanced_security import AdvancedEncryption, InputValidator, ThreatDetector
-    from backend.backup.backup_manager import BackupManager
-    from backend.database.query_optimizer import QueryOptimizer
+    from services.monitoring import health_router, get_system_monitor
+    from api.performance_endpoints import router as performance_router
 except ImportError as e:
-    # Fallback for running as script
-    try:
-        from api.ai_endpoints import router as ai_router
-        from api.ai_analysis import router as ai_analysis_router
-        from api.ai_kanban_endpoints import router as ai_kanban_router
-        from api.ai_sprint_endpoints import router as ai_sprint_router
-        from api.ai_analytics_endpoints import router as ai_analytics_router
-        from api.stories import router as stories_router
-        from api.auth import router as auth_router
-        from api.projects import router as projects_router
-        from api.epics import router as epics_router
-        from api.users import router as users_router
-        from api.tasks import router as tasks_router
-        from api.teams import router as teams_router
-        from api.search import router as search_router
-        from api.sprints import router as sprints_router
-        from api.analytics_endpoints import analytics_router
-        from api.access_control import router as access_control_router
-        # Phase 2 & 3 API endpoints
-        from api.performance_endpoints import router as performance_router
-        from database.supabase_client import init_supabase, close_supabase, get_supabase
-        from services.ai_service import init_ai_service
-        from middleware.auth import AuthMiddleware
-        from middleware.logging import LoggingMiddleware
-        from auth.enhanced_auth import EnhancedAuthManager
-        # Phase 2 imports with fallback
-        try:
-            from middleware.observability import (
-                ObservabilityMiddleware, setup_telemetry, instrument_fastapi_app
-            )
-            from middleware.security import (
-                SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
-            )
-            from services.monitoring import health_router, get_system_monitor
-            # Phase 3 imports - Security and Backup
-            from security.advanced_security import AdvancedEncryption, InputValidator, ThreatDetector
-            from backup.backup_manager import BackupManager
-            from database.query_optimizer import QueryOptimizer
-        except ImportError:
-            # Minimal fallback
-            ObservabilityMiddleware = None
-            SecurityMiddleware = None
-            RateLimitMiddleware = None
-            health_router = None
-            performance_router = None
-            AdvancedEncryption = None
-            InputValidator = None
-            ThreatDetector = None
-            BackupManager = None
-            QueryOptimizer = None
-    except ImportError as e2:
-        print(f"Import error: {e2}")
-        sys.exit(1)
+    print(f"Phase 2 middleware not available: {e}")
+    ObservabilityMiddleware = None
+    SecurityMiddleware = None
+    RateLimitMiddleware = None
+    health_router = None
+    performance_router = None
+    setup_telemetry = None
+    instrument_fastapi_app = None
+    get_system_monitor = None
+
+# Phase 3 imports with error handling
+try:
+    from security.advanced_security import AdvancedEncryption, InputValidator, ThreatDetector
+    from backup.backup_manager import BackupManager
+    from database.query_optimizer import QueryOptimizer
+except ImportError as e:
+    print(f"Phase 3 features not available: {e}")
+    AdvancedEncryption = None
+    InputValidator = None
+    ThreatDetector = None
+    BackupManager = None
+    QueryOptimizer = None
 
 # Configure logging - Enhanced with structured logging
 import structlog
@@ -133,7 +100,7 @@ logger = structlog.get_logger(__name__)
 async def get_current_user_optional(request):
     """Get current user if authenticated, otherwise return None"""
     try:
-        from backend.auth.unified_auth import get_current_user_optional as get_optional_user
+        from auth.unified_auth import get_current_user_optional as get_optional_user
         return await get_optional_user(request)
     except:
         return None
@@ -184,7 +151,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize Analytics Service - Re-enabled after fixing proxy issue
         try:
-            from backend.services.analytics_service import init_analytics_service
+            from services.analytics_service import init_analytics_service
             analytics_svc = init_analytics_service(supabase)
             logger.info("Analytics service initialized successfully")
         except Exception as analytics_error:
@@ -210,19 +177,10 @@ async def lifespan(app: FastAPI):
         
         # Initialize Async AI Service & Cache
         try:
-            from backend.services.async_ai_service import get_async_ai_service
-            from backend.services.cache_service import get_cache_service, get_project_cache
-            
-            # Initialize Redis-based services
-            async_ai_svc = get_async_ai_service()
-            cache_svc = get_cache_service()
-            project_cache = get_project_cache()
-            
-            logger.info("Async AI service and cache layer initialized successfully")
-        except ImportError:
             from services.async_ai_service import get_async_ai_service
             from services.cache_service import get_cache_service, get_project_cache
             
+            # Initialize Redis-based services
             async_ai_svc = get_async_ai_service()
             cache_svc = get_cache_service()
             project_cache = get_project_cache()
@@ -401,25 +359,17 @@ app.include_router(access_control_router, tags=["Access Control"])
 
 # RBAC Project Assignment endpoints
 try:
-    from backend.api.project_assignments import router as project_assignments_router
+    from api.project_assignments import router as project_assignments_router
     app.include_router(project_assignments_router, tags=["Project Assignments"])
 except ImportError:
-    try:
-        from api.project_assignments import router as project_assignments_router
-        app.include_router(project_assignments_router, tags=["Project Assignments"])
-    except ImportError:
-        logger.warning("Project assignments router not available")
+    logger.warning("Project assignments router not available")
 
 # RBAC User Permissions endpoints
 try:
-    from backend.api.user_permissions import router as user_permissions_router
+    from api.user_permissions import router as user_permissions_router
     app.include_router(user_permissions_router, tags=["User Permissions"])
 except ImportError:
-    try:
-        from api.user_permissions import router as user_permissions_router
-        app.include_router(user_permissions_router, tags=["User Permissions"])
-    except ImportError:
-        logger.warning("User permissions router not available")
+    logger.warning("User permissions router not available")
 
 # Phase 2 & 3: Include monitoring and performance routers
 if health_router:

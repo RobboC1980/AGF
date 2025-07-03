@@ -6,9 +6,9 @@ import logging
 import uuid
 
 try:
-    from ..services.ai_service import get_basic_ai_service, AIResponse
-    from ..database.supabase_client import get_supabase
-    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from services.ai_service import get_basic_ai_service, AIResponse
+    from database.supabase_client import get_supabase
+    from auth.enhanced_auth import get_current_active_user, UserInDB
     from .story_mentions import handle_story_description_mentions
 except ImportError:
     from services.ai_service import get_basic_ai_service, AIResponse
