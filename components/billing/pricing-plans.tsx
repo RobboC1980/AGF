@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { PRICING_PLANS, createCheckoutSession, getStripe } from '@/lib/stripe'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth, useUser } from '@clerk/nextjs'
 import { toast } from 'sonner'
 
 interface PricingPlansProps {
@@ -25,10 +25,11 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({
 }) => {
   const [isYearly, setIsYearly] = useState(false)
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
-  const { user } = useAuth()
+  const { isSignedIn } = useAuth()
+  const { user } = useUser()
 
   const handleSubscribe = async (planId: string) => {
-    if (!user) {
+    if (!isSignedIn || !user) {
       toast.error('Please sign in to subscribe')
       return
     }
