@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { apiClient, type Story } from "../services/api"
+import { useAuth } from '@clerk/nextjs'
+import { useAuthenticatedApi } from './useApi'
 import { toast } from "sonner"
 
 // Get authentication token (replace with your auth implementation)
@@ -9,33 +10,42 @@ const getAuthToken = () => {
 }
 
 export function useStories() {
+  const { isLoaded, isSignedIn } = useAuth()
+  const api = useAuthenticatedApi()
+  
   return useQuery({
     queryKey: ["stories"],
     queryFn: async () => {
-      const token = getAuthToken()
-      if (!token) throw new Error("No authentication token")
-
-      apiClient.setToken(token)
-      const response = await apiClient.getStories()
-      return response.data.stories
+      try {
+        const stories = await api.stories.getAll()
+        return stories
+      } catch (error) {
+        console.error('Failed to fetch stories:', error)
+        throw error
+      }
     },
     staleTime: 30 * 1000, // 30 seconds
     retry: 2,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export function useStory(id: string) {
+  const { isLoaded, isSignedIn } = useAuth()
+  const api = useAuthenticatedApi()
+  
   return useQuery({
     queryKey: ["stories", id],
     queryFn: async () => {
-      const token = getAuthToken()
-      if (!token) throw new Error("No authentication token")
-
-      apiClient.setToken(token)
-      const response = await apiClient.getStory(id)
-      return response.data
+      try {
+        const story = await api.stories.getById(id)
+        return story
+      } catch (error) {
+        console.error('Failed to fetch story:', error)
+        throw error
+      }
     },
-    enabled: !!id,
+    enabled: isLoaded && isSignedIn && !!id,
   })
 }
 

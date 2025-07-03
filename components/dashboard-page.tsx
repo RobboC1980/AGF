@@ -707,7 +707,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onRefresh }) => {
           {/* Footer Info */}
           <div className="mt-8 text-center">
             <p className="text-sm text-slate-500">
-              📅 Last updated: {new Date(data?.timestamp || Date.now()).toLocaleString()}
+              📅 Last updated: {new Date().toLocaleString()}
             </p>
           </div>
         </div>

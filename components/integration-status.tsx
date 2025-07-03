@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { CheckCircle, XCircle, Clock, Wifi, Database, Shield, Zap, RefreshCw } from 'lucide-react'
-import { useAuth } from '@/contexts/auth-context'
+import { useUser } from '@clerk/nextjs'
 import { useProjectData } from '@/hooks/useApi'
 import { api } from '@/services/api'
 import { useWebSocket } from '@/services/websocket'
@@ -21,7 +21,7 @@ interface StatusItem {
 }
 
 export function IntegrationStatus() {
-  const { isAuthenticated, user } = useAuth()
+  const { isSignedIn, user } = useUser()
   const { stories, epics, users, analytics, isLoading, hasError } = useProjectData()
   const { isConnected } = useWebSocket()
   const queryClient = useQueryClient()
@@ -58,10 +58,10 @@ export function IntegrationStatus() {
     },
     {
       name: 'Authentication System',
-      status: isAuthenticated ? 'success' : 'warning',
-      description: isAuthenticated ? `Authenticated as ${user?.first_name} ${user?.last_name}` : 'Not authenticated',
+      status: isSignedIn ? 'success' : 'warning',
+      description: isSignedIn ? `Authenticated as ${user?.firstName} ${user?.lastName}` : 'Not authenticated',
       icon: Shield,
-      details: isAuthenticated ? `User ID: ${user?.id}` : 'Authentication available but not logged in',
+      details: isSignedIn ? `User ID: ${user?.id}` : 'Authentication available but not logged in',
     },
     {
       name: 'React Query Caching',

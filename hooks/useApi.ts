@@ -1,24 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/services/api'
+import { createAuthenticatedApi } from '@/services/api'
 import { useAuth, useUser } from '@clerk/nextjs'
+import { useMemo } from 'react'
 
-// Helper hook to set up API with Clerk auth
-function useApiWithAuth() {
+// Custom hook to create an authenticated API client
+export function useAuthenticatedApi() {
   const { getToken } = useAuth()
   
-  // Function to set token before making API calls
-  const setAuthTokenIfNeeded = async () => {
-    try {
-      const token = await getToken()
-      if (token) {
-        api.auth.setToken(token)
-      }
-    } catch (error) {
-      console.error('Failed to get auth token:', error)
-    }
-  }
-
-  return { setAuthTokenIfNeeded }
+  return useMemo(() => {
+    return createAuthenticatedApi(getToken)
+  }, [getToken])
 }
 
 // Query keys for consistent caching
@@ -40,80 +31,85 @@ export const queryKeys = {
 // Stories hooks
 export const useStories = () => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.stories,
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.stories.getAll()
+      try {
+        const stories = await api.stories.getAll()
+        return stories
+      } catch (error) {
+        console.error('Failed to fetch stories:', error)
+        throw error
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: true,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export const useCreateStory = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (data: any) => {
-      await setAuthTokenIfNeeded()
-      return api.stories.create(data)
+      try {
+        const story = await api.stories.create(data)
+        return story
+      } catch (error) {
+        console.error('Failed to create story:', error)
+        throw error
+      }
     },
     onSuccess: () => {
-      // Invalidate and refetch stories
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics })
-    },
-    onError: (error) => {
-      console.error('Failed to create story:', error)
     },
   })
 }
 
 export const useUpdateStory = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      await setAuthTokenIfNeeded()
-      return api.stories.update(id, data)
+      try {
+        const story = await api.stories.update(id, data)
+        return story
+      } catch (error) {
+        console.error('Failed to update story:', error)
+        throw error
+      }
     },
     onSuccess: (data, variables) => {
-      // Update the specific story in cache
       queryClient.setQueryData(queryKeys.story(variables.id), data)
-      // Invalidate stories list
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics })
-    },
-    onError: (error) => {
-      console.error('Failed to update story:', error)
     },
   })
 }
 
 export const useDeleteStory = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await setAuthTokenIfNeeded()
-      return api.stories.delete(id)
+      try {
+        await api.stories.delete(id)
+        return id
+      } catch (error) {
+        console.error('Failed to delete story:', error)
+        throw error
+      }
     },
-    onSuccess: (_, deletedId) => {
-      // Remove from cache
+    onSuccess: (deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.story(deletedId) })
-      // Invalidate stories list
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics })
-    },
-    onError: (error) => {
-      console.error('Failed to delete story:', error)
     },
   })
 }
@@ -121,75 +117,85 @@ export const useDeleteStory = () => {
 // Epics hooks
 export const useEpics = () => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.epics,
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.epics.getAll()
+      try {
+        const epics = await api.epics.getAll()
+        return epics
+      } catch (error) {
+        console.error('Failed to fetch epics:', error)
+        throw error
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: true,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export const useCreateEpic = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (data: any) => {
-      await setAuthTokenIfNeeded()
-      return api.epics.create(data)
+      try {
+        const epic = await api.epics.create(data)
+        return epic
+      } catch (error) {
+        console.error('Failed to create epic:', error)
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
-    },
-    onError: (error) => {
-      console.error('Failed to create epic:', error)
     },
   })
 }
 
 export const useUpdateEpic = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      await setAuthTokenIfNeeded()
-      return api.epics.update(id, data)
+      try {
+        const epic = await api.epics.update(id, data)
+        return epic
+      } catch (error) {
+        console.error('Failed to update epic:', error)
+        throw error
+      }
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKeys.epic(variables.id), data)
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
     },
-    onError: (error) => {
-      console.error('Failed to update epic:', error)
-    },
   })
 }
 
 export const useDeleteEpic = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await setAuthTokenIfNeeded()
-      return api.epics.delete(id)
+      try {
+        await api.epics.delete(id)
+        return id
+      } catch (error) {
+        console.error('Failed to delete epic:', error)
+        throw error
+      }
     },
-    onSuccess: (_, deletedId) => {
+    onSuccess: (deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.epic(deletedId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
-    },
-    onError: (error) => {
-      console.error('Failed to delete epic:', error)
     },
   })
 }
@@ -197,34 +203,40 @@ export const useDeleteEpic = () => {
 // Users hooks
 export const useUsers = () => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.users,
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.users.getAll()
+      try {
+        const users = await api.users.getAll()
+        return users
+      } catch (error) {
+        console.error('Failed to fetch users:', error)
+        throw error
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - users change less frequently
-    enabled: true,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export const useCreateUser = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (data: any) => {
-      await setAuthTokenIfNeeded()
-      return api.users.create(data)
+      try {
+        const user = await api.users.create(data)
+        return user
+      } catch (error) {
+        console.error('Failed to create user:', error)
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
-    },
-    onError: (error) => {
-      console.error('Failed to create user:', error)
     },
   })
 }
@@ -232,186 +244,224 @@ export const useCreateUser = () => {
 // Analytics hooks
 export const useAnalytics = () => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.analytics,
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getOverview()
+      try {
+        const analytics = await api.analytics.getOverview()
+        return analytics
+      } catch (error) {
+        console.error('Failed to fetch analytics:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000, // 1 minute - analytics should be fresh
-    enabled: true,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export const useProjectAnalytics = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: ['analytics', 'project', projectId, days],
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getProjectDashboard(projectId, days)
+      try {
+        const analytics = await api.analytics.getProjectDashboard(projectId, days)
+        return analytics
+      } catch (error) {
+        console.error('Failed to fetch project analytics:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000, // 1 minute
-    enabled: isLoaded && isSignedIn && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!projectId,
   })
 }
 
 export const useProjectVelocity = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: ['analytics', 'velocity', projectId, days],
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getProjectVelocity(projectId, days)
+      try {
+        const velocity = await api.analytics.getProjectVelocity(projectId, days)
+        return velocity
+      } catch (error) {
+        console.error('Failed to fetch project velocity:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000,
-    enabled: isLoaded && isSignedIn && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!projectId,
   })
 }
 
 export const useProjectBurndown = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: ['analytics', 'burndown', projectId, days],
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getProjectBurndown(projectId, days)
+      try {
+        const burndown = await api.analytics.getProjectBurndown(projectId, days)
+        return burndown
+      } catch (error) {
+        console.error('Failed to fetch project burndown:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000,
-    enabled: isLoaded && isSignedIn && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!projectId,
   })
 }
 
 export const useTeamPerformance = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: ['analytics', 'team-performance', projectId, days],
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getTeamPerformance(projectId, days)
+      try {
+        const performance = await api.analytics.getTeamPerformance(projectId, days)
+        return performance
+      } catch (error) {
+        console.error('Failed to fetch team performance:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000,
-    enabled: isLoaded && isSignedIn && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!projectId,
   })
 }
 
 export const useProjectInsights = (projectId: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: ['analytics', 'insights', projectId, days],
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getProjectInsights(projectId, days)
+      try {
+        const insights = await api.analytics.getProjectInsights(projectId, days)
+        return insights
+      } catch (error) {
+        console.error('Failed to fetch project insights:', error)
+        throw error
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes for AI insights
-    enabled: isLoaded && isSignedIn && !!user && !!projectId,
+    enabled: isLoaded && isSignedIn && !!projectId,
   })
 }
 
 export const useTeamAnalytics = (teamId?: string, days: number = 30) => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: ['analytics', 'team', teamId, days],
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.analytics.getTeamAnalytics(teamId, days)
+      try {
+        const analytics = await api.analytics.getTeamAnalytics(teamId, days)
+        return analytics
+      } catch (error) {
+        console.error('Failed to fetch team analytics:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000,
-    enabled: isLoaded && isSignedIn && !!user,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 // Projects hooks
 export const useProjects = () => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.projects,
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.projects.getAll()
+      try {
+        const projects = await api.projects.getAll()
+        return projects
+      } catch (error) {
+        console.error('Failed to fetch projects:', error)
+        throw error
+      }
     },
     staleTime: 3 * 60 * 1000, // 3 minutes
-    enabled: true,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export const useCreateProject = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (data: any) => {
-      await setAuthTokenIfNeeded()
-      return api.projects.create(data)
+      try {
+        const project = await api.projects.create(data)
+        return project
+      } catch (error) {
+        console.error('Failed to create project:', error)
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
-    },
-    onError: (error) => {
-      console.error('Failed to create project:', error)
     },
   })
 }
 
 export const useUpdateProject = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      await setAuthTokenIfNeeded()
-      return api.projects.update(id, data)
+      try {
+        const project = await api.projects.update(id, data)
+        return project
+      } catch (error) {
+        console.error('Failed to update project:', error)
+        throw error
+      }
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKeys.project(variables.id), data)
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
-    },
-    onError: (error) => {
-      console.error('Failed to update project:', error)
     },
   })
 }
 
 export const useDeleteProject = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await setAuthTokenIfNeeded()
-      return api.projects.delete(id)
+      try {
+        await api.projects.delete(id)
+        return id
+      } catch (error) {
+        console.error('Failed to delete project:', error)
+        throw error
+      }
     },
-    onSuccess: (_, deletedId) => {
+    onSuccess: (deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.project(deletedId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
       queryClient.invalidateQueries({ queryKey: queryKeys.epics })
-    },
-    onError: (error) => {
-      console.error('Failed to delete project:', error)
     },
   })
 }
@@ -419,99 +469,116 @@ export const useDeleteProject = () => {
 // Tasks hooks
 export const useTasks = () => {
   const { isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.tasks,
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      return api.tasks.getAll()
+      try {
+        const tasks = await api.tasks.getAll()
+        return tasks
+      } catch (error) {
+        console.error('Failed to fetch tasks:', error)
+        throw error
+      }
     },
     staleTime: 1 * 60 * 1000, // 1 minute - tasks change frequently
-    enabled: true,
+    enabled: isLoaded && isSignedIn,
   })
 }
 
 export const useCreateTask = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (data: any) => {
-      await setAuthTokenIfNeeded()
-      return api.tasks.create(data)
+      try {
+        const task = await api.tasks.create(data)
+        return task
+      } catch (error) {
+        console.error('Failed to create task:', error)
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
-    },
-    onError: (error) => {
-      console.error('Failed to create task:', error)
     },
   })
 }
 
 export const useUpdateTask = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      await setAuthTokenIfNeeded()
-      return api.tasks.update(id, data)
+      try {
+        const task = await api.tasks.update(id, data)
+        return task
+      } catch (error) {
+        console.error('Failed to update task:', error)
+        throw error
+      }
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(queryKeys.task(variables.id), data)
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
     },
-    onError: (error) => {
-      console.error('Failed to update task:', error)
-    },
   })
 }
 
 export const useDeleteTask = () => {
   const queryClient = useQueryClient()
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const api = useAuthenticatedApi()
   
   return useMutation({
     mutationFn: async (id: string) => {
-      await setAuthTokenIfNeeded()
-      return api.tasks.delete(id)
+      try {
+        await api.tasks.delete(id)
+        return id
+      } catch (error) {
+        console.error('Failed to delete task:', error)
+        throw error
+      }
     },
-    onSuccess: (_, deletedId) => {
+    onSuccess: (deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.task(deletedId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
       queryClient.invalidateQueries({ queryKey: queryKeys.stories })
     },
-    onError: (error) => {
-      console.error('Failed to delete task:', error)
-    },
   })
 }
 
+// Search hook
 export const useSearch = (query: string, enabled: boolean = true) => {
-  const { setAuthTokenIfNeeded } = useApiWithAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const api = useAuthenticatedApi()
   
   return useQuery({
     queryKey: queryKeys.search(query),
     queryFn: async () => {
-      await setAuthTokenIfNeeded()
-      // Note: Search endpoint needs to be implemented in the API service
-      return []
+      try {
+        const results = await api.search.search(query)
+        return results
+      } catch (error) {
+        console.error('Failed to search:', error)
+        throw error
+      }
     },
-    enabled: enabled && query.length > 0,
+    enabled: enabled && query.length > 0 && isLoaded && isSignedIn,
     staleTime: 30 * 1000, // 30 seconds
   })
 }
 
+// Combined data hook for dashboard
 export const useProjectData = () => {
-  const { data: projects, isLoading: projectsLoading } = useProjects()
-  const { data: epics, isLoading: epicsLoading } = useEpics()
-  const { data: stories, isLoading: storiesLoading } = useStories()
-  const { data: users, isLoading: usersLoading } = useUsers()
+  const { data: projects, isLoading: projectsLoading, error: projectsError } = useProjects()
+  const { data: epics, isLoading: epicsLoading, error: epicsError } = useEpics()
+  const { data: stories, isLoading: storiesLoading, error: storiesError } = useStories()
+  const { data: users, isLoading: usersLoading, error: usersError } = useUsers()
   
   return {
     projects: projects || [],
@@ -519,5 +586,27 @@ export const useProjectData = () => {
     stories: stories || [],
     users: users || [],
     isLoading: projectsLoading || epicsLoading || storiesLoading || usersLoading,
+    error: projectsError || epicsError || storiesError || usersError,
   }
+}
+
+// Health check hook
+export const useHealthCheck = () => {
+  const api = useAuthenticatedApi()
+  
+  return useQuery({
+    queryKey: ['health'],
+    queryFn: async () => {
+      try {
+        const health = await api.health.check()
+        return health
+      } catch (error) {
+        console.error('Failed to check health:', error)
+        throw error
+      }
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    retry: 3,
+    retryDelay: 1000,
+  })
 } 

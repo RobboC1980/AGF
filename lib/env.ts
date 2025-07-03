@@ -17,8 +17,7 @@ const envSchema = z.object({
   CLERK_SECRET_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().default('/sign-in'),
   NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default('/sign-up'),
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: z.string().default('/'),
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().default('/'),
+  // Removed deprecated after sign-in/up URLs - use fallbackRedirectUrl on components instead
   // Supabase environment variables - optional during build
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
@@ -32,8 +31,7 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().default('/sign-in'),
   NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default('/sign-up'),
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: z.string().default('/'),
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().default('/'),
+  // Removed deprecated after sign-in/up URLs
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
 })
@@ -63,8 +61,6 @@ function validateEnv() {
           CLERK_SECRET_KEY: undefined,
           NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
           NEXT_PUBLIC_CLERK_SIGN_UP_URL: '/sign-up',
-          NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: '/',
-          NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: '/',
           NEXT_PUBLIC_SUPABASE_URL: undefined,
           NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined,
           SUPABASE_SERVICE_ROLE_KEY: undefined,
@@ -89,8 +85,6 @@ function validateClientEnv() {
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
       NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
       NEXT_PUBLIC_CLERK_SIGN_UP_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL,
-      NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL,
-      NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     })
@@ -104,8 +98,6 @@ function validateClientEnv() {
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
       NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
       NEXT_PUBLIC_CLERK_SIGN_UP_URL: '/sign-up',
-      NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: '/',
-      NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: '/',
       NEXT_PUBLIC_SUPABASE_URL: '',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: '',
     }
@@ -138,4 +130,50 @@ export function getApiUrl() {
 // Skip validation during build time to prevent build failures
 if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
   validateEnv()
+}
+
+// Client-side environment variables
+export const clientEnvRuntime = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL,
+  // Removed deprecated after sign-in/up URLs
+})
+
+// Test environment fallback
+const testFallback = {
+  SUPABASE_URL: 'https://test-project.supabase.co',
+  SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+  NEXT_PUBLIC_SUPABASE_URL: 'https://test-project.supabase.co',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
+  STRIPE_SECRET_KEY: 'sk_test_stripe_key',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_webhook_secret',
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_stripe_key',
+  OPENAI_API_KEY: 'sk-test-openai-key',
+  ANTHROPIC_API_KEY: 'sk-ant-test-anthropic-key',
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: '/sign-up',
+  // Removed deprecated after sign-in/up URLs
+}
+
+// Development fallback values
+const devFallback = {
+  SUPABASE_URL: 'https://your-project.supabase.co',
+  SUPABASE_SERVICE_ROLE_KEY: 'your-service-role-key',
+  NEXT_PUBLIC_SUPABASE_URL: 'https://your-project.supabase.co',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'your-anon-key',
+  STRIPE_SECRET_KEY: 'sk_test_your_stripe_secret_key',
+  STRIPE_WEBHOOK_SECRET: 'whsec_your_webhook_secret',
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_your_stripe_publishable_key',
+  OPENAI_API_KEY: 'sk-your-openai-api-key',
+  ANTHROPIC_API_KEY: 'sk-ant-your-anthropic-api-key',
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: undefined,
+  CLERK_SECRET_KEY: undefined,
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/sign-in',
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: '/sign-up',
+  // Removed deprecated after sign-in/up URLs
 } 
