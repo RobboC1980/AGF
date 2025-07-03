@@ -10,11 +10,11 @@ import asyncio
 # Handle imports for both package and direct execution
 try:
     from ..database.supabase_client import get_supabase
-    from ..auth.enhanced_auth import get_current_active_user, UserInDB
+    from ..auth.unified_auth import get_current_user, get_current_user_optional, UnifiedUser
     from ..auth.dependencies import User
 except ImportError:
     from database.supabase_client import get_supabase
-    from auth.enhanced_auth import get_current_active_user, UserInDB
+    from auth.unified_auth import get_current_user, get_current_user_optional, UnifiedUser
     from auth.dependencies import User
 
 # Make get_current_user_supabase available for other modules
@@ -58,126 +58,20 @@ class PasswordResetConfirm(BaseModel):
     new_password: str
 
 async def get_current_user_supabase(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    supabase = Depends(get_supabase)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Get the current authenticated user from Supabase"""
-    
+    """Get the current authenticated user using unified auth system"""
     try:
-        # Try Clerk JWT validation first, then fall back to Supabase
-        try:
-            # Check if it's a Clerk token (they start with different patterns)
-            token = credentials.credentials
-            
-            # Try to decode as Clerk JWT (RS256) using Clerk's public key
-            try:
-                import jwt
-                
-                # For development, skip signature verification
-                payload = jwt.decode(token, options={"verify_signature": False})
-                
-                if payload.get("iss") and "clerk" in payload.get("iss", "").lower():
-                    # This is a Clerk token, create a user from it
-                    user_id = payload.get("sub")
-                    email = payload.get("email", "clerk-user@example.com")
-                    name = payload.get("name", payload.get("email", "Clerk User"))
-                    
-                    logger.info(f"Clerk token validated for user: {email}")
-                    return UserResponse(
-                        id=user_id,
-                        email=email,
-                        name=name,
-                        avatar_url=None
-                    )
-            except Exception as clerk_error:
-                logger.warning(f"Clerk token validation failed: {clerk_error}")
-        except Exception:
-            pass
+        # Use the unified authentication system
+        unified_user = await get_current_user(credentials)
         
-        # Add timeout and better error handling for Supabase auth call
-        async def verify_token_with_timeout():
-            try:
-                # Verify the JWT token with Supabase
-                user = supabase.auth.get_user(credentials.credentials)
-                return user
-            except Exception as e:
-                logger.error(f"Supabase auth verification failed: {e}")
-                return None
-        
-        # Use asyncio.wait_for to add timeout
-        try:
-            user = await asyncio.wait_for(
-                verify_token_with_timeout(),
-                timeout=5.0  # 5 second timeout
-            )
-        except asyncio.TimeoutError:
-            logger.error("Supabase auth verification timed out")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication service timeout"
-            )
-        
-        if not user or not user.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
-        
-        # Get user details from the database with timeout
-        try:
-            user_data = await asyncio.wait_for(
-                asyncio.to_thread(
-                    lambda: supabase.table("users").select("*").eq("id", user.user.id).single().execute()
-                ),
-                timeout=3.0  # 3 second timeout for database query
-            )
-        except asyncio.TimeoutError:
-            logger.error("User data fetch timed out")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Database timeout"
-            )
-        except Exception as e:
-            if "not found" in str(e).lower() or "no rows" in str(e).lower():
-                # User exists in auth but not in users table - create profile
-                logger.info(f"Creating missing user profile for {user.user.email}")
-                user_profile = {
-                    "id": user.user.id,
-                    "email": user.user.email,
-                    "name": user.user.email.split('@')[0],  # Use email prefix as default name
-                    "avatar_url": None
-                }
-                
-                try:
-                    profile_response = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            lambda: supabase.table("users").insert(user_profile).execute()
-                        ),
-                        timeout=3.0
-                    )
-                    if profile_response.data:
-                        user_data = profile_response
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Failed to create user profile"
-                        )
-                except asyncio.TimeoutError:
-                    logger.error("User profile creation timed out")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Database timeout"
-                    )
-            else:
-                raise
-        
-        if not user_data.data:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
-        return UserResponse(**user_data.data[0] if isinstance(user_data.data, list) else user_data.data)
+        # Convert UnifiedUser to UserResponse for compatibility
+        return UserResponse(
+            id=unified_user.id,
+            email=unified_user.email,
+            name=unified_user.name,
+            avatar_url=unified_user.image_url
+        )
         
     except HTTPException:
         raise
@@ -346,104 +240,15 @@ async def logout(supabase = Depends(get_supabase)):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    supabase = Depends(get_supabase)
+    current_user: UnifiedUser = Depends(get_current_user)
 ):
-    """Get current user information"""
-    try:
-        # Add timeout and better error handling for Supabase auth call
-        async def verify_token_with_timeout():
-            try:
-                # Verify the JWT token with Supabase
-                user = supabase.auth.get_user(credentials.credentials)
-                return user
-            except Exception as e:
-                logger.error(f"Supabase auth verification failed: {e}")
-                return None
-        
-        # Use asyncio.wait_for to add timeout
-        try:
-            user = await asyncio.wait_for(
-                verify_token_with_timeout(),
-                timeout=5.0  # 5 second timeout
-            )
-        except asyncio.TimeoutError:
-            logger.error("Supabase auth verification timed out")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication service timeout"
-            )
-        
-        if not user or not user.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
-        
-        # Get user details from the database with timeout
-        try:
-            user_data = await asyncio.wait_for(
-                asyncio.to_thread(
-                    lambda: supabase.table("users").select("*").eq("id", user.user.id).single().execute()
-                ),
-                timeout=3.0  # 3 second timeout for database query
-            )
-        except asyncio.TimeoutError:
-            logger.error("User data fetch timed out")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Database timeout"
-            )
-        except Exception as e:
-            if "not found" in str(e).lower() or "no rows" in str(e).lower():
-                # User exists in auth but not in users table - create profile
-                logger.info(f"Creating missing user profile for {user.user.email}")
-                user_profile = {
-                    "id": user.user.id,
-                    "email": user.user.email,
-                    "name": user.user.email.split('@')[0],  # Use email prefix as default name
-                    "avatar_url": None
-                }
-                
-                try:
-                    profile_response = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            lambda: supabase.table("users").insert(user_profile).execute()
-                        ),
-                        timeout=3.0
-                    )
-                    if profile_response.data:
-                        user_data = profile_response
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Failed to create user profile"
-                        )
-                except asyncio.TimeoutError:
-                    logger.error("User profile creation timed out")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Database timeout"
-                    )
-            else:
-                raise
-        
-        if not user_data.data:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
-        return UserResponse(**user_data.data[0] if isinstance(user_data.data, list) else user_data.data)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
+    """Get current user information using unified auth"""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        avatar_url=current_user.image_url
+    )
 
 @router.post("/password-reset")
 async def request_password_reset(reset_data: PasswordResetRequest, supabase = Depends(get_supabase)):

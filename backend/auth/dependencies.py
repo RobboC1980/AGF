@@ -15,7 +15,14 @@ import logging
 try:
     from .clerk_auth import extract_user_from_token, verify_clerk_token
 except ImportError:
-    from clerk_auth import extract_user_from_token, verify_clerk_token
+    try:
+        from backend.auth.clerk_auth import extract_user_from_token, verify_clerk_token
+    except ImportError:
+        # Fallback function for development
+        def extract_user_from_token(token: str):
+            raise HTTPException(status_code=401, detail="Clerk auth not available")
+        def verify_clerk_token(token: str):
+            raise HTTPException(status_code=401, detail="Clerk auth not available")
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()

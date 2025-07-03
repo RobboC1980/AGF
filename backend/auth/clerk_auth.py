@@ -122,36 +122,76 @@ class ClerkTokenVerifier:
         return self._verify_token_production(token)
     
     def _verify_token_development(self, token: str) -> Dict[str, Any]:
-        """Development token verification with relaxed validation"""
+        """Development token verification with controlled validation"""
+        # Allow specific development tokens only
+        if token == "dev-token":
+            logger.debug("Development mode: Accepting dev-token")
+            return {
+                "sub": "dev-user-123",
+                "email": "dev@example.com",
+                "name": "Development User",
+                "given_name": "Development",
+                "family_name": "User",
+                "iss": "clerk-dev",
+                "email_verified": True,
+                "exp": 9999999999,
+                "iat": 1640000000
+            }
+        
         try:
-            # First try to decode without verification for development tokens
+            # Try to decode without verification for development tokens
             payload = jwt.decode(token, options={"verify_signature": False})
             
-            # Check if it looks like a Clerk token
+            # Check if it looks like a valid Clerk token structure
             issuer = payload.get("iss", "")
-            if "clerk" in issuer.lower() or payload.get("sub"):
-                logger.debug("Development mode: Accepting token without signature verification")
-                return {
+            sub = payload.get("sub", "")
+            
+            if ("clerk" in issuer.lower() and sub) or (payload.get("email") and sub):
+                logger.debug("Development mode: Accepting valid-looking Clerk token without signature verification")
+                
+                # Extract user information from the token
+                user_data = {
                     "sub": payload.get("sub"),
-                    "email": payload.get("email", "dev@example.com"),
-                    "name": payload.get("name", "Development User"),
+                    "email": payload.get("email"),
+                    "name": payload.get("name") or payload.get("full_name"),
+                    "given_name": payload.get("given_name"),
+                    "family_name": payload.get("family_name"),
+                    "picture": payload.get("picture"),
+                    "email_verified": payload.get("email_verified", False),
                     "iss": payload.get("iss", "clerk-dev"),
                     "exp": payload.get("exp", 9999999999),
                     "iat": payload.get("iat", 1640000000)
                 }
+                
+                # Ensure we have at least basic user info
+                if not user_data["email"]:
+                    user_data["email"] = f"user-{user_data['sub'][:8]}@dev.local"
+                if not user_data["name"]:
+                    user_data["name"] = f"User {user_data['sub'][:8]}"
+                
+                return user_data
+            else:
+                # Token doesn't look like a valid Clerk token
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token format"
+                )
             
-            # If not a Clerk token, try production verification
-            return self._verify_token_production(token)
-            
+        except jwt.DecodeError:
+            # Token is not a valid JWT
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token format"
+            )
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as e:
             logger.debug(f"Development token verification failed: {e}")
-            # Return a default development user
-            return {
-                "sub": "dev-user-id",
-                "email": "dev@example.com",
-                "name": "Development User",
-                "iss": "clerk-dev"
-            }
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token verification failed"
+            )
     
     def _verify_token_production(self, token: str) -> Dict[str, Any]:
         """Production token verification with full signature validation"""
@@ -187,6 +227,13 @@ class ClerkTokenVerifier:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token"
+            )
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to fetch JWKS for token verification: {e}")
+            # In production, if JWKS is unavailable, we can't verify tokens
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service temporarily unavailable"
             )
         except Exception as e:
             logger.error(f"Token verification failed: {e}")

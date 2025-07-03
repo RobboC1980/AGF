@@ -29,66 +29,25 @@ if supabase_url and supabase_key:
 
 security = HTTPBearer(auto_error=False)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Authentication dependency with Supabase JWT validation for analytics endpoints"""
-    
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+# Import unified auth
+try:
+    from ..auth.unified_auth import get_current_user, UnifiedUser
+except ImportError:
+    from auth.unified_auth import get_current_user, UnifiedUser
+
+async def get_current_user_analytics(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Authentication dependency using unified auth for analytics endpoints"""
     try:
-        # Try Clerk JWT validation first
-        try:
-            token = credentials.credentials
-            
-            # Try to decode as Clerk JWT (RS256)
-            try:
-                import jwt
-                
-                # For development, skip signature verification
-                payload = jwt.decode(token, options={"verify_signature": False})
-                
-                if payload.get("iss") and "clerk" in payload.get("iss", "").lower():
-                    # This is a Clerk token, create a user from it
-                    user_id = payload.get("sub")
-                    email = payload.get("email", "clerk-user@example.com")
-                    name = payload.get("name", payload.get("email", "Clerk User"))
-                    
-                    return {
-                        "id": user_id,
-                        "email": email,
-                        "name": name
-                    }
-            except Exception:
-                pass
-        except Exception:
-            pass
+        # Use the unified authentication system
+        unified_user = await get_current_user(credentials)
         
-        if not supabase_client:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database not available"
-            )
+        # Convert to dict format for compatibility with existing analytics code
+        return {
+            "id": unified_user.id,
+            "email": unified_user.email,
+            "name": unified_user.name
+        }
         
-        # Verify JWT token with Supabase
-        user_response = supabase_client.auth.get_user(credentials.credentials)
-        if not user_response or not user_response.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials"
-            )
-        
-        user_id = user_response.user.id
-        
-        # Get user from database
-        result = supabase_client.table("users").select("*").eq("id", user_id).execute()
-        if not result.data:
-            raise HTTPException(status_code=401, detail="Authentication required")
-        
-        return result.data[0]
     except HTTPException:
         raise
     except Exception as e:
@@ -114,7 +73,7 @@ analytics_router = APIRouter(prefix="/analytics", tags=["Analytics"])
 async def get_analytics_dashboard(
     project_id: str,
     days: int = Query(30, ge=1, le=365),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_analytics)
 ):
     """Get analytics dashboard with caching"""
     try:
@@ -149,7 +108,7 @@ async def get_analytics_dashboard(
 async def generate_insights_async(
     project_id: str,
     analysis_type: str = "comprehensive",
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_analytics)
 ):
     """Generate analytics insights asynchronously"""
     try:
@@ -182,7 +141,7 @@ async def generate_insights_async(
 async def get_project_velocity(
     project_id: str,
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get project velocity metrics"""
@@ -209,7 +168,7 @@ async def get_project_velocity(
 async def get_project_burndown(
     project_id: str,
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get project burndown chart data"""
@@ -236,7 +195,7 @@ async def get_project_burndown(
 async def get_team_performance(
     project_id: str,
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get team performance metrics for a project"""
@@ -263,7 +222,7 @@ async def get_team_performance(
 async def get_quality_metrics(
     project_id: str,
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get quality metrics for a project"""
@@ -290,7 +249,7 @@ async def get_quality_metrics(
 async def get_project_insights(
     project_id: str,
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get AI-powered project insights"""
@@ -336,7 +295,7 @@ async def get_project_insights(
 async def get_team_analytics(
     team_id: Optional[str] = Query(None, description="Team ID to filter by"),
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get team-wide analytics across all projects"""
@@ -358,7 +317,7 @@ async def export_analytics_data(
     project_id: str,
     format: str = Query("json", description="Export format: json or csv"),
     days: int = Query(30, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Export analytics data in various formats"""
@@ -378,7 +337,7 @@ async def export_analytics_data(
 
 @analytics_router.get("/metrics/summary")
 async def get_metrics_summary(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get high-level metrics summary across all projects"""
@@ -409,7 +368,7 @@ async def get_metrics_summary(
 @analytics_router.get("/trends/velocity")
 async def get_velocity_trends(
     days: int = Query(90, description="Number of days to analyze"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Get velocity trends across all projects"""
@@ -435,7 +394,7 @@ async def get_velocity_trends(
 
 @analytics_router.get("/health")
 async def analytics_health_check(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_analytics)
 ):
     """Health check for analytics service"""
     try:
@@ -461,7 +420,7 @@ async def analytics_health_check(
 @analytics_router.post("/refresh/{project_id}")
 async def refresh_project_analytics(
     project_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_analytics),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """Manually refresh analytics data for a project"""
@@ -482,7 +441,7 @@ async def refresh_project_analytics(
 
 @analytics_router.get("/overview")
 async def get_analytics_overview(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_analytics)
 ):
     """Get analytics overview with real data"""
     try:

@@ -17,6 +17,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from backend.api.ai_endpoints import router as ai_router
     from backend.api.ai_analysis import router as ai_analysis_router
+    from backend.api.ai_kanban_endpoints import router as ai_kanban_router
+    from backend.api.ai_sprint_endpoints import router as ai_sprint_router
+    from backend.api.ai_analytics_endpoints import router as ai_analytics_router
     from backend.api.stories import router as stories_router
     from backend.api.auth import router as auth_router
     from backend.api.projects import router as projects_router
@@ -130,8 +133,8 @@ logger = structlog.get_logger(__name__)
 async def get_current_user_optional(request):
     """Get current user if authenticated, otherwise return None"""
     try:
-        from backend.auth.enhanced_auth import get_current_user
-        return await get_current_user(request)
+        from backend.auth.unified_auth import get_current_user_optional as get_optional_user
+        return await get_optional_user(request)
     except:
         return None
 
