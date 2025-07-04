@@ -13,10 +13,10 @@ import logging
 
 try:
     from ..database.supabase_client import get_supabase
-    from ..auth.dependencies import get_current_user
+    from ..auth.dependencies import get_current_user_clerk, UserResponse
 except ImportError:
     from database.supabase_client import get_supabase
-    from auth.dependencies import get_current_user
+    from auth.dependencies import get_current_user_clerk, UserResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/users", tags=["User Permissions"])
@@ -37,15 +37,15 @@ class TeamMembershipResponse(BaseModel):
 @router.get("/{user_id}/project-access")
 async def get_user_project_access(
     user_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Get user's project access permissions"""
     try:
         # Only allow users to see their own access or admins to see any
-        if current_user["user_id"] != user_id:
+        if current_user.id != user_id:
             # Check if current user is admin
             supabase = get_supabase()
-            user_result = supabase.table("users").select("role").eq("id", current_user["user_id"]).execute()
+            user_result = supabase.table("users").select("role").eq("id", current_user.id).execute()
             if not user_result.data or user_result.data[0].get("role") != "admin":
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -84,15 +84,15 @@ async def get_user_project_access(
 @router.get("/{user_id}/team-memberships")
 async def get_user_team_memberships(
     user_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Get user's team memberships"""
     try:
         # Only allow users to see their own memberships or admins to see any
-        if current_user["user_id"] != user_id:
+        if current_user.id != user_id:
             # Check if current user is admin
             supabase = get_supabase()
-            user_result = supabase.table("users").select("role").eq("id", current_user["user_id"]).execute()
+            user_result = supabase.table("users").select("role").eq("id", current_user.id).execute()
             if not user_result.data or user_result.data[0].get("role") != "admin":
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -127,15 +127,15 @@ async def get_user_team_memberships(
 @router.get("/{user_id}/permissions")
 async def get_user_permissions(
     user_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Get comprehensive user permissions including role, project access, and team memberships"""
     try:
         # Only allow users to see their own permissions or admins to see any
-        if current_user["user_id"] != user_id:
+        if current_user.id != user_id:
             # Check if current user is admin
             supabase = get_supabase()
-            user_result = supabase.table("users").select("role").eq("id", current_user["user_id"]).execute()
+            user_result = supabase.table("users").select("role").eq("id", current_user.id).execute()
             if not user_result.data or user_result.data[0].get("role") != "admin":
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -202,15 +202,15 @@ async def get_user_permissions(
 @router.get("/{user_id}/accessible-projects")
 async def get_user_accessible_projects(
     user_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user_clerk)
 ):
     """Get all projects the user can access (owns, assigned to, or admin)"""
     try:
         # Only allow users to see their own accessible projects or admins to see any
-        if current_user["user_id"] != user_id:
+        if current_user.id != user_id:
             # Check if current user is admin
             supabase = get_supabase()
-            user_result = supabase.table("users").select("role").eq("id", current_user["user_id"]).execute()
+            user_result = supabase.table("users").select("role").eq("id", current_user.id).execute()
             if not user_result.data or user_result.data[0].get("role") != "admin":
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

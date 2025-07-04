@@ -84,7 +84,6 @@ instrument_fastapi_app = import_with_fallback('middleware.observability', 'instr
 
 SecurityMiddleware = import_with_fallback('middleware.security', 'SecurityMiddleware', 'Security middleware')
 RateLimitMiddleware = import_with_fallback('middleware.security', 'RateLimitMiddleware', 'Rate limiting')
-get_jwt_manager = import_with_fallback('middleware.security', 'get_jwt_manager', 'JWT manager')
 
 # Monitoring imports
 health_router = import_with_fallback('services.monitoring', 'health_router', 'Health router')

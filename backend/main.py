@@ -43,7 +43,7 @@ try:
         ObservabilityMiddleware, setup_telemetry, instrument_fastapi_app
     )
     from backend.middleware.security import (
-        SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
+        SecurityMiddleware, RateLimitMiddleware
     )
     from backend.services.monitoring import health_router, get_system_monitor
     # Phase 3 imports - Security and Backup
@@ -82,7 +82,7 @@ except ImportError as e:
                 ObservabilityMiddleware, setup_telemetry, instrument_fastapi_app
             )
             from middleware.security import (
-                SecurityMiddleware, RateLimitMiddleware, get_jwt_manager
+                SecurityMiddleware, RateLimitMiddleware
             )
             from services.monitoring import health_router, get_system_monitor
             # Phase 3 imports - Security and Backup

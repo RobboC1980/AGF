@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 import logging
+import os
 
 try:
     from .clerk_auth import extract_user_from_token, verify_clerk_token
@@ -77,6 +78,19 @@ async def get_current_user_clerk(
     try:
         token = credentials.credentials
         
+        # Special handling for development mode
+        if os.getenv("ENVIRONMENT") == "development" and token == "dev-token":
+            return UserResponse(
+                id="dev-user-123",
+                email="dev@example.com",
+                name="Development User",
+                first_name="Dev",
+                last_name="User",
+                clerk_user_id="dev-user-123",
+                verified_email=True,
+                is_active=True
+            )
+        
         # Verify token and extract user information
         user_data = extract_user_from_token(token)
         
@@ -124,8 +138,10 @@ async def get_current_active_user(
         )
     return current_user
 
-# Legacy compatibility aliases
+# MAIN AUTHENTICATION DEPENDENCY - Use this for all protected endpoints
 get_current_user = get_current_user_clerk
+
+# Legacy compatibility aliases for existing code
 get_current_user_supabase = get_current_user_clerk  # For backward compatibility
 
 # User class for legacy compatibility
@@ -134,4 +150,35 @@ class User:
     def __init__(self, id: str, email: str, name: str):
         self.id = id
         self.email = email
-        self.name = name 
+        self.name = name
+        self.is_active = True
+
+def dict_to_user_response(user_dict: Dict[str, Any]) -> UserResponse:
+    """Convert dictionary to UserResponse for backward compatibility"""
+    return UserResponse(
+        id=user_dict.get("id", ""),
+        email=user_dict.get("email", ""),
+        name=user_dict.get("name", ""),
+        first_name=user_dict.get("first_name"),
+        last_name=user_dict.get("last_name"),
+        image_url=user_dict.get("image_url"),
+        clerk_user_id=user_dict.get("clerk_user_id"),
+        verified_email=user_dict.get("verified_email", False),
+        created_at=user_dict.get("created_at"),
+        is_active=user_dict.get("is_active", True)
+    )
+
+def user_response_to_dict(user: UserResponse) -> Dict[str, Any]:
+    """Convert UserResponse to dictionary for backward compatibility"""
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "image_url": user.image_url,
+        "clerk_user_id": user.clerk_user_id,
+        "verified_email": user.verified_email,
+        "created_at": user.created_at,
+        "is_active": user.is_active
+    } 
