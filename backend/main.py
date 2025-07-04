@@ -177,7 +177,17 @@ async def lifespan(app: FastAPI):
         # Initialize Backup Manager
         if BackupManager:
             try:
-                backup_manager = BackupManager(supabase)
+                backup_config = {
+                    "backup_root": os.getenv("BACKUP_ROOT", "/tmp/backups"),
+                    "s3_bucket": os.getenv("BACKUP_S3_BUCKET"),
+                    "encryption_key": os.getenv("BACKUP_ENCRYPTION_KEY"),
+                    "retention_policy": {
+                        "daily": int(os.getenv("BACKUP_RETENTION_DAILY", "7")),
+                        "weekly": int(os.getenv("BACKUP_RETENTION_WEEKLY", "4")),
+                        "monthly": int(os.getenv("BACKUP_RETENTION_MONTHLY", "12"))
+                    }
+                }
+                backup_manager = BackupManager(backup_config)
                 logger.info("Backup manager initialized successfully")
             except Exception as backup_error:
                 logger.error("Backup manager initialization failed", error=str(backup_error))
@@ -553,7 +563,8 @@ if __name__ == "__main__":
     import uvicorn
     import time
     
-    port = int(os.getenv("PORT", 8000))
+    # Use BACKEND_PORT for the backend server, fallback to 8000
+    port = int(os.getenv("BACKEND_PORT", 8000))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

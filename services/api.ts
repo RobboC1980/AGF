@@ -102,38 +102,32 @@ class ApiClient {
   // Get Clerk token if available
   private async getClerkToken(): Promise<string | null> {
     try {
-      // Check if we're in a browser environment and Clerk is available
-      if (typeof window !== 'undefined' && window.__clerk) {
-        const clerk = window.__clerk
-        if (clerk.session) {
-          return await clerk.session.getToken()
-        }
-      }
+      // This will be set by the calling component using useAuth hook
+      // The token should be passed to the API client when making requests
+      return null
     } catch (error) {
       console.warn('Failed to get Clerk token:', error)
     }
     return null
   }
 
-  // Make authenticated request
+  // Make authenticated request with optional token parameter
   async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    token?: string | null
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
-    // Try to get Clerk token first, then fall back to stored token
-    let token = await this.getClerkToken()
-    if (!token) {
-      token = this.authToken
-    }
+    // Use provided token first, then fall back to stored token
+    let authToken = token || this.authToken
     
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(authToken && { Authorization: `Bearer ${authToken}` }),
       },
     }
 
@@ -188,40 +182,38 @@ class ApiClient {
     }
   }
 
-  // GET request
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' })
+  // GET request with optional token
+  async get<T>(endpoint: string, token?: string | null): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' }, token)
   }
 
-  // Removed development fallback - production authentication required
-
-  // POST request
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  // POST request with optional token
+  async post<T>(endpoint: string, data?: any, token?: string | null): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
-    })
+    }, token)
   }
 
-  // PUT request
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  // PUT request with optional token
+  async put<T>(endpoint: string, data?: any, token?: string | null): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
-    })
+    }, token)
   }
 
-  // DELETE request
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' })
+  // DELETE request with optional token
+  async delete<T>(endpoint: string, token?: string | null): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' }, token)
   }
 
-  // PATCH request
-  async patch<T>(endpoint: string, data?: any): Promise<T> {
+  // PATCH request with optional token
+  async patch<T>(endpoint: string, data?: any, token?: string | null): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
-    })
+    }, token)
   }
 
   // Authentication API

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import { useAuth, useUser } from '@clerk/nextjs'
+import { useCallback } from 'react'
 
 // Helper hook to set up API with Clerk auth
 function useApiWithAuth() {
@@ -499,4 +500,169 @@ export const useProjectData = () => {
     refetchUsers: usersQuery.refetch,
     refetchAnalytics: analyticsQuery.refetch,
   }
+}
+
+/**
+ * Custom hook that provides an authenticated API client using Clerk
+ * This hook automatically passes the Clerk JWT token to all API requests
+ */
+export function useApi() {
+  const { getToken } = useAuth()
+
+  // Create authenticated API methods
+  const authenticatedApi = {
+    // GET request with Clerk token
+    get: useCallback(async <T>(endpoint: string): Promise<T> => {
+      const token = await getToken()
+      return api.get<T>(endpoint, token)
+    }, [getToken]),
+
+    // POST request with Clerk token
+    post: useCallback(async <T>(endpoint: string, data?: any): Promise<T> => {
+      const token = await getToken()
+      return api.post<T>(endpoint, data, token)
+    }, [getToken]),
+
+    // PUT request with Clerk token
+    put: useCallback(async <T>(endpoint: string, data?: any): Promise<T> => {
+      const token = await getToken()
+      return api.put<T>(endpoint, data, token)
+    }, [getToken]),
+
+    // DELETE request with Clerk token
+    delete: useCallback(async <T>(endpoint: string): Promise<T> => {
+      const token = await getToken()
+      return api.delete<T>(endpoint, token)
+    }, [getToken]),
+
+    // PATCH request with Clerk token
+    patch: useCallback(async <T>(endpoint: string, data?: any): Promise<T> => {
+      const token = await getToken()
+      return api.patch<T>(endpoint, data, token)
+    }, [getToken]),
+
+    // Convenience methods for common operations
+    stories: {
+      getAll: useCallback(async () => {
+        const token = await getToken()
+        return api.get('/api/stories', token)
+      }, [getToken]),
+
+      getById: useCallback(async (id: string) => {
+        const token = await getToken()
+        return api.get(`/api/stories/${id}`, token)
+      }, [getToken]),
+
+      create: useCallback(async (story: any) => {
+        const token = await getToken()
+        return api.post('/api/stories', story, token)
+      }, [getToken]),
+
+      update: useCallback(async (id: string, story: any) => {
+        const token = await getToken()
+        return api.put(`/api/stories/${id}`, story, token)
+      }, [getToken]),
+
+      delete: useCallback(async (id: string) => {
+        const token = await getToken()
+        return api.delete(`/api/stories/${id}`, token)
+      }, [getToken]),
+    },
+
+    projects: {
+      getAll: useCallback(async () => {
+        const token = await getToken()
+        return api.get('/api/projects', token)
+      }, [getToken]),
+
+      getById: useCallback(async (id: string) => {
+        const token = await getToken()
+        return api.get(`/api/projects/${id}`, token)
+      }, [getToken]),
+
+      create: useCallback(async (project: any) => {
+        const token = await getToken()
+        return api.post('/api/projects', project, token)
+      }, [getToken]),
+
+      update: useCallback(async (id: string, project: any) => {
+        const token = await getToken()
+        return api.put(`/api/projects/${id}`, project, token)
+      }, [getToken]),
+
+      delete: useCallback(async (id: string) => {
+        const token = await getToken()
+        return api.delete(`/api/projects/${id}`, token)
+      }, [getToken]),
+    },
+
+    users: {
+      getAll: useCallback(async () => {
+        const token = await getToken()
+        return api.get('/api/users', token)
+      }, [getToken]),
+
+      getCurrentUser: useCallback(async () => {
+        const token = await getToken()
+        return api.get('/api/users/me', token)
+      }, [getToken]),
+    },
+
+    epics: {
+      getAll: useCallback(async () => {
+        const token = await getToken()
+        return api.get('/api/epics', token)
+      }, [getToken]),
+
+      getById: useCallback(async (id: string) => {
+        const token = await getToken()
+        return api.get(`/api/epics/${id}`, token)
+      }, [getToken]),
+
+      create: useCallback(async (epic: any) => {
+        const token = await getToken()
+        return api.post('/api/epics', epic, token)
+      }, [getToken]),
+
+      update: useCallback(async (id: string, epic: any) => {
+        const token = await getToken()
+        return api.put(`/api/epics/${id}`, epic, token)
+      }, [getToken]),
+
+      delete: useCallback(async (id: string) => {
+        const token = await getToken()
+        return api.delete(`/api/epics/${id}`, token)
+      }, [getToken]),
+    },
+
+    // AI services
+    ai: {
+      generateStory: useCallback(async (request: any) => {
+        const token = await getToken()
+        return api.post('/api/ai/generate-story', request, token)
+      }, [getToken]),
+
+      generateEpic: useCallback(async (request: any) => {
+        const token = await getToken()
+        return api.post('/api/ai/generate-epic', request, token)
+      }, [getToken]),
+
+      generateTasks: useCallback(async (request: any) => {
+        const token = await getToken()
+        return api.post('/api/ai/generate-tasks', request, token)
+      }, [getToken]),
+
+      generateProject: useCallback(async (request: any) => {
+        const token = await getToken()
+        return api.post('/api/ai/generate-project', request, token)
+      }, [getToken]),
+    },
+
+    // Health check (doesn't require authentication)
+    healthCheck: useCallback(async () => {
+      return api.get('/health')
+    }, []),
+  }
+
+  return authenticatedApi
 } 

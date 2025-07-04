@@ -229,9 +229,5 @@ def with_database_circuit_breaker(func):
             )
     return wrapper
 
-# Global instances
-jwt_manager = JWTRefreshManager()
-
-def get_jwt_manager() -> JWTRefreshManager:
-    """Get JWT refresh manager instance"""
-    return jwt_manager 
+# Note: JWT refresh functionality removed to prevent conflicts with Clerk authentication
+# All JWT token management is now handled by the Clerk authentication system 
